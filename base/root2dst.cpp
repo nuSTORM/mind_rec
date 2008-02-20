@@ -16,10 +16,10 @@ root2dst::root2dst(bhep::prlevel vlevel){
 
 
 //*************************************************************
-bool root2dst::initialize(const bhep::sstore& run_store) {
+bool root2dst::initialize() {
 //*************************************************************
     
-    m.message("+++ root2dst init  function ++++",bhep::NORMAL);
+  m.message("+++ root2dst init  function ++++",bhep::NORMAL);
         
     nevt=0;
 
@@ -28,7 +28,7 @@ bool root2dst::initialize(const bhep::sstore& run_store) {
 
 
 //*************************************************************
-bool root2dst::execute(bhep::event& event){
+bool root2dst::execute(){
 //*************************************************************
     
   /*

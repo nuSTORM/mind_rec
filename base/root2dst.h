@@ -2,6 +2,8 @@
 #ifndef _root_dst___
 #define _root_dst___
 
+#include <bhep/event.h>
+#include <bhep/messenger.h>
 
 //! root2dst Class
 /*!
@@ -12,7 +14,7 @@ class root2dst{
 
  public:
   
-  root2dst(){};
+  root2dst(bhep::prlevel);
 
   ~root2dst(){};
   

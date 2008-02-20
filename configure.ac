@@ -50,7 +50,7 @@ AC_TYPE_SIZE_T
 
 AC_SUBST(CXXFLAGS)
 
-CXXFLAGS="-g -Wall $(recpack-config --include) $(clhep-config --include) $(bhep-config --include) -I$(root-config --incdir) 
+CXXFLAGS="-g -Wall $(recpack-config --include) $(clhep-config --include) $(bhep-config --include) -I$(root-config --incdir)" 
 
 AC_CHECK_HEADERS([zlib.h])
 AC_CHECK_HEADERS([particle.h])

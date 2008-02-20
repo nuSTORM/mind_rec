@@ -7,7 +7,7 @@ int main(int argc, char* argv[]){
 
     if (argc==2) nevents = atoi(argv[1]);
   
-    bhep::prlevel c = bhep::VERBOSE;
+    bhep::prlevel c = bhep::NORMAL;
     
     root2dst* cvt = new root2dst(c);
     

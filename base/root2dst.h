@@ -3,7 +3,17 @@
 #define _root_dst___
 
 #include <bhep/event.h>
+#include <bhep/particle.h>
 #include <bhep/messenger.h>
+#include <bhep/bhep_svc.h>
+#include <bhep/ray.h>
+#include <bhep/hit.h>
+
+#include <TTree.h>
+#include <Riostream.h>
+#include <sstream>
+
+using namespace bhep;
 
 //! root2dst Class
 /*!
@@ -11,19 +21,45 @@
 */
 
 class root2dst{
-
- public:
+  
+public:
   
   root2dst(bhep::prlevel);
-
+  
   ~root2dst(){};
   
-  bool initialize();
+  bool initialize(TTree *InPutTree, Char_t *OutFileName);
   bool execute();
   bool finalize();
 
-protected:
+  //Function to get names of Branches of interest
+  void fillBranchVector();
 
+  //Functions to create bHEP object from the ntuple
+  event* createEvent();
+  void make_particles();
+  particle* define_lead_particle();
+  void append_hits(particle *par);
+
+  //Handy int/float to string converters.
+  TString ToString(Int_t num){
+    ostringstream start;
+    start<<num;
+    TString start1=start.str();
+    return start1;
+    
+  }
+  
+ TString ToString(Float_t num){
+    ostringstream start;
+    start<<num;
+    TString start1=start.str();
+    return start1;
+    
+  }
+  
+protected:
+  
   //verbosity level
   bhep::prlevel level;
   
@@ -32,6 +68,20 @@ protected:
   
   //event counter
   size_t nevt;
+  
+private:
+
+  //the Event
+  event *nuEvent;
+
+  //file to write dst to.
+  writer_gz outgz;
+
+  //Root tree to be read.
+  TTree *dataIn;
+
+  //Vector of Branch Names.
+  vector<TString> branches;
 
 };
 

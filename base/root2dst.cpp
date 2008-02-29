@@ -34,7 +34,6 @@ bool root2dst::initialize(TTree *InPutTree, Char_t *OutFileName) {
   fillBranchVector();
 
   nevt=0;
-  nuEvent = NULL;
   
   return true;
 }
@@ -50,13 +49,15 @@ bool root2dst::execute(){
   
   m.message("+++ root2dst execute function ++++",bhep::VERBOSE);
 
-  nuEvent = createEvent();
+  event* nuEvent = createEvent();
 
-  make_particles();
-  cout << "Back in Execute Function" << endl;
+  make_particles(nuEvent);
+  
   outgz.write(*nuEvent, nevt);
-  cout <<"Event written to file" <<endl;
+  
   nevt++;
+
+  delete nuEvent;
  
   return true;  
 
@@ -69,8 +70,6 @@ bool root2dst::finalize() {
 //*************************************************************
   
   outgz.close();
-
-  delete nuEvent;
 
   m.message("+++ root2dst finalize function ++++",bhep::NORMAL);
     
@@ -163,7 +162,7 @@ event* root2dst::createEvent() {
 }
 
 //***************************************************************
-void root2dst::make_particles() {
+void root2dst::make_particles(event* nuEvent) {
 //***************************************************************
 
 /* Function to add relevant particles to event */
@@ -185,7 +184,7 @@ particle* root2dst::define_lead_particle() {
 
 /* Function to define the properties of the lead particle from
    the event. e.g. the mu- from a numucc interaction */
-  cout << "Defining Lead Particle" << endl;
+  
   Int_t ID;
   Float_t vectors[2][3];
   
@@ -228,27 +227,22 @@ void root2dst::append_hits(particle *par) {
 
 /* Add vector of hit locations associated with particle par */
 
-  Int_t Nhit;
   const Int_t maxHits = 400;
 
-  dataIn->SetBranchStatus(branches[46], 1);
-  dataIn->SetBranchAddress(branches[46], &Nhit);
-
-  dataIn->GetEntry((Int_t)nevt);
-  dataIn->SetBranchStatus(branches[46], 0);
-
+  Int_t Nhits;
   Float_t hitVec[3][maxHits];
 
-  for (Int_t iBran = 47;iBran < 50;iBran++){
+  for (Int_t iBran = 0;iBran < 4;iBran++){
     
-    dataIn->SetBranchStatus(branches[iBran], 1);
-    dataIn->SetBranchAddress(branches[iBran], &hitVec[iBran]);
+    dataIn->SetBranchStatus(branches[iBran+46], 1);
+    if (iBran==0) dataIn->SetBranchAddress(branches[iBran+46], &Nhits);
+    else dataIn->SetBranchAddress(branches[iBran+46], &hitVec[iBran-1]);
 
   }
 
   dataIn->GetEntry((Int_t)nevt);
-
-  for (Int_t iHit = 0;iHit < Nhit;iHit++){
+  
+  for (Int_t iHit = 0;iHit < Nhits;iHit++){
 
     Point3D hitPos(hitVec[0][iHit], hitVec[1][iHit], hitVec[2][iHit]);
 
@@ -256,7 +250,7 @@ void root2dst::append_hits(particle *par) {
     xyz->set_point(hitPos);
 
     par->add_hit("MIND", xyz);
-
   }
 
+  dataIn->SetBranchStatus("*", 0);
 }

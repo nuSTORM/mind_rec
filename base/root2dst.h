@@ -37,7 +37,7 @@ public:
 
   //Functions to create bHEP object from the ntuple
   event* createEvent();
-  void make_particles();
+  void make_particles(event* nuEvent);
   particle* define_lead_particle();
   void append_hits(particle *par);
 
@@ -70,9 +70,6 @@ protected:
   size_t nevt;
   
 private:
-
-  //the Event
-  event *nuEvent;
 
   //file to write dst to.
   writer_gz outgz;

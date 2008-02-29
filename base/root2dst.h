@@ -36,10 +36,11 @@ public:
   void fillBranchVector();
 
   //Functions to create bHEP object from the ntuple
-  event* createEvent();
-  void make_particles(event* nuEvent);
+  void createEvent();
+  void make_particles();
   particle* define_lead_particle();
   void append_hits(particle *par);
+  particle* define_hadron();
 
   //Handy int/float to string converters.
   TString ToString(Int_t num){
@@ -70,6 +71,9 @@ protected:
   size_t nevt;
   
 private:
+
+  //The Event
+  event *nuEvent;
 
   //file to write dst to.
   writer_gz outgz;

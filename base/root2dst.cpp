@@ -229,13 +229,15 @@ void root2dst::append_hits(particle *par) {
 /* Add vector of hit locations associated with particle par */
 
   Int_t Nhit;
+  const Int_t maxHits = 400;
 
   dataIn->SetBranchStatus(branches[46], 1);
   dataIn->SetBranchAddress(branches[46], &Nhit);
 
   dataIn->GetEntry((Int_t)nevt);
+  dataIn->SetBranchStatus(branches[46], 0);
 
-  Float_t hitVec[3][(const Int_t)Nhit];
+  Float_t hitVec[3][maxHits];
 
   for (Int_t iBran = 47;iBran < 50;iBran++){
     

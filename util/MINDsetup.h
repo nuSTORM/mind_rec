@@ -3,7 +3,7 @@
 #define _mind_setup___
 
 #include <recpack/RecpackManager.h>
-#include <nemora/NSetupSk.h>
+#include <mind/NSetupSk.h>
 //#include <string.h>
 
 using namespace Recpack;

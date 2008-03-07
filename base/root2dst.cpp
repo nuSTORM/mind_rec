@@ -23,12 +23,12 @@ root2dst::root2dst(bhep::prlevel vlevel){
 
 
 //*************************************************************
-bool root2dst::initialize(TTree *InPutTree, Char_t *OutFileName) {
+bool root2dst::initialize(TTree *InPutTree, TString OutFileName) {
 //*************************************************************
     
   m.message("+++ root2dst init  function ++++",bhep::NORMAL);
   
-  outgz.open(OutFileName);
+  outgz.open((string)OutFileName);
 
   dataIn = InPutTree;
   dataIn->SetBranchStatus("*",0);
@@ -56,6 +56,8 @@ bool root2dst::execute(){
   make_particles();
   
   outgz.write(*nuEvent, nevt);
+
+  cout << *nuEvent << endl;
   
   nevt++;
  
@@ -70,8 +72,8 @@ bool root2dst::finalize() {
 //*************************************************************
   
   outgz.close();
-  delete nuEvent;
   delete dataIn;
+  delete nuEvent;
 
   m.message("+++ root2dst finalize function ++++",bhep::NORMAL);
     
@@ -95,7 +97,7 @@ void root2dst::fillBranchVector() {
   Int_t count = 0;
 
   ifstream branchIn;
-  branchIn.open("Branches.txt");
+  branchIn.open("/home/alaing/mind/examples/Branches.txt");
 
   while (branchIn.good()){
 
@@ -158,7 +160,6 @@ void root2dst::createEvent() {
   dataIn->SetBranchStatus("*", 0);
 
   cout <<"Event Defined" << endl;
-
 }
 
 //***************************************************************
@@ -203,8 +204,8 @@ particle* root2dst::define_lead_particle() {
   dataIn->GetEntry((Int_t)nevt);
   
   Point3D pos = nuEvent->vertex();
-
-  Vector3D mom(moment[3], moment[2], moment[1]);
+  //multiply by 1000 because ntuple in GeV and DST expects MeV.
+  Vector3D mom(moment[3]*1000, moment[2]*1000, moment[1]*1000);
   
   ray *leadstart = new ray(pos, mom);
   
@@ -244,7 +245,7 @@ particle* root2dst::define_hadron() {
   
   Point3D pos = nuEvent->vertex();
   
-  Vector3D mom(moment[0], moment[1], moment[2]);
+  Vector3D mom(moment[0]*1000, moment[1]*1000, moment[2]*1000);
   
   ray *hadstart = new ray(pos, mom);
   

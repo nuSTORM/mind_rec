@@ -5,6 +5,7 @@
 #include <bhep/event.h>
 #include <bhep/particle.h>
 #include <bhep/messenger.h>
+#include <bhep/bprint.h>
 #include <bhep/bhep_svc.h>
 #include <bhep/ray.h>
 #include <bhep/hit.h>
@@ -28,7 +29,7 @@ public:
   
   ~root2dst(){};
   
-  bool initialize(TTree *InPutTree, Char_t *OutFileName);
+  bool initialize(TTree *InPutTree, TString OutFileName);
   bool execute();
   bool finalize();
 

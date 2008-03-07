@@ -19,21 +19,22 @@ using namespace std;
 
 int main(int argc, char* argv[]){
     
-  if (argc<3){
+  if (argc<2){
     
-    cout << "execution requires 2 or 3 arguments." << endl;
-    cout << "Call with ./root_2_dst <InFile> <OutFile> " << endl;
+    cout << "Execution requires 1 or 2 arguments." << endl;
+    cout << "Call with ./root_2_dst <InFile> " << endl;
     cout << "and optional  <No. events of interest>" << endl;
 
     return -1;
   }
 
   Char_t *inFileName;
-  Char_t *outFileName;
   Int_t nEvents;
 
   inFileName = argv[1];
-  outFileName = argv[2];
+
+  TString outFileName = inFileName;
+  outFileName.Replace(outFileName.Length()-4, 4, "txt.gz");
 
   //Retreive Tree from file.
   TTree *Data = NULL;
@@ -42,10 +43,10 @@ int main(int argc, char* argv[]){
   In.GetObject("h10", Data);
 
   //Set number of events to be read.
-  if (argc==4) nEvents = atoi(argv[3]);
+  if (argc==3) nEvents = atoi(argv[2]);
   else nEvents = (Int_t)Data->GetEntries();
   
-  bhep::prlevel c = bhep::NORMAL;
+  bhep::prlevel c = bhep::VERBOSE;
     
   root2dst* cvt = new root2dst(c);
     

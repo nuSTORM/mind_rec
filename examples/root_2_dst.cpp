@@ -35,7 +35,7 @@ int main(int argc, char* argv[]){
   inFileName = argv[1];
 
   TString outFileName = inFileName;
-  outFileName.Replace(outFileName.Length()-4, 4, "txt.gz");
+  outFileName.Replace(outFileName.Length()-4, 4, "gz");
 
   //Retreive Tree from file.
   TTree *Data = NULL;
@@ -46,6 +46,12 @@ int main(int argc, char* argv[]){
   //Set number of events to be read.
   if (argc==3) nEvents = atoi(argv[2]);
   else nEvents = (Int_t)Data->GetEntries();
+
+  if (nEvents>(Int_t)Data->GetEntries()){
+    cout << "Input no. events greater than available in file.\n"
+	 << "Replacing with max entries" << endl;
+    nEvents = (Int_t)Data->GetEntries();
+  }
   
   bhep::prlevel c = bhep::VERBOSE;
     

@@ -3,7 +3,10 @@
 #define _mind_setup___
 
 #include <recpack/RecpackManager.h>
-#include <mind/NSetupSk.h>
+
+#include <mind/SetupSk.h>
+
+
 //#include <string.h>
 
 using namespace Recpack;
@@ -25,6 +28,7 @@ public:
   
   double getPlaneX(){return MIND_x;};
   double getPlaneY(){return MIND_y;};
+  double getPlaneZ(){return MIND_z;};
   EVector getXaxis(){return xaxis;};
   EVector getYaxis(){return yaxis;};
   EVector getZaxis(){return zaxis;};
@@ -33,6 +37,9 @@ public:
   EVector getResolution(){return resolution;} 
   EMatrix getCov(){return cov;};
   
+  double& getDeDx(){return de_dx;}
+  void setDeDx(double d){de_dx = d;}
+
 protected:
     
   void readParam();
@@ -76,6 +83,7 @@ protected:
   //------------------- PROPERTIES OF MATERIALS -----------------//
     
   double X0;
+  double de_dx;
   
   //-------------------------------------------------------------//
   

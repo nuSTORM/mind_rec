@@ -21,6 +21,8 @@ using namespace bhep;
   Converts ROOT tree into bhep DST file
 */
 
+#define MAXEVENTS 50000
+
 class root2dst{
   
 public:
@@ -40,8 +42,9 @@ public:
   void createEvent();
   void make_particles();
   particle* define_lead_particle();
-  void append_hits(particle *par);
+  vector<hit*> append_hits();
   particle* define_hadron();
+  particle* hits_to_fit();
 
   //Handy int/float to string converters.
   TString ToString(Int_t num){
@@ -74,7 +77,7 @@ protected:
 private:
 
   //The Event
-  event *nuEvent;
+  event *nuEvent[MAXEVENTS];
 
   //file to write dst to.
   writer_gz outgz;

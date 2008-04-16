@@ -31,6 +31,8 @@ bool fitter::initialize(const bhep::sstore& run_store) {
     m.message("+++ fitter init  function ++++",bhep::VERBOSE);
 
     // read parameters
+    count1 = 0;
+    count2 = 0;
 
     readParam();
 
@@ -117,10 +119,11 @@ bool fitter::execute(bhep::particle& part,bool tklen){
 
     bool ok; 
     bool fitted=false;
-      
+
     ok = readTrajectory(part);
-    
-    if (!userseed) computeSeed();
+
+    if (!ok) count1++;
+    if (!userseed && ok) computeSeed();
 
     if (ok) {
       
@@ -134,12 +137,12 @@ bool fitter::execute(bhep::particle& part,bool tklen){
       
       else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
 
-    } 
-
+    }
     else m.message("++ Particle contains less than 3 hits!",bhep::VERBOSE);
-    
+
     userseed=false;
-    
+    if (!fitted) count2++;
+    cout << "Current tally of fit fails: "<<count1<<" readTraj fails, "<<count2<<" fitting"<<endl;   
     return fitted;
 
 }
@@ -255,12 +258,14 @@ bool fitter::fitTrajectory(State seed) {
 	
         //--------- refit using a new seed --------//	
 	
-        EVector v = traj.state(0).vector();
+        EVector v = traj.state(traj.first_fitted_node()).vector();
+        EMatrix C0 = traj.state(traj.first_fitted_node()).matrix();
       
-        EMatrix C = setSeedCov(v,10);
-	
+        EMatrix C = setSeedCov(C0,100.);	
 	seedstate.set_hv(HyperVector(v,C)); 
 	
+	seedstate.keepDiagonalMatrix();
+
         ok = man().fitting_svc().fit(seedstate,traj);
 	
     }
@@ -315,28 +320,30 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
     const vector<bhep::hit*>& hits = p.hits("MIND"); 
         
     if (hits.size()==0) return false;
-
+    if (hits.size()>375) return false;
     //------------- loop over hits ------------//
     
     vector<string> vplanes;
  
     for(size_t j=0; j< hits.size(); j++){
 
-        bhep::hit& hit = *hits[j];
+      //if (j>200) break;
+      
+      bhep::hit& hit = *hits[j];
         	        
-        //---------- create measurament ---------------//
- 
-        Measurement* mnt = getMeasurement(hit);
-
-        //---------end of create measurement-----------//
-        
-        meas.push_back(mnt); 
-
-        m.message("Measurement added:",*mnt,bhep::VVERBOSE);
-            
+      //---------- create measurament ---------------//
+      
+      Measurement* mnt = getMeasurement(hit);
+      
+      //---------end of create measurement-----------//
+      
+      meas.push_back(mnt); 
+      
+      m.message("Measurement added:",*mnt,bhep::VVERBOSE);
+      
     }//end of loop over hits
     
-
+    
     //--------- add measurements to trajectory --------//
    
     t.add_measurements(meas);
@@ -380,7 +387,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     //---- generate a virtual plane to hold the hit ----//
     
     bhep::Point3D bhit_pos = hit.x(); 
-    EVector pos(3,0); pos[2] = fabs(bhit_pos[2]);
+    EVector pos(3,0); pos[2] = bhit_pos[2];
     
     EVector zaxis = geom.getZaxis();
     EVector xaxis = geom.getXaxis();
@@ -391,7 +398,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     
     const dict::Key surf_name = "VPLANE_"+bhep::to_string(pnumber);
     Surface* surf = new Rectangle(pos,zaxis,xaxis,height/2,width/2);
-    geom.setup().add_surface("mother",surf_name,surf);
+    geom.setup().add_surface("Detector",surf_name,surf);
     geom.setup().set_surface_property(surf_name,"measurement_type",meastype);
     geom.setup().set_surface_property(surf_name,"resolution",cov);
     m.message("++ Adding virtual plane: ",surf_name,bhep::VERBOSE);
@@ -409,6 +416,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     me->set_name(meastype);
     me->set_hv(HyperVector(hit_pos,cov));
     me->set_surface(geom.setup().surface(surf_name));
+    me->set_position(geom.setup().surface(surf_name).position());
       
     return me;
 
@@ -490,7 +498,7 @@ void fitter::computeSeed() {
     
     m.message("+++ computeSeed function ++++",bhep::VERBOSE);
     
-    //use position of first meas as seed 
+    //use position slightly offset from first meas as seed 
 
     EVector v(3,0); 
         
@@ -510,23 +518,60 @@ void fitter::setSeed(EVector r, double factor){
   
   m.message("+++ setSeed function ++++",bhep::VERBOSE);
   
+  /*
   EMatrix C(dim,dim,0);
   C = setSeedCov(r,factor);
     
-  double p = 2 * MeV;
-  double q = -1;
+  double p = 5 * GeV;
+  double q = 1;
   
   int sens = 1; // ????? 
   
   EVector u(3,0); u[0]=0.0; u[1]=0.0; u[2]=sens; u/=u.norm();
   EVector eu(3,0); eu[0]=C[3][3]; eu[1]=C[4][4];
   EVector er(3,0); er[0]=C[0][0]; er[1]=C[1][1]; er[2]=C[2][2]; 
-  double ep = 2 * MeV; // ???? total momentum error
+  double ep = 100 * GeV; // ???? total momentum error
   
   seedstate = ParticleState(r,u,p,q,er,eu,ep,model);
 
   seedstate.keepDiagonalMatrix();
- 
+  */
+
+  // take as seed the state vector
+  EVector v(7,0);
+  EMatrix C(7,7,0);
+
+  v[0]=r[0];
+  v[1]=r[1];
+  v[2]=r[2];
+  //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
+  double pSeed = (double)(0.060*meas.size())*GeV;
+  //double de_dx = 7.87*(0.013*(pSeed/GeV)+1.57)*MeV/cm;
+  //geom.setDeDx(de_dx);
+  //cout<<"pSeed = "<<pSeed<<", de_dx = "<<de_dx<<endl;
+  //Empirical formulae: de_dex=density*(approx relation).
+  //  geom.setup().set_volume_property("Detector","de_dx",de_dx);
+  m.message("reset energy loss to approx value",bhep::NORMAL);
+
+  v[5]=1;
+  v[6]=-1/pSeed;
+
+  // But use a larger covariance matrix
+  // diagonal covariance matrix
+  C[0][0] = C[1][1] = 100.*cm*cm;
+  C[2][2] = EGeo::zero_cov()/2;
+  C[3][3] = C[4][4] = 1.;
+  C[5][5] = 1;
+  C[6][6] = pow(v[6],2)*100;
+
+  seedstate.set_name(RP::particle_helix);
+  //  seed.set_name(RP::representation,RP::slopes_z);
+  seedstate.set_name(RP::representation,RP::default_rep);
+  seedstate.set_hv(HyperVector(v,C));
+
+
+
+
 }
 
 //*************************************************************
@@ -537,7 +582,7 @@ EMatrix fitter::setSeedCov(EVector v, double factor){
     
     EMatrix c(dim,dim,0);
 
-    double p=2*MeV; // ????
+    double p=5*GeV; // ????
   
     if (model.compare("particle/helix")==0){ 
 
@@ -546,10 +591,24 @@ EMatrix fitter::setSeedCov(EVector v, double factor){
       c[2][2] = EGeo::zero_cov()/2;//no error in z    
    
       c[3][3] = c[4][4] = 3/factor;     
-      c[5][5] = pow(1/p,2)/factor;   
+      //      c[6][6] = pow(1/p,2)/factor;   
+      c[6][6] = pow(1/p,2)*100/factor;   
       
     }
     
+
+    return c;
+}
+
+
+//*************************************************************
+EMatrix fitter::setSeedCov(EMatrix C0, double factor){
+//*************************************************************
+    
+    //--- a large diagonal covariance matrix ---//
+    
+  EMatrix c = factor*C0;
+
 
     return c;
 }

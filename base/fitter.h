@@ -33,7 +33,9 @@ public:
   //-------------------------------------------------// 
     
   const Trajectory& get_traj(){return traj;}
-  
+
+  Measurement* get_meas(int num){return meas[num];}
+
   double getChi2(){return traj.quality();}
   
   Measurement* getMeasurement(bhep::hit& hit);
@@ -73,6 +75,7 @@ protected:
  
   //seed error
   EMatrix setSeedCov(EVector,double factor=1.);
+  EMatrix setSeedCov(EMatrix C0, double factor);
  
   //fit trajectory
   bool fitTrajectory(State seed);
@@ -110,6 +113,9 @@ protected:
   bool userseed;
   
   bool refit;
+
+  int count1;
+  int count2;
 
   //------------------ Physics -----------------//
     

@@ -74,7 +74,7 @@ void MINDsetup::createGeom(){
     
   //----------- Create a mandatory mother volume ---------//
 
-  EVector pos(3,0); pos[2]=MOTHER_z/2;
+  EVector pos(3,0); pos[2]=0;
   
   Volume* mother = new Box(pos,xaxis,yaxis,
 			   MOTHER_x/2,MOTHER_y/2,MOTHER_z/2);
@@ -89,7 +89,7 @@ void MINDsetup::createGeom(){
 
   // Create detector volume
   
-  pos[2]=MIND_z/2;
+  pos[2]=0;
 
   const dict::Key vol_name = "Detector";
   
@@ -101,6 +101,8 @@ void MINDsetup::createGeom(){
 
   _gsetup.add_volume("mother",vol_name,det);
    
+
+  std::cout << _gsetup << std::endl;
 
 }
 
@@ -149,8 +151,11 @@ void MINDsetup::addProperties(){
   _gsetup.set_volume_property(vol_name,"BField",BField);
   _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
   
-  _gsetup.set_volume_property(vol_name,"X0",X0);
-  _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
+  // _gsetup.set_volume_property(vol_name,"X0",X0);
+//   _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
+
+//   _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
+//   _msetup.message("+++X0 added to MIND:",de_dx,bhep::VERBOSE);
   
  
 }
@@ -165,15 +170,15 @@ void MINDsetup::readParam(){
     bhep::prlevel c = bhep::VERBOSE;
     
 
-    MIND_x = 5000; 
+    MIND_x = 1400*cm; 
       
     _msetup.message("MIND height:",MIND_x/cm,"cm",c);
     
-    MIND_y = 5000; 
+    MIND_y = 1400*cm; 
       
     _msetup.message("MIND width:",MIND_y/cm,"cm",c);
     
-    MIND_z = 10000; 
+    MIND_z = 4000*cm; 
       
     _msetup.message("MIND length:",MIND_z/cm,"cm",c);
     
@@ -194,16 +199,17 @@ void MINDsetup::readParam(){
     //B_int=_pstore.fetch_dstore("B") * mm;
     //B_int=bhep::double_from_string(_store.fetch("GEOM_GG_CELL_diam"))*tesla;
     
-    B_int = 0.2 * tesla;
+    B_int = 1.0 * tesla;
       
     _msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
     
     // -------------------------------------------------------------//
-    //                       |  RADIATION LENGTH |                    //
+    //            |  RADIATION LENGTH AND ENERGY LOSS |             //
     // -------------------------------------------------------------//
     
-    //X0 = _pstore.fetch_dstore("x0") * mm;
-    X0 = 1e9 *mm;
+    X0 = _pstore.fetch_dstore("x0") * mm;
+    de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
+    //X0 = 1e9 *mm;
 
     _msetup.message("Radiation length:",X0/cm,"cm",c);
 
@@ -214,7 +220,7 @@ void MINDsetup::readParam(){
     meas_dim = 2;
     meastype = "xy";
     
-    resx = 1.;
-    resy = 1.;
+    resx = 10.*mm;
+    resy = 10.*mm;
     
 }

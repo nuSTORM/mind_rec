@@ -31,8 +31,12 @@ bool fitter::initialize(const bhep::sstore& run_store) {
     m.message("+++ fitter init  function ++++",bhep::VERBOSE);
 
     // read parameters
-    count1 = 0;
-    count2 = 0;
+    totFitAttempts = 0;
+    fitSucceed = 0;
+    toomany = 0;
+    toofew = 0;
+    kink = 0;
+    unkFail = 0;
 
     readParam();
 
@@ -56,9 +60,11 @@ bool fitter::initialize(const bhep::sstore& run_store) {
 
     // set maximum local chi2
  
-    (dynamic_cast<KalmanFitter*>
-     (&man().fitting_svc().fitter(kfitter,model)))->
+    man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
       set_max_local_chi2ndf(chi2node_max);
+
+    //    man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+    //      set_number_allowed_outliers(500);
 
      // create the experimental setup
         
@@ -119,10 +125,9 @@ bool fitter::execute(bhep::particle& part,bool tklen){
 
     bool ok; 
     bool fitted=false;
-
+    totFitAttempts++;
     ok = readTrajectory(part);
 
-    if (!ok) count1++;
     if (!userseed && ok) computeSeed();
 
     if (ok) {
@@ -136,13 +141,26 @@ bool fitter::execute(bhep::particle& part,bool tklen){
       if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
       
       else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
-
+      if (!fitted) {
+	int nFittedNodes = 0;
+	for (int inode=0;inode<(int)meas.size();inode++){
+	  if (traj.node(inode).status("fitted"))
+	    nFittedNodes++;
+	}
+	if (nFittedNodes < (int)meas.size())
+	  {  kink++; cout << "Traj. failed after kink found" << endl;
+	  cout << traj << endl; }
+	else { unkFail++; cout << "Unknown Fail" << endl;
+	cout << traj << endl; }
+	m.message("++Failed fit trajectory++",bhep::NORMAL);
+      }
     }
-    else m.message("++ Particle contains less than 3 hits!",bhep::VERBOSE);
+    else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
 
     userseed=false;
-    if (!fitted) count2++;
-    cout << "Current tally of fit fails: "<<count1<<" readTraj fails, "<<count2<<" fitting"<<endl;   
+
+    if (fitted) fitSucceed++;  
+
     return fitted;
 
 }
@@ -257,14 +275,22 @@ bool fitter::fitTrajectory(State seed) {
         m.message("Going to refit...",bhep::VERBOSE);
 	
         //--------- refit using a new seed --------//	
-	
-        EVector v = traj.state(traj.first_fitted_node()).vector();
-        EMatrix C0 = traj.state(traj.first_fitted_node()).matrix();
-      
-        EMatrix C = setSeedCov(C0,100.);	
+	State newstate = traj.state(traj.first_fitted_node());
+	man().model_svc().model(RP::particle_helix).representation()
+	  .convert(newstate, RP::slopes_z);
+
+	EVector v = newstate.vector();
+	EMatrix C0 = newstate.matrix();
+
+        EMatrix C = setSeedCov(C0,50.);
+
+	man().model_svc().model(RP::particle_helix).representation()
+	  .convert(seedstate, RP::slopes_z);
 	seedstate.set_hv(HyperVector(v,C)); 
-	
-	seedstate.keepDiagonalMatrix();
+
+	man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+	  .convert(seedstate,RP::default_rep);
+	//seedstate.keepDiagonalMatrix();
 
         ok = man().fitting_svc().fit(seedstate,traj);
 	
@@ -319,8 +345,8 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
     
     const vector<bhep::hit*>& hits = p.hits("MIND"); 
         
-    if (hits.size()==0) return false;
-    if (hits.size()>375) return false;
+    if (hits.size()==0) { toofew++; return false; }
+    if (hits.size()>395) { toomany++; return false; }
     //------------- loop over hits ------------//
     
     vector<string> vplanes;
@@ -350,7 +376,7 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
     
     m.message("Trajectory created:",t,bhep::VVERBOSE);
     
-    if (meas.size()<3) return false; //not enough dof
+    if (meas.size()<3) { toofew++; return false; } //not enough dof
     
     ////sort traj measurements
     //double z1=geom.setup().surface(vplanes[0]).position()[2];
@@ -487,8 +513,20 @@ double fitter::trackLength(const Trajectory& t) {
 //*************************************************************
 bool fitter::finalize() {
 //*************************************************************
+  
+  ofstream fitstats;
+  fitstats.open("MindFitStats.txt");
 
-    return true;
+  fitstats << "Type of fail \t No. Events" << endl
+	   << "Total Fits: \t" << totFitAttempts << endl
+	   << "Successes: \t"  << fitSucceed     << endl
+	   << "Too few hit: \t"<< toofew           << endl
+	   << "Too many: \t"   << toomany          << endl
+	   << "With Kink: \t"  << kink           << endl
+	   << "Unknown: \t"    << unkFail        << endl;
+  fitstats.close();
+
+  return true;
 }
 
 
@@ -538,39 +576,46 @@ void fitter::setSeed(EVector r, double factor){
   */
 
   // take as seed the state vector
-  EVector v(7,0);
-  EMatrix C(7,7,0);
+  EVector v(6,0), v2(1,0);
+  EMatrix C(6,6,0), C2(1,1,0);
+  EVector dr(3,0);
 
   v[0]=r[0];
   v[1]=r[1];
   v[2]=r[2];
+
+  find_directSeed(dr);
+  v[3] = dr[0]/dr[2];
+  v[4] = dr[1]/dr[2];
+
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   double pSeed = (double)(0.060*meas.size())*GeV;
-  //double de_dx = 7.87*(0.013*(pSeed/GeV)+1.57)*MeV/cm;
-  //geom.setDeDx(de_dx);
+  double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
+  geom.setDeDx(de_dx);
   //cout<<"pSeed = "<<pSeed<<", de_dx = "<<de_dx<<endl;
-  //Empirical formulae: de_dex=density*(approx relation).
+  //Empirical formulae: de_dex=density*pprox relation).
   //  geom.setup().set_volume_property("Detector","de_dx",de_dx);
   m.message("reset energy loss to approx value",bhep::NORMAL);
 
-  v[5]=1;
-  v[6]=-1/pSeed;
+  //v[5]=dr[2];//1;
+  v[5]=-1/pSeed;
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
-  C[0][0] = C[1][1] = 100.*cm*cm;
+  C[0][0] = C[1][1] = 9.*cm*cm;
   C[2][2] = EGeo::zero_cov()/2;
   C[3][3] = C[4][4] = 1.;
-  C[5][5] = 1;
-  C[6][6] = pow(v[6],2)*100;
+  //C[5][5] = 10.;
+  C[5][5] = pow(v[5],2)*3;
 
   seedstate.set_name(RP::particle_helix);
-  //  seed.set_name(RP::representation,RP::slopes_z);
-  seedstate.set_name(RP::representation,RP::default_rep);
+  seedstate.set_name(RP::representation,RP::slopes_z);
+  //seedstate.set_name(RP::representation,RP::default_rep);
+  v2[0] = 1;
+  seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
-
-
-
+  
+  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z).convert(seedstate,RP::default_rep);
 
 }
 
@@ -613,7 +658,17 @@ EMatrix fitter::setSeedCov(EMatrix C0, double factor){
     return c;
 }
 
+//*************************************************************
+void fitter::find_directSeed(EVector& R){
+//*************************************************************
 
+  R[0] = meas[1]->vector()[0] - meas[0]->vector()[0];
+  R[1] = meas[1]->vector()[1] - meas[0]->vector()[1];
+  R[2] = meas[1]->surface().position()[2] - meas[0]->surface().position()[2];
+
+  R /= R.norm();
+  
+}
 
 //*****************************************************************************
 void fitter::readParam(){

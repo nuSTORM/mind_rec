@@ -151,11 +151,11 @@ void MINDsetup::addProperties(){
   _gsetup.set_volume_property(vol_name,"BField",BField);
   _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
   
-  // _gsetup.set_volume_property(vol_name,"X0",X0);
-//   _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
+  _gsetup.set_volume_property(vol_name,"X0",X0);
+  _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
 
-//   _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
-//   _msetup.message("+++X0 added to MIND:",de_dx,bhep::VERBOSE);
+  _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
+  _msetup.message("+++de/dx added to MIND:",de_dx,bhep::VERBOSE);
   
  
 }

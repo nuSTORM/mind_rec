@@ -72,7 +72,7 @@ protected:
   //seed for fit
   void computeSeed();
   void setSeed(EVector v, double factor=1.);
- 
+  void find_directSeed(EVector& R);
   //seed error
   EMatrix setSeedCov(EVector,double factor=1.);
   EMatrix setSeedCov(EMatrix C0, double factor);
@@ -114,8 +114,13 @@ protected:
   
   bool refit;
 
-  int count1;
-  int count2;
+  //Counters for fit fails and successes for various reasons.
+  int totFitAttempts;
+  int fitSucceed;
+  int toomany;
+  int toofew;
+  int kink;
+  int unkFail;
 
   //------------------ Physics -----------------//
     

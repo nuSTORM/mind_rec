@@ -57,7 +57,7 @@ int main(int argc, char* argv[]){
   
   EventManager2* eman = new EventManager2(data_store,bhep::NORMAL);
   
-  fitter* fit = new fitter(ana_store,bhep::NORMAL);
+  fitter* fit = new fitter(ana_store,bhep::VERBOSE);
 
   MINDplotter* plot = new MINDplotter();
   
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]){
       
       fitOk = fit->execute(p);
     }
-
+    
     if (fitOk){
       
       const Trajectory& traj = fit->get_traj();
@@ -107,20 +107,22 @@ int main(int argc, char* argv[]){
       bool ok = plot->extrap_to_vertex(traj, e.vertex(), fit, state);
       if (!ok) cout << "Extrapolation Failed" << endl;
       else {
-
-      v = state.vector();
-      M = state.matrix();
-
-      bool ok2 = plot->execute(v,M,e);
-      if (ok2){
-	plot->max_local_chi2(traj);
-	plot->position_pulls(v,M,e);
-	plot->momentum_pulls(v,M);
-	plot->direction_pulls(v,M);
-	plot->momentum_efficiency(v,M);
-	plot->hit_efficiency(v,M);
-      }
-
+	
+	fit->man().model_svc().model(RP::particle_helix)
+	  .representation().convert(state, RP::slopes_z);
+	v = state.hv().vector();
+	M = state.hv().matrix();
+	bool ok2 = plot->execute(v,M,e);
+	if (ok2){
+	  double ChiMax = run_store.fetch_dstore("chi2node_max");
+	  plot->max_local_chi2(traj,ChiMax,v);
+	  plot->position_pulls(v,M,e);
+	  plot->momentum_pulls(v,M);
+	  plot->direction_pulls(v,M);
+	  plot->momentum_efficiency(v,M);
+	  plot->hit_efficiency(v,M);
+	}
+	
       }
     }
     //save event containing fit info 

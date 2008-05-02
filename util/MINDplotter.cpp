@@ -32,7 +32,7 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
   misIDp = NULL;
   hitSpec = NULL;
   misIDhit = NULL;
-  locChi = NULL;
+  locChi = NULL; locVp = NULL; trajVp = NULL;
 
   part = NULL;
 
@@ -263,8 +263,11 @@ void MINDplotter::max_local_chi2(const Trajectory& traj, double maxChi, const EV
 
   m.message("++Finding trajectory local chi max++",bhep::VERBOSE);
 
-  if (locChi==NULL) 
-    locChi = new TH1F("locChi","Max local chi squared per trajectory",(int)maxChi*2,0,maxChi);
+  if (locChi==NULL) {
+    locChi = new TH1F("locChi","Max local #chi^{2} per trajectory",(int)maxChi*2,0,maxChi);
+    locVp = new TProfile("locVp","Max local #chi^{2} vs. true particle momentum",50,0,50);
+    trajVp = new TProfile("trajVp","Trajectory #chi^{2} vs. true particle momentum",50,0,50);
+  }
 
   size_t nNodes = traj.size();
   const int trajSize = nNodes;
@@ -279,6 +282,8 @@ void MINDplotter::max_local_chi2(const Trajectory& traj, double maxChi, const EV
 
   trajMax = TMath::MaxElement((Long64_t)nNodes, chi);
   locChi->Fill(trajMax);
+  locVp->Fill(part->p()/GeV, trajMax);
+  trajVp->Fill(part->p()/GeV, traj.quality());
 
   double q;
   if (V[6] != 0) q = V[6]/fabs(V[6]);

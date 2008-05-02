@@ -9,6 +9,7 @@
 #include <TCanvas.h>
 #include <TH1F.h>
 #include <TGraph.h> //TH2F.h>
+#include <TProfile.h>
 
 #include <recpack/RecpackManager.h>
 #include <recpack/Measurement.h>
@@ -83,6 +84,8 @@ protected:
   TH1F* hitSpec;
   TH1F* misIDhit;
   TH1F* locChi;
+  TProfile* locVp;
+  TProfile* trajVp;
 
 private:
 

@@ -341,12 +341,15 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
  
     reset();
 
+    int lowPass = store.fetch_istore("low_Pass_hits");
+    int highPass = store.fetch_istore("high_Pass_hits");
+
     //--------- take hits from particle -------//
     
     const vector<bhep::hit*>& hits = p.hits("MIND"); 
         
     if (hits.size()==0) { toofew++; return false; }
-    if (hits.size()>395) { toomany++; return false; }
+    if ((int)hits.size()>highPass) { toomany++; return false; }
     //------------- loop over hits ------------//
     
     vector<string> vplanes;
@@ -376,7 +379,7 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
     
     m.message("Trajectory created:",t,bhep::VVERBOSE);
     
-    if (meas.size()<3) { toofew++; return false; } //not enough dof
+    if ((int)meas.size()<lowPass) { toofew++; return false; } //not enough dof
     
     ////sort traj measurements
     //double z1=geom.setup().surface(vplanes[0]).position()[2];

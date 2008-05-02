@@ -30,7 +30,11 @@ ANA vsim I 0
 RUN chi2fit_max D 50
 
 # maximum local chi2 for nodes
-RUN chi2node_max D 250
+RUN chi2node_max D 100
+
+# lowest and highest number of hits required for fit.
+RUN low_Pass_hits I 6
+RUN high_Pass_hits I 395
 
 # fit data twice (0=false, 1=true)
 ANA refit I 1

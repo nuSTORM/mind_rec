@@ -813,14 +813,8 @@ bool fitter::get_patternRec_seedtraj() {
 
     currentZ = _meas[Iso]->surface().position()[2];
 
-    if (currentZ >= (prevZ-tolerance)) {
-      cout << "check of hit remover: " <<endl
-	   << "Size: " << _meas.size() << endl
-	   << "Iso-1: " << Iso-1 << endl
-	   <<*_meas[Iso-1] << endl;
-      break;
-
-    } else {
+    if (currentZ >= (prevZ-tolerance)) break;
+    else {
       _traj.add_measurement(*_meas[Iso-1]);
       prevZ = currentZ;
     }
@@ -1002,17 +996,18 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
   
   for (int iMat = 0;iMat < nMeas;iMat++) {
 
-    patman().matching_svc().match_trajectory_measurement(_traj, *Fmeas[iMat],
+    ok = patman().matching_svc().match_trajectory_measurement(_traj, *Fmeas[iMat],
 							 Chi2[iMat]);
+    if (!ok) cout << "Chi not identified for hit" << endl;
   }
 
-  double ChiMin = TMath::MinElement(nMeas, Chi2);
+  long ChiMin = TMath::LocMin(nMeas, Chi2);
 
-  for (double iFilt = 0;iFilt < nMeas;iFilt++) {
+  for (int iFilt = 0;iFilt < nMeas;iFilt++) {
 
-    if (iFilt == ChiMin)
+    if (iFilt == (int)ChiMin)
       ok = patman().fitting_svc().filter(*Fmeas[(int)iFilt], seed , _traj);
-    if (!ok) cout<<"FUCK"<<endl;
+    if (!ok) cout<< "Filter failed" <<endl;
     else
       _hadmeas.push_back( Fmeas[(int)iFilt] );
 

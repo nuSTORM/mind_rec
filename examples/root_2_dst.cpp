@@ -7,29 +7,30 @@ using namespace std;
 
 
 /*****************************************************************
- * Root tree to bHEP dst converter. Takes in a root file or list *
- * of root files reads the information in the trees and creates  *
- * a gz file with the relevant events as objects.                *
+ * Root tree to bHEP dst converter. Takes in a root file reads   *
+ * the information in the trees and creates a gz file with the   *
+ * relevant events as objects.                                   *
  *                                                               *
  * Execution via calls of the form:                              *
- *  ./root_2_dst <Input Filename> <Output Filename> <No. events> *
+ *  ./root_2_dst <Input Filename> <Gaussian smear sig/cm>        *
+ *  with option of specifying <No. events>                       *
  *                                                               *
  * Authors: Andrew Laing, Pau Novella.                           *
  *****************************************************************/
 
 int main(int argc, char* argv[]){
     
-  if (argc<2){
+  if (argc<3){
     
-    cout << "Execution requires 1 or 2 arguments." << endl;
-    cout << "Call with ./root_2_dst <InFile> " << endl;
+    cout << "Execution requires 2 or 3 arguments." << endl;
+    cout << "Call with ./root_2_dst <InFile> <Gaus sigma, in cm>" << endl;
     cout << "and optional  <No. events of interest>" << endl;
 
     return -1;
   }
-
-
+  
   Char_t *inFileName;
+  double smearRes;
   Int_t nEvents;
 
   inFileName = argv[1];
@@ -43,8 +44,11 @@ int main(int argc, char* argv[]){
   TFile In(inFileName);
   In.GetObject("h10", Data);
 
+  //Get Gaussian resulution for smear.
+  smearRes = atof(argv[2]);
+
   //Set number of events to be read.
-  if (argc==3) nEvents = atoi(argv[2]);
+  if (argc==4) nEvents = atoi(argv[3]);
   else nEvents = (Int_t)Data->GetEntries();
 
   if (nEvents>(Int_t)Data->GetEntries()){
@@ -57,7 +61,7 @@ int main(int argc, char* argv[]){
     
   root2dst* cvt = new root2dst(c);
     
-  cvt->initialize(Data, outFileName);
+  cvt->initialize(Data, outFileName, smearRes);
   
   cout << "Starting Loop over events" << endl;
   for(int i=1; i < nEvents+1; i++) {

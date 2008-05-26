@@ -10,8 +10,13 @@
 
 # radiation length (mm)
 RUN x0 D 17.58
+
 # energy loss (MeV/cm)
 RUN de_dx D -8
+
+# Position resolution for detector (cm).
+RUN pos_res D 1
+
 #############################################
 #  parameters for the analysis
 #############################################
@@ -20,7 +25,7 @@ RUN de_dx D -8
 RUN kfitter S kalman
 
 # verbosities for recpack services
-ANA vfit I 0
+ANA vfit I 2
 ANA vmat I 0
 ANA vnav I 0
 ANA vmod I 0
@@ -30,7 +35,8 @@ ANA vsim I 0
 RUN chi2fit_max D 50
 
 # maximum local chi2 for nodes
-RUN chi2node_max D 100
+RUN chi2node_max D 50
+RUN max_outliers I 5
 
 # lowest and highest number of hits required for fit.
 RUN low_Pass_hits I 6
@@ -39,10 +45,22 @@ RUN high_Pass_hits I 395
 # fit data twice (0=false, 1=true)
 ANA refit I 1
 
+# multiplication factor for covariance in refit seed
+ANA facRef D 5.
+
+# Relevant parameters for pattern recognition.
+# Do Pattern recognition (0=false, 1=true)
+ANA patRec I 1
+
+# Min./Max. isolated hits for patRec seed.
+ANA min_seed_hits I 5
+ANA max_seed_hits I 15
+
 ###  data to read ###
 
 DATA idst_files SV 1
-/home/alaing/ntuples/tndmu_ms_eloss_10k.gz
+/home/alaing/ntuples/hadrons.gz
+# /home/alaing/ntuples/tndmu_ms_eloss_10k.gz
 # /home/alaing/ntuples/tndmu_noeloss_10k.gz
 # /home/alaing/ntuples/tndmu_ms_eloss.gz
 # /home/alaing/ntuples/tndmu_noeloss.gz
@@ -53,7 +71,8 @@ DATA idst_files SV 1
 ###  data to write ###
 
 DATA odst_files SV 1
-/home/alaing/ntuples/tndmu_ms_eloss_10k.FITTED.gz
+/home/alaing/ntuples/hadrons.FITTED.gz
+# /home/alaing/ntuples/tndmu_ms_eloss_10k.FITTED.gz
 # /home/alaing/ntuples/tndmu_noeloss_10k.FITTED.gz
 # /home/alaing/ntuples/tndmu_ms_eloss.FITTED.gz
 # /home/alaing/ntuples/tndmu_noeloss.FITTED.gz

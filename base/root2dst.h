@@ -9,6 +9,7 @@
 #include <bhep/bhep_svc.h>
 #include <bhep/ray.h>
 #include <bhep/hit.h>
+#include <bhep/clhep.h>
 
 #include <TTree.h>
 #include <Riostream.h>
@@ -21,8 +22,6 @@ using namespace bhep;
   Converts ROOT tree into bhep DST file
 */
 
-#define MAXEVENTS 50000
-
 class root2dst{
   
 public:
@@ -31,20 +30,19 @@ public:
   
   ~root2dst(){};
   
-  bool initialize(TTree *InPutTree, TString OutFileName);
+  bool initialize(TTree *InPutTree, TString OutFileName, double res);
   bool execute();
   bool finalize();
-
-  //Function to get names of Branches of interest
-  void fillBranchVector();
 
   //Functions to create bHEP object from the ntuple
   void createEvent();
   void make_particles();
   particle* define_lead_particle();
-  vector<hit*> append_hits();
+  bool hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit);
   particle* define_hadron();
-  particle* hits_to_fit();
+  particle* create_digital_representation(particle& mu, particle& had,
+					  const vector<hit*>& muHit,
+					  const vector<hit*>& hadHit);
 
   //Handy int/float to string converters.
   TString ToString(Int_t num){
@@ -77,7 +75,7 @@ protected:
 private:
 
   //The Event
-  event *nuEvent[MAXEVENTS];
+  vector<event*> nuEvent;
 
   //file to write dst to.
   writer_gz outgz;
@@ -85,8 +83,11 @@ private:
   //Root tree to be read.
   TTree *dataIn;
 
-  //Vector of Branch Names.
-  vector<TString> branches;
+  //Random engine for smearing.
+  RanluxEngine ranGen;
+
+  //Gaussian sigma for smearing.
+  double sigMa;
 
 };
 

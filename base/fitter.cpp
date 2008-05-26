@@ -1,6 +1,7 @@
 
 #include <fitter.h>
 
+#include <TMath.h>
 
 //*************************************************************
 fitter::fitter(const bhep::gstore& pstore,bhep::prlevel vlevel){
@@ -63,8 +64,8 @@ bool fitter::initialize(const bhep::sstore& run_store) {
     man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
       set_max_local_chi2ndf(chi2node_max);
 
-    //    man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-    //      set_number_allowed_outliers(500);
+    man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+      set_number_allowed_outliers(max_outliers);
 
      // create the experimental setup
         
@@ -136,22 +137,18 @@ bool fitter::execute(bhep::particle& part,bool tklen){
 
       addFitInfo(part,fitted);
       
-      if (tklen) addTrackLength(part,traj);
+      if (tklen) addTrackLength(part,_traj);
       
       if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
       
       else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
       if (!fitted) {
-	int nFittedNodes = 0;
-	for (int inode=0;inode<(int)meas.size();inode++){
-	  if (traj.node(inode).status("fitted"))
-	    nFittedNodes++;
-	}
-	if (nFittedNodes < (int)meas.size())
+	
+	if (_traj.last_fitted_node() < (int)_meas.size()-1)
 	  {  kink++; cout << "Traj. failed after kink found" << endl;
-	  cout << traj << endl; }
+	  cout << _traj << endl; }
 	else { unkFail++; cout << "Unknown Fail" << endl;
-	cout << traj << endl; }
+	cout << _traj << endl; }
 	m.message("++Failed fit trajectory++",bhep::NORMAL);
       }
     }
@@ -173,7 +170,7 @@ void fitter::reset() {
 
   //reset trajectory 
    
-  traj.reset(); stc_tools::destroy(meas);
+  _traj.reset(); stc_tools::destroy(_meas);
   
   //reset virtual planes
         
@@ -222,7 +219,7 @@ void fitter::addFitInfo(bhep::particle& part,bool fitted) {
 	
       part.change_property("fitted","1");  
       part.change_property("fitChi2",bhep::to_string(getChi2())); 
-      part.change_property("ndof",bhep::to_string(traj.ndof())); 
+      part.change_property("ndof",bhep::to_string(_traj.ndof())); 
       part.change_property("charge",bhep::to_string(getQ()));
       
     }
@@ -231,7 +228,7 @@ void fitter::addFitInfo(bhep::particle& part,bool fitted) {
 
       part.add_property("fitted","1");  
       part.add_property("fitChi2",bhep::to_string(getChi2()));
-      part.add_property("ndof",bhep::to_string(traj.ndof())); 
+      part.add_property("ndof",bhep::to_string(_traj.ndof())); 
       part.add_property("charge",bhep::to_string(getQ()));
       part.add_property("length","0");  
       
@@ -266,7 +263,7 @@ bool fitter::fitTrajectory(State seed) {
     
     m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
     
-    bool ok = man().fitting_svc().fit(seed,traj);
+    bool ok = man().fitting_svc().fit(seed,_traj);
 
     if (ok && refit){
         
@@ -275,14 +272,14 @@ bool fitter::fitTrajectory(State seed) {
         m.message("Going to refit...",bhep::VERBOSE);
 	
         //--------- refit using a new seed --------//	
-	State newstate = traj.state(traj.first_fitted_node());
+	State newstate = _traj.state(_traj.first_fitted_node());
 	man().model_svc().model(RP::particle_helix).representation()
 	  .convert(newstate, RP::slopes_z);
 
 	EVector v = newstate.vector();
 	EMatrix C0 = newstate.matrix();
 
-        EMatrix C = setSeedCov(C0,50.);
+        EMatrix C = setSeedCov(C0,facRef);
 
 	man().model_svc().model(RP::particle_helix).representation()
 	  .convert(seedstate, RP::slopes_z);
@@ -292,7 +289,7 @@ bool fitter::fitTrajectory(State seed) {
 	  .convert(seedstate,RP::default_rep);
 	//seedstate.keepDiagonalMatrix();
 
-        ok = man().fitting_svc().fit(seedstate,traj);
+        ok = man().fitting_svc().fit(seedstate,_traj);
 	
     }
     
@@ -321,43 +318,53 @@ bool fitter::checkQuality(){
 bool fitter::readTrajectory(const bhep::particle& part){
 //*************************************************************
     
-    m.message("+++ readTrajectory function ++++",bhep::VERBOSE);
-
-    //---------- read trajectory, i.e, particle hits ---------//
-
-    //generate rec trajectory
-
-    bool ok = recTrajectory(part,traj);
+  m.message("+++ readTrajectory function ++++",bhep::VERBOSE);
   
-    return ok;
+  //---------- read trajectory, i.e, particle hits ---------//
+  
+  //generate rec trajectory
+  
+  bool ok = recTrajectory(part);
+  
+  if (patternRec){
+    define_pattern_rec_param();
+    ok = find_muon_pattern();
+    if (!ok) cout << "Failed in pattern rec entirety" << endl;
+  }
+
+  int lowPass = store.fetch_istore("low_Pass_hits");
+  int highPass = store.fetch_istore("high_Pass_hits");
+  
+  if ((int)_traj.nmeas() > highPass) { 
+    toomany++;
+    cout <<"Too many hits: "<< _traj.nmeas()<<endl; 
+    return false; }
+  if ((int)_traj.nmeas() < lowPass) { 
+    toofew++;
+    cout << "Too few hits: "<<_traj.size()<<endl;
+    return false; }
+
+  return ok;
 }
 
 
 //*************************************************************
-bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
+bool fitter::recTrajectory(const bhep::particle& p) {
 //*************************************************************
 
     m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
  
     reset();
 
-    int lowPass = store.fetch_istore("low_Pass_hits");
-    int highPass = store.fetch_istore("high_Pass_hits");
-
     //--------- take hits from particle -------//
     
-    const vector<bhep::hit*>& hits = p.hits("MIND"); 
-        
+    const vector<bhep::hit*>& hits = p.hits("MIND");     
     if (hits.size()==0) { toofew++; return false; }
-    if ((int)hits.size()>highPass) { toomany++; return false; }
-    //------------- loop over hits ------------//
     
-    vector<string> vplanes;
+    //------------- loop over hits ------------//
  
     for(size_t j=0; j< hits.size(); j++){
 
-      //if (j>200) break;
-      
       bhep::hit& hit = *hits[j];
         	        
       //---------- create measurament ---------------//
@@ -366,7 +373,7 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
       
       //---------end of create measurement-----------//
       
-      meas.push_back(mnt); 
+      _meas.push_back(mnt); 
       
       m.message("Measurement added:",*mnt,bhep::VVERBOSE);
       
@@ -375,17 +382,16 @@ bool fitter::recTrajectory(const bhep::particle& p,Trajectory& t) {
     
     //--------- add measurements to trajectory --------//
    
-    t.add_measurements(meas);
+    if (patternRec) {
+      
+      sort( _meas.begin(), _meas.end(), reverseSorter() );
+      //sortingReverseByZ() defined in recpack/Trajectory.h>
+    } else {
+      _traj.add_measurements(_meas);
+
+      m.message("Trajectory created:",_traj,bhep::VVERBOSE);
+    }
     
-    m.message("Trajectory created:",t,bhep::VVERBOSE);
-    
-    if ((int)meas.size()<lowPass) { toofew++; return false; } //not enough dof
-    
-    ////sort traj measurements
-    //double z1=geom.setup().surface(vplanes[0]).position()[2];
-    //double z2=geom.setup().surface(vplanes[1]).position()[2];
-    //if ( fabs(z1) >fabs(z2) ) t.sort_nodes((int) (z1/fabs(z1)));
-    ////
 
     return true;
 
@@ -398,7 +404,7 @@ int fitter::getQ(){
   
   if (model.compare("particle/helix")!=0) return 0;
   
-  double q = traj.state(traj.last_fitted_node()).vector()[dim-1];
+  double q = _traj.state(_traj.last_fitted_node()).vector()[dim-1];
   
   if (q<0) q=-1; else q=1;
 
@@ -470,7 +476,7 @@ void fitter::addTrackLength(bhep::particle& p,const Trajectory& t){
 double fitter::trackLength() {
 //************************************************************
   
-  return trackLength(traj);
+  return trackLength(_traj);
   
 }
 
@@ -543,9 +549,9 @@ void fitter::computeSeed() {
 
     EVector v(3,0); 
         
-    v[0] = meas[0]->vector()[0];
-    v[1] = meas[0]->vector()[1];
-    v[2] = meas[0]->surface().position()[2];   
+    v[0] = _meas[0]->vector()[0];
+    v[1] = _meas[0]->vector()[1];
+    v[2] = _meas[0]->surface().position()[2];   
 
     setSeed(v);
     
@@ -587,12 +593,12 @@ void fitter::setSeed(EVector r, double factor){
   v[1]=r[1];
   v[2]=r[2];
 
-  find_directSeed(dr);
+  find_directSeed(dr, 1);
   v[3] = dr[0]/dr[2];
   v[4] = dr[1]/dr[2];
 
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
-  double pSeed = (double)(0.060*meas.size())*GeV;
+  double pSeed = (double)(0.060*_meas.size())*GeV;
   double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   //cout<<"pSeed = "<<pSeed<<", de_dx = "<<de_dx<<endl;
@@ -662,12 +668,21 @@ EMatrix fitter::setSeedCov(EMatrix C0, double factor){
 }
 
 //*************************************************************
-void fitter::find_directSeed(EVector& R){
+void fitter::find_directSeed(EVector& R, int sense){
 //*************************************************************
 
-  R[0] = meas[1]->vector()[0] - meas[0]->vector()[0];
-  R[1] = meas[1]->vector()[1] - meas[0]->vector()[1];
-  R[2] = meas[1]->surface().position()[2] - meas[0]->surface().position()[2];
+  if (sense==1){
+    R[0] = _meas[1]->vector()[0] - _meas[0]->vector()[0];
+    R[1] = _meas[1]->vector()[1] - _meas[0]->vector()[1];
+    R[2] = _meas[1]->surface().position()[2]
+      - _meas[0]->surface().position()[2];
+  }
+  if (sense==-1){
+    R[0] = _meas[0]->vector()[0] - _meas[1]->vector()[0];
+    R[1] = _meas[0]->vector()[1] - _meas[1]->vector()[1];
+    R[2] = _meas[0]->surface().position()[2] 
+      - _meas[1]->surface().position()[2];
+  }
 
   R /= R.norm();
   
@@ -691,8 +706,19 @@ void fitter::readParam(){
       refit=store.fetch_istore("refit");
     else refit=false;
 
+    if (store.find_istore("patRec"))
+      patternRec=store.fetch_istore("patRec");
+    else patternRec=false;
+
+    facRef = store.fetch_dstore("facRef");
+
+    min_seed_hits = store.fetch_istore("min_seed_hits");
+    max_seed_hits = store.fetch_istore("max_seed_hits");
+
     chi2node_max = store.fetch_dstore("chi2node_max");
     
+    max_outliers = store.fetch_istore("max_outliers");
+
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
     X0 = store.fetch_dstore("x0") * mm;
@@ -736,3 +762,261 @@ void fitter::setVerbosity(int v0,int v1,int v2){
 
 }
 
+//*****************************************************************************
+void fitter::define_pattern_rec_param() {
+//*****************************************************************************
+
+  patman().geometry_svc().set_zero_length(1e-5 * mm);
+  patman().geometry_svc().set_infinite_length(1e12 * mm);
+
+  // add the setup to the geometry service
+  patman().geometry_svc().add_setup("main",geom.setup());
+  
+  // select the setup to be used by the geometry service
+  patman().geometry_svc().select_setup("main");
+  
+  patman().navigation_svc().navigator(model).set_unique_surface(true);
+
+}
+
+//*****************************************************************************
+bool fitter::find_muon_pattern() {
+//*****************************************************************************
+
+//Algorithms for isolating possible muon from event hits.
+  m.message("++ Starting Pattern Recognition ++",bhep::VERBOSE);
+
+  State patternSeed;
+
+  bool ok = get_patternRec_seedtraj();
+  if (ok)
+    ok = get_patternRec_seed(patternSeed);
+
+  if (ok)
+    ok = perform_pattern_rec(patternSeed);
+
+  _traj.sort_nodes(1);
+
+  return ok;
+}
+
+//*****************************************************************************
+bool fitter::get_patternRec_seedtraj() {
+//*****************************************************************************
+
+  double tolerance = 1 * cm;
+  double currentZ, prevZ;
+
+  prevZ = _meas[0]->surface().position()[2];
+
+  for (int Iso = 1;Iso < max_seed_hits;Iso++) {
+
+    currentZ = _meas[Iso]->surface().position()[2];
+
+    if (currentZ >= (prevZ-tolerance)) {
+      cout << "check of hit remover: " <<endl
+	   << "Size: " << _meas.size() << endl
+	   << "Iso-1: " << Iso-1 << endl
+	   <<*_meas[Iso-1] << endl;
+      break;
+
+    } else {
+      _traj.add_measurement(*_meas[Iso-1]);
+      prevZ = currentZ;
+    }
+
+  }
+
+  if ((int)_traj.nmeas() < min_seed_hits) { cout<<"No seedTraj found"<<endl; return false;}
+
+  iGroup = (int)_traj.nmeas();
+
+  return true;
+
+}
+
+//*****************************************************************************
+bool fitter::get_patternRec_seed(State& seed) {
+//*****************************************************************************
+  
+  int lastMeas = (int)_meas.size() - 1;
+
+  EVector V(6,0); EVector V2(1,0);
+  EMatrix M(6,6,0); EMatrix M2(1,1,0);
+  EVector dr(3,0);
+
+  V[0] = _meas[0]->vector()[0];
+  V[1] = _meas[0]->vector()[1];
+  V[2] = _meas[0]->surface().position()[2];
+  
+  find_directSeed(dr, -1);
+  V[3] = dr[0]/dr[2];
+  V[4] = dr[1]/dr[2];
+  
+  //Approximate momentum by extent (hard wired for 5cm iron/scint
+  //separation at mo) using same empirical functions as in isolated
+  //muon fitting.
+  double Xtent = (_meas[0]->surface().position()[2]
+    - _meas[lastMeas]->surface().position()[2])/5;
+  double pSeed = (0.060*Xtent)*GeV;
+  double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
+  geom.setDeDx(de_dx);
+  
+  V[5] = 1./pSeed;
+  
+  //Errors
+  M[0][0] = M[1][1] = 15.*cm*cm;
+  M[2][2] = EGeo::zero_cov()/2;//1.*cm*cm;
+  M[3][3] = M[4][4] = 1.5;
+  M[5][5] = pow(V[5],2)*4;
+
+  //Seedstate fit properties
+  seed.set_name(RP::particle_helix);
+  seed.set_name(RP::representation,RP::slopes_z);
+  V2[0] = 1; //Fit against particle flow.
+  seed.set_hv(RP::sense,HyperVector(V2,M2));
+  seed.set_hv(HyperVector(V,M));
+  
+  patman().model_svc().model(RP::particle_helix).representation(RP::slopes_z).convert(seed,RP::default_rep);
+  
+  //bool ok = perform_least_squares(seed);
+  bool ok = perform_kalman_fit(seed);
+  if (!ok) cout<<"Kalman fit for ssed failed"<<endl;
+  return ok;
+}
+
+//*****************************************************************************
+bool fitter::perform_least_squares(State& seed) {
+//*****************************************************************************
+
+  m.message("++ About to perform least squares fit ++",bhep::VERBOSE);
+  
+  std::string YerMaw = "NORMAL";
+  Messenger::Level blah = Messenger::str(YerMaw);
+  patman().fitting_svc().fitter(model).set_verbosity(blah);
+  patman().fitting_svc().select_fitter("lsq");
+  
+  bool ok = patman().fitting_svc().fit(seed, _traj);
+  
+  //seed.clear();
+  if (ok)
+    seed = _traj.state(_traj.first_fitted_node());
+  cout << "Seed Check: "<<endl
+       <<_traj<<endl
+       <<seed<<endl;
+  return ok;
+}
+
+//*****************************************************************************
+bool fitter::perform_kalman_fit(State& seed) {
+//*****************************************************************************
+
+  m.message("++ About to perform kalman fit ++",bhep::VERBOSE);
+  
+  std::string YerMaw = "NORMAL";
+  Messenger::Level blah = Messenger::str(YerMaw);
+  patman().fitting_svc().fitter(model).set_verbosity(blah);
+  patman().fitting_svc().select_fitter("kalman");
+  
+  bool ok = patman().fitting_svc().fit(seed, _traj);
+  
+  //seed.clear();
+  if (ok)
+    seed = _traj.state(_traj.first_fitted_node());
+  // cout << "Seed Check: "<<endl
+//        <<t<<endl
+//        <<seed<<endl;
+  return ok;
+}
+
+//*****************************************************************************
+bool fitter::perform_pattern_rec(const State& seed) {
+//*****************************************************************************
+
+  m.message("++ About to perform filter on hits ++",bhep::VERBOSE);
+  
+  measurement_vector NeedFiltered;
+
+  bool ok;
+  double curZ, preZ;
+  double tolerance = 1 * cm;
+
+  //fitter parameters.
+  patman().fitting_svc().select_fitter("kalman");
+  patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+    set_max_local_chi2ndf(5000);
+
+  while ( iGroup < (int)_meas.size() ) {
+
+    if ((int)NeedFiltered.size() == 0){
+      NeedFiltered.push_back( _meas[iGroup] );
+      iGroup++;
+      continue;
+    }
+
+    curZ = _meas[iGroup]->surface().position()[2];
+    preZ = _meas[iGroup-1]->surface().position()[2];
+
+    if (curZ < (preZ-tolerance)) {
+      if (NeedFiltered.size() > 1) {
+	cout <<"About to perform matching"<<endl;
+	ok = filter_close_measurements(NeedFiltered, seed);
+	if (!ok) {cout<<"Failed in filtering"<<endl; return false;}
+
+      } else {
+	//	_traj.add_measurement(*NeedFiltered[0]);
+	//cout << *NeedFiltered[0] << endl;
+	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
+	if (!ok) { cout << "failed in proj of isolated hit"<<endl; return false;}
+
+      }
+	
+      NeedFiltered.clear();
+      iGroup++;
+
+    } else {
+      NeedFiltered.push_back( _meas[iGroup] );
+      iGroup++;
+    }
+
+  }
+
+  if (!ok) cout << "Failed in Pattern rec function" <<endl;
+  return ok;
+
+}
+
+//*****************************************************************************
+bool fitter::filter_close_measurements(measurement_vector& Fmeas,
+				       const State& seed) {
+//*****************************************************************************
+
+  bool ok;
+  const int nMeas = (int)Fmeas.size();
+  double Chi2[nMeas];
+
+  // Filter measurements in Fmeas. Delete all but the lowest chi2
+  // from traj and cast the corresponding measurement to the
+  // hadron measurement vector.
+
+  
+  for (int iMat = 0;iMat < nMeas;iMat++) {
+
+    patman().matching_svc().match_trajectory_measurement(_traj, *Fmeas[iMat],
+							 Chi2[iMat]);
+  }
+
+  double ChiMin = TMath::MinElement(nMeas, Chi2);
+
+  for (double iFilt = 0;iFilt < nMeas;iFilt++) {
+
+    if (iFilt == ChiMin)
+      ok = patman().fitting_svc().filter(*Fmeas[(int)iFilt], seed , _traj);
+    if (!ok) cout<<"FUCK"<<endl;
+    else
+      _hadmeas.push_back( Fmeas[(int)iFilt] );
+
+  }
+ 
+  return ok;
+}

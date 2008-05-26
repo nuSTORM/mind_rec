@@ -22,6 +22,9 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
   level = vlevel;
 
   m = bhep::messenger(level);
+
+  counterlo = 0;
+  counterhi = 0;
   
   FitX = NULL; truX = NULL; xPull = NULL;
   FitY = NULL; truY = NULL; yPull = NULL;
@@ -198,8 +201,8 @@ void MINDplotter::momentum_efficiency(const EVector& V, const EMatrix& M) {
 
   pSpec->Fill(part->p() / GeV);
   
-  double q = 1;
-  if (V[6] != 0) q = V[6]/fabs(V[6]);
+  double q;
+  if (V[5] != 0) q = V[5]/fabs(V[5]);
   if (q != tru_q_)
     misIDp->Fill(part->p() / GeV);
   
@@ -217,7 +220,7 @@ void MINDplotter::hit_efficiency(const EVector& V, const EMatrix& M) {
   hitSpec->Fill((int)part->hits("MIND").size());
   
   double q = 1;
-  if (V[6] != 0) q = V[6]/fabs(V[6]);
+  if (V[5] != 0) q = V[5]/fabs(V[5]);
   if (q != tru_q_)
     misIDhit->Fill((int)part->hits("MIND").size());
 
@@ -233,8 +236,8 @@ bool MINDplotter::extract_true_particle(const EVector& V, const EMatrix& M,
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
  
-  p_ = pow(fabs(V[6]), -1);
-  d_p_ = sqrt(M[6][6])/fabs(V[6]);
+  p_ = pow(fabs(V[5]), -1);
+  d_p_ = sqrt(M[5][5])/fabs(V[5]);
   
   int count = 0;
   for (int iParts=0;iParts<(int)Pospart.size();iParts++){
@@ -270,28 +273,29 @@ void MINDplotter::max_local_chi2(const Trajectory& traj, double maxChi, const EV
   }
 
   size_t nNodes = traj.size();
-  const int trajSize = nNodes;
-  double chi[trajSize];
-  double trajMax;
+  //const int trajSize = nNodes;
+  //double chi[trajSize];
+  double trajMax = 0;
 
   for (size_t iNode = 0;iNode < nNodes;iNode++){
 
-    chi[iNode] = traj.node(iNode).quality();
+    trajMax = TMath::Max(trajMax, traj.node(iNode).quality() );
+    //chi[iNode] = traj.node(iNode).quality();
 
   }
 
-  trajMax = TMath::MaxElement((Long64_t)nNodes, chi);
+  //trajMax = TMath::MaxElement((Long64_t)nNodes, chi);
   locChi->Fill(trajMax);
   locVp->Fill(part->p()/GeV, trajMax);
   trajVp->Fill(part->p()/GeV, traj.quality());
 
   double q;
-  if (V[6] != 0) q = V[6]/fabs(V[6]);
+  if (V[5] != 0) q = V[5]/fabs(V[5]);
 
-  if (trajMax < 0.2*maxChi && q != tru_q_)
+  if (trajMax < 0.2*maxChi && q != tru_q_ && counterlo<10)
     lowChi_MisID_track(traj,trajMax);
 
-  if (trajMax > 0.8*maxChi && q == tru_q_)
+  if (trajMax > 0.8*maxChi && q == tru_q_ && counterhi<10)
     highChi_ID_track(traj,trajMax);
 
 }
@@ -302,13 +306,11 @@ void MINDplotter::lowChi_MisID_track(const Trajectory& traj, double trajMax) {
 
   m.message("++ Output of low Chi2 mis-ID track ++",bhep::VERBOSE);
 
-  int noplot = (int)trajMax;
-
   const int nMeas = (int)traj.nmeas();
   double X[nMeas], Z[nMeas];
 
   TString plotName, plotTitle;
-  plotName = "loMisID"+to_string(noplot);
+  plotName = "loMisID"+to_string(counterlo);
   plotTitle = "Trajectory of charge Mis-ID particle with low max local #chi^{2} = "+to_string(trajMax);
 
   for (int iMeas = 0;iMeas < nMeas;iMeas++){
@@ -325,6 +327,8 @@ void MINDplotter::lowChi_MisID_track(const Trajectory& traj, double trajMax) {
   plot->GetYaxis()->SetTitle("X position (cm)");
   plot->Write();
 
+  counterlo++;
+
 }
 
 //****************************************************************************************
@@ -333,13 +337,11 @@ void MINDplotter::highChi_ID_track(const Trajectory& traj, double trajMax) {
 
   m.message("++ Output of high Chi2 track ++",bhep::VERBOSE);
 
-  int noplot = (int)trajMax;
-
   const int nMeas = (int)traj.nmeas();
   double X[nMeas], Z[nMeas];
   
   TString plotName, plotTitle;
-  plotName = "hiChiID"+to_string(noplot);
+  plotName = "hiChiID"+to_string(counterhi);
   plotTitle = "Trajectory of correctly ID'd particle with high max local #chi^{2} = "+to_string(trajMax);
   
   for (int iMeas = 0;iMeas < nMeas;iMeas++){
@@ -356,5 +358,7 @@ void MINDplotter::highChi_ID_track(const Trajectory& traj, double trajMax) {
   plot2->GetXaxis()->SetTitle("Z position (cm)");
   plot2->GetYaxis()->SetTitle("X position (cm)");
   plot2->Write();
+
+  counterhi++;
   
 }

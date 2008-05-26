@@ -8,7 +8,7 @@
 #include <TFile.h>
 #include <TCanvas.h>
 #include <TH1F.h>
-#include <TGraph.h> //TH2F.h>
+#include <TGraph.h>
 #include <TProfile.h>
 
 #include <recpack/RecpackManager.h>
@@ -89,10 +89,13 @@ protected:
 
 private:
 
+  int counterlo;
+  int counterhi;
+
   //Particle momentum with corresponding error and charge.
   double p_;
   double d_p_;
-  int tru_q_;
+  double tru_q_;
   bool truP;
   bhep::particle* part;
 

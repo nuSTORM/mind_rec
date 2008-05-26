@@ -21,7 +21,8 @@ root2dst::root2dst(bhep::prlevel vlevel){
 
 
 //*************************************************************
-bool root2dst::initialize(TTree *InPutTree, TString OutFileName) {
+bool root2dst::initialize(TTree *InPutTree, TString OutFileName,
+			  double res) {
 //*************************************************************
     
   m.message("+++ root2dst init  function ++++",bhep::NORMAL);
@@ -31,7 +32,10 @@ bool root2dst::initialize(TTree *InPutTree, TString OutFileName) {
   dataIn = InPutTree;
   dataIn->SetBranchStatus("*",0);
 
-  fillBranchVector();
+  long seed = 178263094;
+  ranGen = RanluxEngine(seed, 4);
+
+  sigMa = res;
 
   nevt=0;
   
@@ -47,8 +51,6 @@ bool root2dst::execute(){
     Take a ROOT tree event and convert it into bhep DST event
    */
 
-  nuEvent[nevt] = NULL;
-  
   m.message("+++ root2dst execute function ++++",bhep::VERBOSE);
 
   createEvent();
@@ -56,8 +58,6 @@ bool root2dst::execute(){
   make_particles();
   
   outgz.write(*nuEvent[nevt], nevt);
-
-  delete nuEvent[nevt];
   
   nevt++;
  
@@ -83,79 +83,40 @@ bool root2dst::finalize() {
 
 
 //*************************************************************
-void root2dst::fillBranchVector() {
-//*************************************************************
-
-/*This function takes in an existing file which is a list of 
-  branch names and enters these names in the branches vector.
-  If a line starts with # only the # will be entered as a 
-  marker for the event creator function */
-
-
-  TString value;
-  Int_t count = 0;
-
-  ifstream branchIn;
-  branchIn.open("/home/alaing/mind/examples/Branches.txt");
-
-  while (branchIn.good()){
-
-    branchIn >> value;
-
-    if (value[0] == 35) branches.push_back(value[0]);
-    else branches.push_back(value);
-    
-    count++;
-
-  }
-
-  branchIn.close();
-
-}
-
-//*************************************************************
 void root2dst::createEvent() {
 //*************************************************************
 
 /* Defines an event and adds the event specific information. */
 
-  Int_t integProps[4][2];
-  Float_t floatProps[6][3];
+  Int_t integs[2][2];
+  Float_t floas[6][3];
 
-  nuEvent[nevt] = new event((Int_t)nevt);
+  event *evt = new event((Int_t)nevt);
+  nuEvent.push_back(evt);
 
-  for (Int_t iBran = 0;iBran<10;iBran++){
-
-    if (branches[iBran] != "#"){
-      dataIn->SetBranchStatus(branches[iBran], 1);
-      if (iBran < 4) dataIn->SetBranchAddress(branches[iBran], &integProps[iBran]);
-      else dataIn->SetBranchAddress(branches[iBran], &floatProps[iBran-4]);
-    }
-
-  }
-
+  dataIn->SetBranchStatus("Random",1); dataIn->SetBranchAddress("Random",&integs[0]);
+  dataIn->SetBranchStatus("Nutype",1); dataIn->SetBranchAddress("Nutype",&integs[1]);
+  dataIn->SetBranchStatus("Enu",1); dataIn->SetBranchAddress("Enu",&floas[0]);
+  dataIn->SetBranchStatus("Xf",1); dataIn->SetBranchAddress("Xf",&floas[1]);
+  dataIn->SetBranchStatus("Yf",1); dataIn->SetBranchAddress("Yf",&floas[2]);
+  dataIn->SetBranchStatus("Q2f",1); dataIn->SetBranchAddress("Q2f",&floas[3]);
+  dataIn->SetBranchStatus("Wf",1); dataIn->SetBranchAddress("Wf",&floas[4]);
+  dataIn->SetBranchStatus("Vertex",1); dataIn->SetBranchAddress("Vertex",&floas[5]);
+  
   dataIn->GetEntry((Int_t)nevt);
 
-  nuEvent[nevt]->set_vertex(floatProps[5][0] * cm, floatProps[5][1] * cm, floatProps[5][2] * cm);
+  nuEvent[nevt]->set_vertex(floas[5][0] * cm, floas[5][1] * cm, floas[5][2] * cm);
 
   //Add aditional properties
-  for (Int_t iProp = 0;iProp<9;iProp++){
-
-    if (branches[iProp] != "#"){
-      if (iProp<2 || iProp==3) nuEvent[nevt]->add_property((string)branches[iProp], (string)ToString(integProps[iProp][0]));
-      else if (iProp==2) {
-	TString n1, n2;
-	n1 = branches[iProp]+"Seed1";
-	n2 = branches[iProp]+"Seed2";
-
-	nuEvent[nevt]->add_property((string)n1, (string)ToString(integProps[iProp][0]));
-	nuEvent[nevt]->add_property((string)n2, (string)ToString(integProps[iProp][1]));
-      }
-      else nuEvent[nevt]->add_property((string)branches[iProp], (string)ToString(floatProps[iProp-4][0]));
-    }
-
-  }
-
+  nuEvent[nevt]->add_property("RandomSeed1", (string)ToString(integs[0][0]));
+  nuEvent[nevt]->add_property("RandomSeed2", (string)ToString(integs[0][1]));
+  nuEvent[nevt]->add_property("Nutype", (string)ToString(integs[1][0]));
+  nuEvent[nevt]->add_property("Enu", (string)ToString(floas[0][0]));
+  nuEvent[nevt]->add_property("Xf", (string)ToString(floas[1][0]));
+  nuEvent[nevt]->add_property("Yf", (string)ToString(floas[2][0]));
+  nuEvent[nevt]->add_property("Q2f", (string)ToString(floas[3][0]));
+  nuEvent[nevt]->add_property("Wf", (string)ToString(floas[4][0]));
+  
   dataIn->SetBranchStatus("*", 0);
 
   cout <<"Event Defined" << endl;
@@ -166,25 +127,36 @@ void root2dst::make_particles() {
 //***************************************************************
 
 /* Function to add relevant particles to event */
-  particle *par1, *par2, *digPar;
+  particle *muon, *hadron, *digPar;
 
-  par1 = define_lead_particle();
-
-  vector<hit*> par1Hits = append_hits();
-
-  if (par1Hits.size() != 0)
-    for (Int_t iHit=0;iHit<(Int_t)par1Hits.size();iHit++){
-      par1Hits[iHit]->set_mother_particle(*par1);
-      par1->add_hit("MIND", par1Hits[iHit]);
-    }
-
-  digPar = hits_to_fit();
+  muon = define_lead_particle();
   
-  par2 = define_hadron();
-  
-  nuEvent[nevt]->add_true_particle(par1);
-  nuEvent[nevt]->add_true_particle(par2);
-  nuEvent[nevt]->add_digi_particle(digPar);
+  hadron = define_hadron();
+
+  vector<hit*> muHit, hadHit;
+  bool ok = hits_fromFile(muHit, hadHit);
+
+  if (ok) {
+
+    if (muHit.size() != 0)
+      for (Int_t iHit=0;iHit<(Int_t)muHit.size();iHit++){
+	muHit[iHit]->set_mother_particle(*muon);
+	muon->add_hit("MIND", muHit[iHit]);
+      }
+    if (hadHit.size() != 0)
+      for (Int_t jHit=0;jHit<(Int_t)hadHit.size();jHit++){
+	hadHit[jHit]->set_mother_particle(*hadron);
+	hadron->add_hit("MIND", hadHit[jHit]);
+      }
+    
+    digPar = create_digital_representation(*muon, *hadron, muHit, hadHit);
+    
+    nuEvent[nevt]->add_true_particle(muon);
+    nuEvent[nevt]->add_true_particle(hadron);
+    nuEvent[nevt]->add_digi_particle(digPar);
+
+  }
+  else cout << "No. hits in event" << endl;
 
   cout << "All particles defined and appended to event" << endl;
 
@@ -202,13 +174,10 @@ particle* root2dst::define_lead_particle() {
   
   ptype pT = TRUTH;
   string pName;
-  
-  for (Int_t iBran = 10;iBran < 12;iBran++){
-    dataIn->SetBranchStatus(branches[iBran], 1);
-    if (iBran==10) dataIn->SetBranchAddress(branches[iBran], &ID);
-    else dataIn->SetBranchAddress(branches[iBran], &moment);
-  }
-  
+
+  dataIn->SetBranchStatus("Idlead", 1); dataIn->SetBranchAddress("Idlead", &ID);
+  dataIn->SetBranchStatus("Plead", 1); dataIn->SetBranchAddress("Plead", &moment);
+
   dataIn->GetEntry((Int_t)nevt);
   
   Point3D pos = nuEvent[nevt]->vertex();
@@ -243,11 +212,8 @@ particle* root2dst::define_hadron() {
   Int_t nHad;
   Float_t moment[5];
 
-  for (Int_t iBran = 38;iBran < 40;iBran++){
-    dataIn->SetBranchStatus(branches[iBran], 1);
-    if (iBran==38) dataIn->SetBranchAddress(branches[iBran], &nHad);
-    else dataIn->SetBranchAddress(branches[iBran], &moment);
-  }
+  dataIn->SetBranchStatus("Nhad", 1); dataIn->SetBranchAddress("Nhad", &nHad);
+  dataIn->SetBranchStatus("Phadg", 1); dataIn->SetBranchAddress("Phadg", &moment);
 
   dataIn->GetEntry((Int_t)nevt);
   
@@ -271,49 +237,64 @@ particle* root2dst::define_hadron() {
 }
 
 
-//**************************************************************
-vector<hit*> root2dst::append_hits() {
-//**************************************************************
+//**************************************************************************
+bool root2dst::hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit) {
+//**************************************************************************
 
 /* Add vector of hit locations associated with particle par */
 
-  vector<hit*> track;
   const Int_t maxHits = 400;
 
-  Int_t Nhits;
-  Float_t hitVec[3][maxHits];
+  Int_t NmuHits, NhadHits;
+  Float_t muHitVec[3][maxHits], hadHitVec[3][maxHits];
 
-  for (Int_t iBran = 0;iBran < 4;iBran++){
-    
-    dataIn->SetBranchStatus(branches[iBran+46], 1);
-    if (iBran==0) dataIn->SetBranchAddress(branches[iBran+46], &Nhits);
-    else dataIn->SetBranchAddress(branches[iBran+46], &hitVec[iBran-1]);
-
-  }
+  dataIn->SetBranchStatus("Nhits", 1); dataIn->SetBranchAddress("Nhits", &NmuHits);
+  dataIn->SetBranchStatus("Xhit", 1); dataIn->SetBranchAddress("Xhit", &muHitVec[0]);
+  dataIn->SetBranchStatus("Yhit", 1); dataIn->SetBranchAddress("Yhit", &muHitVec[1]);
+  dataIn->SetBranchStatus("Zhit", 1); dataIn->SetBranchAddress("Zhit", &muHitVec[2]);
+  dataIn->SetBranchStatus("Nhhits", 1); dataIn->SetBranchAddress("Nhhits", &NhadHits);
+  dataIn->SetBranchStatus("Xhhit", 1); dataIn->SetBranchAddress("Xhhit", &hadHitVec[0]);
+  dataIn->SetBranchStatus("Yhhit", 1); dataIn->SetBranchAddress("Yhhit", &hadHitVec[1]);
+  dataIn->SetBranchStatus("Zhhit", 1); dataIn->SetBranchAddress("Zhhit", &hadHitVec[2]);
 
   dataIn->GetEntry((Int_t)nevt);
   
-  if (Nhits==0) return track;
+  if (NmuHits==0 && NhadHits==0) return false;
 
-  for (Int_t iHit = 0;iHit < Nhits;iHit++){
+  if (NmuHits!=0)
+    for (Int_t iHit = 0;iHit < NmuHits;iHit++){
+      
+      Point3D hitPos(muHitVec[0][iHit] * cm, muHitVec[1][iHit] * cm, muHitVec[2][iHit] * cm);
+      
+      hit *xyz = new hit("MIND");
+      xyz->set_point(hitPos);
+      
+      muHit.push_back(xyz);
+      
+    }
 
-    Point3D hitPos(hitVec[0][iHit] * cm, hitVec[1][iHit] * cm, hitVec[2][iHit] * cm);
-
-    hit *xyz = new hit("MIND");
-    xyz->set_point(hitPos);
-
-    track.push_back(xyz);
-
-  }
+  if (NhadHits!=0)
+    for (Int_t jHit = 0;jHit < NhadHits;jHit++){
+      
+      Point3D hitPos(hadHitVec[0][jHit] * cm, hadHitVec[1][jHit] * cm, hadHitVec[2][jHit] * cm);
+      
+      hit *xyz = new hit("MIND");
+      xyz->set_point(hitPos);
+      
+      hadHit.push_back(xyz);
+      
+    }
 
   dataIn->SetBranchStatus("*", 0);
 
-  return track;
+  return true;
 }
 
 
 //***************************************************************
-particle* root2dst::hits_to_fit() {
+particle* root2dst::create_digital_representation(particle& mu, particle& had,
+						  const vector<hit*>& muHit,
+						  const vector<hit*>& hadHit) {
 //***************************************************************
 
 /*Makes a digital particle with only the hits, to be used in
@@ -322,35 +303,38 @@ particle* root2dst::hits_to_fit() {
 
   ptype pT = DIGI;
 
-  particle *postrack = new particle(pT, "unknown");
+  particle *hitMap = new particle(pT, "unknown");
 
-  const Int_t maxHits = 400;
+  double X, Y, Z;
 
-  Int_t Nhits;
-  Float_t hitVec[3][maxHits];
-
-  for (Int_t iBran = 0;iBran < 4;iBran++){
+  for (Int_t iHit = 0;iHit < (Int_t)muHit.size();iHit++) {
     
-    dataIn->SetBranchStatus(branches[iBran+46], 1);
-    if (iBran==0) dataIn->SetBranchAddress(branches[iBran+46], &Nhits);
-    else dataIn->SetBranchAddress(branches[iBran+46], &hitVec[iBran-1]);
+    X = muHit[iHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+    Y = muHit[iHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+    Z = muHit[iHit]->x().z()/cm;
+    
+    Point3D hitPos(X * cm,Y * cm,Z * cm);
+    hit* digHit = new hit("MIND");
+    digHit->set_point(hitPos);
+
+    digHit->set_mother_particle(mu);
+    hitMap->add_hit("MIND", digHit);
+
+  }
+  for (Int_t jHit = 0;jHit < (Int_t)hadHit.size();jHit++) {
+    
+    X = hadHit[jHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+    Y = hadHit[jHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+    Z = hadHit[jHit]->x().z()/cm;
+
+    Point3D hitPos(X * cm,Y * cm,Z * cm);
+    hit* digHit = new hit("MIND");
+    digHit->set_point(hitPos);
+
+    digHit->set_mother_particle(had);
+    hitMap->add_hit("MIND", digHit);
 
   }
 
-  dataIn->GetEntry((Int_t)nevt);
-
-  for (Int_t iHit = 0;iHit < Nhits;iHit++){
-
-    Point3D hitPos(hitVec[0][iHit] * cm, hitVec[1][iHit] * cm, hitVec[2][iHit] * cm);
-
-    hit *xyz = new hit(*postrack,"MIND");
-    xyz->set_point(hitPos);
-
-    postrack->add_hit("MIND", xyz);
-
-  }
-
-  dataIn->SetBranchStatus("*", 0);
-
-  return postrack;
+  return hitMap;
 }

@@ -220,7 +220,7 @@ void MINDsetup::readParam(){
     meas_dim = 2;
     meastype = "xy";
     
-    resx = 10.*mm;
-    resy = 10.*mm;
+    resx = _pstore.fetch_dstore("pos_res") * cm;
+    resy = _pstore.fetch_dstore("pos_res") * cm;
     
 }

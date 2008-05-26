@@ -57,7 +57,7 @@ int main(int argc, char* argv[]){
   
   EventManager2* eman = new EventManager2(data_store,bhep::NORMAL);
   
-  fitter* fit = new fitter(ana_store,bhep::VERBOSE);
+  fitter* fit = new fitter(ana_store,bhep::NORMAL);
 
   MINDplotter* plot = new MINDplotter();
   
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]){
   
   fit->initialize(eman->get_dst_properties());
 
-  plot->initialize("/home/alaing/ntuples/MINDpulls.root",bhep::VERBOSE);
+  plot->initialize("/home/alaing/ntuples/MINDpulls.root",bhep::NORMAL);
   
   //add run properties to output dst header
   

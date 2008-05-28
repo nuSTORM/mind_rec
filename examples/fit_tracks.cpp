@@ -121,6 +121,9 @@ int main(int argc, char* argv[]){
 	  plot->direction_pulls(v,M);
 	  plot->momentum_efficiency(v,M);
 	  plot->hit_efficiency(v,M);
+
+	  const EVector& patR = fit->get_rec_stats();
+	  plot->patternStats(patR);
 	}
 	
       }

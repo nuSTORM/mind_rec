@@ -36,6 +36,7 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
   hitSpec = NULL;
   misIDhit = NULL;
   locChi = NULL; locVp = NULL; trajVp = NULL;
+  Eff = NULL; Purit = NULL;
 
   part = NULL;
 
@@ -361,4 +362,22 @@ void MINDplotter::highChi_ID_track(const Trajectory& traj, double trajMax) {
 
   counterhi++;
   
+}
+
+//****************************************************************************************
+void MINDplotter::patternStats(const EVector& vec) {
+//****************************************************************************************
+  if (Eff == NULL){
+    Eff = new TProfile("eff","Pattern recognition efficiency as func muon true p",50,0,50);
+    Purit = new TProfile("purit","Pattern recognition purity as func muon true p",50,0,50);
+  }
+
+  double efficiency;
+  double purity;
+  efficiency = vec[1]/vec[2];
+  purity = vec[1]/vec[0];
+
+  Eff->Fill(part->p()/GeV, efficiency);
+  Purit->Fill(part->p()/GeV, purity);
+
 }

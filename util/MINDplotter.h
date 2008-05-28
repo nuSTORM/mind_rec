@@ -55,6 +55,9 @@ class MINDplotter{
      and enter that value in a histogram */
   void max_local_chi2(const Trajectory& traj, double maxChi, const EVector& V);
 
+  /* Function to plot stats about pattern recogntion */
+  void patternStats(const EVector& vec);
+
 protected:
 
   bhep::prlevel level;
@@ -86,6 +89,8 @@ protected:
   TH1F* locChi;
   TProfile* locVp;
   TProfile* trajVp;
+  TProfile* Eff;
+  TProfile* Purit;
 
 private:
 

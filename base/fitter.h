@@ -34,6 +34,7 @@ public:
   //-------------------------------------------------// 
     
   const Trajectory& get_traj(){return _traj;}
+  const EVector& get_rec_stats(){return _patRecStat;}
 
   Measurement* get_meas(int num){return _meas[num];}
 
@@ -92,11 +93,14 @@ protected:
   bool perform_pattern_rec(const State& seed);
   bool filter_close_measurements(measurement_vector& Fmeas,
 				 const State& seed);
+  void compute_rec_stats();
 
   //-------- get traj from event----------//
   bool readTrajectory(const bhep::particle& part);
   //get unfitted rec traj, i.e, measurements
   bool recTrajectory(const bhep::particle& part); 
+  // Check traj passes cuts for fitting.
+  bool check_valid_traj();
   string getPlaneName(bhep::hit);
   //--------------------------------------//
   
@@ -139,7 +143,8 @@ protected:
   int toomany;
   int toofew;
   int kink;
-  int unkFail;
+  int nonFid;
+  int patFail;
 
   //counter to aid pattern rec.
   int iGroup;
@@ -165,6 +170,9 @@ protected:
   Trajectory _traj;
   measurement_vector _meas;
   measurement_vector _hadmeas;
+
+  //Vector to contain the relevant results of a pattern recognition run.
+  EVector _patRecStat;
 
   size_t nnodes;
 

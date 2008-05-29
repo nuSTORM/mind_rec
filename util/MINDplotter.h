@@ -10,6 +10,7 @@
 #include <TH1F.h>
 #include <TGraph.h>
 #include <TProfile.h>
+#include <TTree.h>
 
 #include <recpack/RecpackManager.h>
 #include <recpack/Measurement.h>
@@ -32,31 +33,25 @@ class MINDplotter{
 
   //Main functions for output initialization.
   bool initialize(TString outFileName, bhep::prlevel vlevel=bhep::NORMAL);
-  bool execute(const EVector& V, 
-	       const EMatrix& M, const bhep::event& evt);
+  bool execute(fitter& Fit, const bhep::event& evt, bool success);
   bool finalize();
-  //
+//   //
   //To calculate expected vertex position give trajectory and vertex location.
   bool extrap_to_vertex(const Trajectory& traj, 
-			const bhep::Point3D& vertexLoc, fitter* fitObj, State& ste);
+			const bhep::Point3D& vertexLoc, fitter& fitObj, State& ste);
 
   /*Requires a vector of the node of interest, corresponding covariance Matrix
     and the event under study to calculate either position or momentum pulls */
-  void position_pulls(const EVector& V, const EMatrix& M, const bhep::event& evt);
-  void momentum_pulls(const EVector& V, const EMatrix& M);
-  void direction_pulls(const EVector& V, const EMatrix& M);
-
-  /* Functions to calculate charge misid efficiency as function of momentum
-     and recorded hits */
-  void momentum_efficiency(const EVector& V, const EMatrix& M);
-  void hit_efficiency(const EVector& V, const EMatrix& M);
+  void position_pulls();
+  void momentum_pulls();
+  void direction_pulls();
 
   /* Function to find maximum local chi2 in a particular trajectory
      and enter that value in a histogram */
-  void max_local_chi2(const Trajectory& traj, double maxChi, const EVector& V);
+  void max_local_chi2(const Trajectory& traj);
 
   /* Function to plot stats about pattern recogntion */
-  void patternStats(const EVector& vec);
+  void patternStats(fitter& Fit);
 
 protected:
 
@@ -66,49 +61,30 @@ protected:
 
   TFile *outFile;
 
-  //Histograms.
-  TH1F* FitX;
-  TH1F* truX;
-  TH1F* xPull;
-  TH1F* FitY;
-  TH1F* truY;
-  TH1F* yPull;
-  TH1F* FitTx;
-  TH1F* truTx;
-  TH1F* tXpull;
-  TH1F* FitTy;
-  TH1F* truTy;
-  TH1F* tYpull;
-  TH1F* FitP;
-  TH1F* truMom;
-  TH1F* pPull;
-  TH1F* pSpec;
-  TH1F* misIDp;
-  TH1F* hitSpec;
-  TH1F* misIDhit;
-  TH1F* locChi;
-  TProfile* locVp;
-  TProfile* trajVp;
-  TProfile* Eff;
-  TProfile* Purit;
+  TTree *statTree;
 
 private:
 
-  int counterlo;
-  int counterhi;
+  EVector vert;
+  EMatrix vertMat;
+  
+  bhep::particle* _truPart;
+  bool _Fit;
+  int _fail;
+  double _nuEng;
+  double _hadP[3];
+  double _X[3][2];
+  double _Th[3][2];
+  double _qP[3];
+  int _Q[3];
+  double _Chi[2];
+  int _nhits;
+  double _hitPos[3][300];
+  bool _pR[2][1000];
 
-  //Particle momentum with corresponding error and charge.
-  double p_;
-  double d_p_;
-  double tru_q_;
-  bool truP;
-  bhep::particle* part;
+  void define_tree_branches();
 
-  void lowChi_MisID_track(const Trajectory& traj, double trajMax);
-  void highChi_ID_track(const Trajectory& traj, double trajMax);
-
-  bool extract_true_particle(const EVector& V, 
-			     const EMatrix& M, const bhep::event& evt);
+  bool extract_true_particle(const bhep::event& evt);
 
 };
 

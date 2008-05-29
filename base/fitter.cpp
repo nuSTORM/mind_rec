@@ -81,8 +81,9 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   
   setVerbosity(vfit,vnav,vmod);
   
-  // create seed state
-  
+  // 
+  define_pattern_rec_param();
+
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
   return true;
@@ -148,7 +149,7 @@ bool fitter::execute(bhep::particle& part,bool tklen){
       
       if (_traj.last_fitted_node() < (int)_meas.size()-1)
 	{  kink++; cout << "Traj. failed after kink found" << endl;
-	cout << _traj << endl; }
+	_failType = 4; }
       
       m.message("++Failed fit trajectory++",bhep::NORMAL);
     }
@@ -157,7 +158,7 @@ bool fitter::execute(bhep::particle& part,bool tklen){
   
   userseed=false;
   
-  if (fitted) fitSucceed++;  
+  if (fitted) { fitSucceed++; _failType = 0; } 
   
   return fitted;
   
@@ -328,7 +329,6 @@ bool fitter::readTrajectory(const bhep::particle& part){
   bool ok = recTrajectory(part);
   
   if (patternRec && ok){
-    define_pattern_rec_param();
     ok = find_muon_pattern();
     if (!ok) {
       cout << "Failed in pattern rec." << endl;
@@ -358,7 +358,11 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     //--------- take hits from particle -------//
     
     const vector<bhep::hit*>& hits = p.hits("MIND");     
-    if (hits.size()==0) { toofew++; return false; }
+    if (hits.size()==0) { 
+      toofew++; 
+      _failType = 1;
+      return false;
+    }
     
     //------------- loop over hits ------------//
  
@@ -391,6 +395,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       m.message("Trajectory created:",_traj,bhep::VVERBOSE);
     }
 
+    return true;
 }
 
 //*************************************************************
@@ -403,24 +408,30 @@ bool fitter::check_valid_traj() {
   
   if ((int)_traj.nmeas() > highPass) { 
     toomany++;
-    cout <<"Too many hits: "<< _traj.nmeas()<<endl; 
+    _failType = 2; 
     return false; }
   if ((int)_traj.nmeas() < lowPass) { 
     toofew++;
-    cout << "Too few hits: "<< _traj.nmeas()<<endl;
+    _failType = 1;
     return false; }
   
   //---- Reject if initial meas outside fid. Vol ----//
   if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-500*cm)
-    { nonFid++; return false; }
+    { nonFid++; 
+    _failType = 3;
+    return false; }
 
   else if (_traj.nodes()[0]->measurement().vector()[0] > geom.getPlaneX()/2-100*cm
 	   || _traj.nodes()[0]->measurement().vector()[0] < -geom.getPlaneX()/2+100*cm)
-    { nonFid++; return false; }
+    { nonFid++;
+    _failType = 3;
+    return false; }
 
   else if (_traj.nodes()[0]->measurement().vector()[1] > geom.getPlaneY()/2-100*cm
 	   || _traj.nodes()[0]->measurement().vector()[1] < -geom.getPlaneY()/2+100*cm)
-    { nonFid++; return false; }
+    { nonFid++;
+    _failType = 3;
+    return false; }
   
   return true;
 }
@@ -756,6 +767,8 @@ void fitter::readParam(){
 
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
+    patRec_maxChi = store.fetch_dstore("pat_rec_max_chi");
+
     X0 = store.fetch_dstore("x0") * mm;
     
     vfit = store.fetch_istore("vfit");
@@ -811,8 +824,10 @@ void fitter::define_pattern_rec_param() {
   patman().geometry_svc().select_setup("main");
   
   patman().navigation_svc().navigator(model).set_unique_surface(true);
+  
+  patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+    set_max_local_chi2ndf(patRec_maxChi);
 
-  _patRecStat = EVector(3,0);
 }
 
 //*****************************************************************************
@@ -822,16 +837,18 @@ bool fitter::find_muon_pattern() {
 //Algorithms for isolating possible muon from event hits.
   m.message("++ Starting Pattern Recognition ++",bhep::VERBOSE);
 
+  _patRecStat.clear();
+  int measCount = (int)_meas.size();
+  _patRecStat = vector<bool> (measCount, 0);
+
   State patternSeed;
   
   bool ok = get_patternRec_seedtraj();
   if (ok)
     ok = get_patternRec_seed(patternSeed);
 
-  if (ok){
+  if (ok)
     ok = perform_pattern_rec(patternSeed);
-    compute_rec_stats();
-  }
   
   // Sort the measurements identified as muon hits into ascending
   // z for muon fit.
@@ -862,13 +879,18 @@ bool fitter::get_patternRec_seedtraj() {
     else {
       
       _traj.add_measurement(*_meas[Iso-1]);
+      if (_meas[Iso-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+	_patRecStat[Iso-1] = true;
       prevZ = currentZ;
       
     }
 
   }
   
-  if ((int)_traj.nmeas() < min_seed_hits) { cout<<"No seedTraj found"<<endl; return false;}
+  if ((int)_traj.nmeas() < min_seed_hits) { 
+    cout<<"No seedTraj found"<<endl;
+    _failType = 5;
+    return false;}
   
   iGroup = (int)_traj.nmeas();
 
@@ -922,7 +944,11 @@ bool fitter::get_patternRec_seed(State& seed) {
   
   //bool ok = perform_least_squares(seed);
   bool ok = perform_kalman_fit(seed);
-  if (!ok) cout<<"Kalman fit for ssed failed"<<endl;
+  if (!ok) {
+    cout<<"Kalman fit for ssed failed"<<endl;
+    _failType = 5;
+  }
+
   return ok;
 }
 
@@ -982,8 +1008,6 @@ bool fitter::perform_pattern_rec(const State& seed) {
 
   //fitter parameters.
   patman().fitting_svc().select_fitter("kalman");
-  patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-    set_max_local_chi2ndf(5000);
 
   while ( iGroup < (int)_meas.size() ) {
 
@@ -1000,17 +1024,28 @@ bool fitter::perform_pattern_rec(const State& seed) {
       if (NeedFiltered.size() > 1) {
 	
 	ok = filter_close_measurements(NeedFiltered, seed);
-	if (!ok) {cout<<"Failed in filtering"<<endl; return false;}
+	if (!ok) {
+	  cout<<"Failed in filtering"<<endl; 
+	   _failType = 6;
+	  return ok;}
 
       } else {
 	//	_traj.add_measurement(*NeedFiltered[0]);
 	//cout << *NeedFiltered[0] << endl;
 	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
-	if (!ok) { cout << "failed in proj of isolated hit"<<endl; return false;}
+
+	if (_meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+	  _patRecStat[iGroup-1] = true;
+
+	if (!ok) {
+	  cout << "failed in proj of isolated hit"<<endl;
+	  _failType = 6;
+	  return ok;}
 
       }
 	
       NeedFiltered.clear();
+      NeedFiltered.push_back( _meas[iGroup] );
       iGroup++;
 
     } else {
@@ -1020,7 +1055,6 @@ bool fitter::perform_pattern_rec(const State& seed) {
 
   }
 
-  if (!ok) cout << "Failed in Pattern rec function" <<endl;
   return ok;
 
 }
@@ -1042,7 +1076,7 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
   for (int iMat = 0;iMat < nMeas;iMat++) {
 
     ok = patman().matching_svc().match_trajectory_measurement(_traj, *Fmeas[iMat],
-							 Chi2[iMat]);
+							      Chi2[iMat]);
     if (!ok) cout << "Chi not identified for hit" << endl;
   }
 
@@ -1050,45 +1084,18 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
 
   for (int iFilt = 0;iFilt < nMeas;iFilt++) {
 
-    if (iFilt == (int)ChiMin)
+    if (iFilt == (int)ChiMin){
       ok = patman().fitting_svc().filter(*Fmeas[(int)iFilt], seed , _traj);
-    if (!ok) cout<< "Filter failed" <<endl;
+      if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
+	  .compare("Hadronic_vector")!=0)
+	_patRecStat[iGroup-(nMeas-(int)ChiMin)] = true;
+
+      else cout<< "Filter failed" <<endl;
+    }
     else
       _hadmeas.push_back( Fmeas[(int)iFilt] );
 
   }
  
   return ok;
-}
-
-//*****************************************************************************
-void fitter::compute_rec_stats() {
-//*****************************************************************************
-
-  double nhitsInMu = (double)_traj.nmeas();
-  cout << nhitsInMu<<endl;
-  double nMuInMu;
-  double nMeas = (double)_meas.size();
-  double nMuInEvent;
-
-  for (double iMu = 0;iMu < nhitsInMu;iMu++){
-    
-    if (_traj.nodes()[(int)iMu]->measurement().name("MotherParticle").compare("mu+")==0
-	|| _traj.nodes()[(int)iMu]->measurement().name("MotherParticle").compare("mu-")==0)
-      nMuInMu++;
-    
-  }
-
-  for (double iMeas = 0;iMeas < nMeas;iMeas++){
-
-    if (_meas[(int)iMeas]->name("MotherParticle").compare("mu+")==0
-	|| _meas[(int)iMeas]->name("MotherParticle").compare("mu-")==0)
-      nMuInEvent++;
-    
-  }
-
-  _patRecStat[0] = nhitsInMu;
-  _patRecStat[1] = nMuInMu;
-  _patRecStat[2] = nMuInEvent;
-  
 }

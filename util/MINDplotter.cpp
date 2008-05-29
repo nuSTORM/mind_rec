@@ -23,26 +23,13 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
 
   m = bhep::messenger(level);
 
-  counterlo = 0;
-  counterhi = 0;
-  
-  FitX = NULL; truX = NULL; xPull = NULL;
-  FitY = NULL; truY = NULL; yPull = NULL;
-  FitP = NULL; truMom = NULL; pPull = NULL;
-  FitTx = NULL; truTx = NULL; tXpull = NULL;
-  FitTy = NULL; truTy = NULL; tYpull = NULL;
-  pSpec = NULL;
-  misIDp = NULL;
-  hitSpec = NULL;
-  misIDhit = NULL;
-  locChi = NULL; locVp = NULL; trajVp = NULL;
-  Eff = NULL; Purit = NULL;
-
-  part = NULL;
-
   m.message("++Creating output root file++",bhep::VERBOSE);
 
   outFile = new TFile(outFileName, "recreate");
+
+  statTree = new TTree("tree", "Tree with pattern rec and fit data for MIND");
+
+  define_tree_branches();
 
   m.message("++plotter initialized",bhep::VERBOSE);
 
@@ -50,16 +37,48 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
 }
 
 //*************************************************************************************
-bool MINDplotter::execute(const EVector& V, 
-			  const EMatrix& M, const bhep::event& evt) {
+bool MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
 //*************************************************************************************
 
-//Creates output file to take plots.
-  truP = false;
+  bool ok;
 
-  truP = extract_true_particle(V,M,evt);
+  _Fit = success;
+  _fail = Fit.get_fail_type();
+  ok = extract_true_particle( evt );
 
-  return truP;
+  if (success) {
+
+    State ste;
+    ok = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
+
+    if (ok) {
+      max_local_chi2( Fit.get_traj() );
+      position_pulls();
+      direction_pulls();
+      momentum_pulls();
+    }
+
+  }
+
+  //If fit not successful set rec values to zero.
+  if (!success){
+    _X[1][0] = 0; _X[1][1] = 0;
+    _X[2][0] = 0; _X[2][1] = 0;
+
+    _Th[1][0] = 0; _Th[1][1] = 0;
+    _Th[2][0] = 0; _Th[2][1] = 0;
+
+    _qP[1] = 0; _qP[2] = 0;
+
+    _Chi[0] = 0; _Chi[1] = 0;
+  }
+
+  patternStats( Fit );
+
+  //Fill tree event with the values.
+  statTree->Fill();
+
+  return ok;
 }
 
 //*************************************************************************************
@@ -77,9 +96,28 @@ bool MINDplotter::finalize() {
 }
 
 //*************************************************************************************
+void MINDplotter::define_tree_branches() {
+//*************************************************************************************
+
+  statTree->Branch("Fitted", &_Fit, "success/B");
+  statTree->Branch("Fail", &_fail, "FailType/I");
+  statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
+  statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
+  statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrPos[2]/D");
+  statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
+  statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
+  statTree->Branch("ChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
+  statTree->Branch("hadronMom", &_hadP, "hadP/D");
+  statTree->Branch("NoHits", &_nhits, "nhits/I");
+  statTree->Branch("HitPositions", &_hitPos, "X[nhits]/D:Y[nhits]/D:Z[nhits]/D");
+  statTree->Branch("PatternRec", &_pR, "truMu[nhits]/B:inMu[nhits]/B");
+
+}
+
+//*************************************************************************************
 bool MINDplotter::extrap_to_vertex(const Trajectory& traj, 
 				   const bhep::Point3D& vertexLoc,
-				   fitter* fitObj, State& ste) {
+				   fitter& fitObj, State& ste) {
 //*************************************************************************************
 
   m.message("++Extrapolation function, Finding best fit to vertex++",bhep::NORMAL);
@@ -95,289 +133,153 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
 
   Surface* surf = new Ring(pos, axis, R1, R2);
 
-  fitObj->man().geometry_svc().setup().add_surface("Detector","vertex",surf);
-  bool ok = fitObj->man().navigation_svc().propagate(*surf,ste,l);
-  fitObj->man().geometry_svc().setup().remove_surface("vertex");
+  fitObj.man().geometry_svc().setup().add_surface("Detector","vertex",surf);
+  bool ok = fitObj.man().navigation_svc().propagate(*surf,ste,l);
+  fitObj.man().geometry_svc().setup().remove_surface("vertex");
+
+  //Convert to slopes representation.
+  fitObj.man().model_svc().model(RP::particle_helix)
+	  .representation().convert(ste, RP::slopes_z);
+
+  //Grab fitted vertex information.
+  vert = ste.hv().vector();
+  vertMat = ste.hv().matrix();
 
   return ok;
 }
 
 //**************************************************************************************
-void MINDplotter::position_pulls(const EVector& V, const EMatrix& M, 
-				 const bhep::event& evt) {
+void MINDplotter::position_pulls() {
 //**************************************************************************************
 
 //Function to calculate the pull for a measurement
   m.message("++Calculating position pulls++",bhep::VERBOSE);
-
-  if (xPull == NULL){
-    xPull = new TH1F("Xpull", "Pulls for vertex X component",120,-15,15);
-    FitX = new TH1F("FitX", "Fitted X position",1400,-700,700);
-    truX = new TH1F("truX", "True X position",1400,-700,700);
-  }
-  if (yPull == NULL){
-    yPull = new TH1F("Ypull", "Pulls for vertex Y component",120,-15,15);
-    FitY = new TH1F("FitY", "Fitted Y position",1400,-700,700);
-    truY = new TH1F("truY", "True Y position",1400,-700,700);
-  }
-  double pull_x, pull_y;
-
-  pull_x = (V[0]-evt.vertex().x())/sqrt(M[0][0]);
-
-  pull_y = (V[1]-evt.vertex().y())/sqrt(M[1][1]);
   
-  xPull->Fill(pull_x);
-  FitX->Fill(V[0]);
-  truX->Fill(evt.vertex().x());
-  yPull->Fill(pull_y);
-  FitY->Fill(V[1]);
-  truY->Fill(evt.vertex().y());
+  //Reconstructed x,y position.
+  _X[1][0] = vert[0]; _X[1][1] = vert[2];
+
+  //Corresponding Error.
+  _X[2][0] = vertMat[0][0]; _X[2][1] = vertMat[1][1];
 
 }
 
 //**************************************************************************************
-void MINDplotter::momentum_pulls(const EVector& V, const EMatrix& M) {
+void MINDplotter::momentum_pulls() {
 //**************************************************************************************
 
 ///Function to calculate momentum pulls.
   m.message("++Calculating momentum pulls++",bhep::VERBOSE);
 
-  if (pPull==NULL) {
-    pPull = new TH1F("pPull", "Pulls for vertex q/p",120,-15,15);
-    FitP = new TH1F("FitP", "Fitted q/P at vertex",1000,-1,1);
-    truMom = new TH1F("truP", "True q/P at vertex",1000,-1,1);
-  }
-  double pull_p;
-  
-  
-  pull_p = (V[5]-(1/part->p()))/sqrt(M[5][5]);
-  cout << "q/P: "<< V[5] <<"-"<<1/part->p()<<endl;
-  pPull->Fill(pull_p);
-  FitP->Fill(V[5]);
-  truMom->Fill(tru_q_/part->p());
+  //Reconstructed q/P.
+  if (vert[5] !=0) _Q[1] = (int)( vert[5]/fabs(vert[5]) );
+  _qP[1] = vert[5];
+
+  //Corresponding Error.
+  _qP[2] = vertMat[5][5];
+
+  //Correctly ID'd charge?.
+  if (_Q[0] == _Q[1]) _Q[2] = true;
+  else _Q[2] = false;
 
 }
 
 //**************************************************************************************
-void MINDplotter::direction_pulls(const EVector& V, const EMatrix& M) {
+void MINDplotter::direction_pulls() {
 //**************************************************************************************
 
-  if(tXpull==NULL) {
-    tXpull = new TH1F("tXpull", "Pulls for vertex #theta_{x} component",120,-15,15);
-    FitTx = new TH1F("FitTx", "Fitted slope in x at vertex",1000,-2,2);
-    //truTx = new TH1F("truTx", "True slope in x at vertex",1000,-2,2);
-  }
-  if(tYpull==NULL) {
-    tYpull = new TH1F("tYpull", "Pulls for vertex #theta_{y} component",120,-15,15);
-    FitTy = new TH1F("FitTy", "Fitted slope in y at vertex",1000,-2,2);
-    //truTy = new TH1F("truTy", "True slope in y at vertex",1000,-2,2);
-  }
+  //Reconstructed direction.
+  _Th[1][0] = vert[3]; _Th[1][1] = vert[4];
 
-  double pull_x, pull_y;
-
-  double tetaX = part->px()/part->pz();
-  double tetaY = part->py()/part->pz();
-
-  pull_x = (V[3]-tetaX)/sqrt(M[3][3]);
-
-  pull_y = (V[4]-tetaY)/sqrt(M[4][4]);
-
-  tXpull->Fill(pull_x);
-  FitTx->Fill(V[3]-tetaX);
-  //truTx->Fill(tetaX);
-  tYpull->Fill(pull_y);
-  FitTy->Fill(V[4]-tetaY);
-  //truTy->Fill(tetaY);
-
-}
-
-//**************************************************************************************
-void MINDplotter::momentum_efficiency(const EVector& V, const EMatrix& M) {
-//**************************************************************************************
-
-  m.message("++Momentum efficiency function++",bhep::VERBOSE);
-
-  if (pSpec==NULL) pSpec = new TH1F("pSpec", "Fitted track true momentum spectrum",50,0,50);
-  if (misIDp==NULL) misIDp = new TH1F("pMis", "Charge mis-id true momentum spectrum",50,0,50);
-
-  pSpec->Fill(part->p() / GeV);
-  
-  double q;
-  if (V[5] != 0) q = V[5]/fabs(V[5]);
-  if (q != tru_q_)
-    misIDp->Fill(part->p() / GeV);
-  
-}
-
-//*************************************************************************************
-void MINDplotter::hit_efficiency(const EVector& V, const EMatrix& M) {
-//*************************************************************************************
-
-  m.message("++Hit Efficiency function++",bhep::VERBOSE);
-
-  if (hitSpec==NULL) hitSpec = new TH1F("hits", "Fitted track hit spectrum",400,0,400);
-  if (misIDhit==NULL) misIDhit = new TH1F("hitMis", "Charge mis-id hit spectrum",400,0,400);
-
-  hitSpec->Fill((int)part->hits("MIND").size());
-  
-  double q = 1;
-  if (V[5] != 0) q = V[5]/fabs(V[5]);
-  if (q != tru_q_)
-    misIDhit->Fill((int)part->hits("MIND").size());
+  //Corresponding error.
+  _Th[2][0] = vertMat[3][3]; _Th[2][1] = vertMat[4][4];
 
 }
 
 //*************************************************************************************
-bool MINDplotter::extract_true_particle(const EVector& V, const EMatrix& M, 
-						   const bhep::event& evt) {
+bool MINDplotter::extract_true_particle(const bhep::event& evt) {
 //*************************************************************************************
 
 /* sets true particle momentum for calculation and returns a reference
    to the particle */
 
+  _nuEng = atof( evt.fetch_property("Enu").c_str() );
+
   const vector<bhep::particle*> Pospart = evt.true_particles();
  
-  p_ = pow(fabs(V[5]), -1);
-  d_p_ = sqrt(M[5][5])/fabs(V[5]);
-  
   int count = 0;
-  for (int iParts=0;iParts<(int)Pospart.size();iParts++){
+  for (int iParts=0;iParts < (int)Pospart.size();iParts++){
     if (Pospart[iParts]->name().compare("mu-")==0){
-      tru_q_ = -1;
-      part = Pospart[iParts];
+      _Q[0] = -1;
+      _truPart = Pospart[iParts];
       count++;
     } 
     else if (Pospart[iParts]->name().compare("mu+")==0){
-      tru_q_ = 1;
-      part = Pospart[iParts];
+      _Q[0] = 1;
+      _truPart = Pospart[iParts];
       count++;
     } 
+    if (Pospart[iParts]->name().compare("Hadronic_vector")==0){
+      _hadP[0] = Pospart[iParts]->px();
+      _hadP[1] = Pospart[iParts]->py();
+      _hadP[2] = Pospart[iParts]->pz();
+    }
   }
+  
   if (count == 0) {
     cout << "No particles of muon or antimuon type in file" << endl;
     return false;
   }
   
+  //Set true values of muon mom. etc.
+  //True q/P.
+  _qP[0] = _Q[0]/_truPart->p();
+  //True direction.
+  _Th[0][0]= _truPart->px()/_truPart->pz();
+  _Th[0][1]= _truPart->py()/_truPart->pz();
+  //True x,y position.
+  _X[0][0] = evt.vertex().x(); _X[0][1] = evt.vertex().y();
+
   return true;
 }
 
 //*************************************************************************************
-void MINDplotter::max_local_chi2(const Trajectory& traj, double maxChi, const EVector& V) {
+void MINDplotter::max_local_chi2(const Trajectory& traj) {
 //*************************************************************************************
 
   m.message("++Finding trajectory local chi max++",bhep::VERBOSE);
 
-  if (locChi==NULL) {
-    locChi = new TH1F("locChi","Max local #chi^{2} per trajectory",(int)maxChi*2,0,maxChi);
-    locVp = new TProfile("locVp","Max local #chi^{2} vs. true particle momentum",50,0,50);
-    trajVp = new TProfile("trajVp","Trajectory #chi^{2} vs. true particle momentum",50,0,50);
-  }
-
   size_t nNodes = traj.size();
-  //const int trajSize = nNodes;
-  //double chi[trajSize];
   double trajMax = 0;
 
   for (size_t iNode = 0;iNode < nNodes;iNode++){
 
     trajMax = TMath::Max(trajMax, traj.node(iNode).quality() );
-    //chi[iNode] = traj.node(iNode).quality();
 
   }
 
-  //trajMax = TMath::MaxElement((Long64_t)nNodes, chi);
-  locChi->Fill(trajMax);
-  locVp->Fill(part->p()/GeV, trajMax);
-  trajVp->Fill(part->p()/GeV, traj.quality());
-
-  double q;
-  if (V[5] != 0) q = V[5]/fabs(V[5]);
-
-  if (trajMax < 0.2*maxChi && q != tru_q_ && counterlo<10)
-    lowChi_MisID_track(traj,trajMax);
-
-  if (trajMax > 0.8*maxChi && q == tru_q_ && counterhi<10)
-    highChi_ID_track(traj,trajMax);
+  _Chi[0] = traj.quality();
+  _Chi[1] = trajMax;
 
 }
 
 //****************************************************************************************
-void MINDplotter::lowChi_MisID_track(const Trajectory& traj, double trajMax) {
+void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
+  
+  _nhits = Fit.get_nMeas();
 
-  m.message("++ Output of low Chi2 mis-ID track ++",bhep::VERBOSE);
+  for (int iHits = 0;iHits < _nhits;iHits++){
 
-  const int nMeas = (int)traj.nmeas();
-  double X[nMeas], Z[nMeas];
+    _hitPos[0][iHits] = Fit.get_meas(iHits)->vector()[0];
+    _hitPos[1][iHits] = Fit.get_meas(iHits)->vector()[1];
+    _hitPos[2][iHits] = Fit.get_meas(iHits)->surface().position()[2];
 
-  TString plotName, plotTitle;
-  plotName = "loMisID"+to_string(counterlo);
-  plotTitle = "Trajectory of charge Mis-ID particle with low max local #chi^{2} = "+to_string(trajMax);
+    if (Fit.get_meas(iHits)->name("MotherParticle").compare("Hadronic_vector")!=0)
+      _pR[0][iHits] = true;
+    else _pR[0][iHits] = false;
 
-  for (int iMeas = 0;iMeas < nMeas;iMeas++){
-
-    X[iMeas] = traj.measurement(iMeas).vector()[0]/cm;
-    Z[iMeas] = traj.measurement(iMeas).position()[2]/cm;
+    _pR[1][iHits] = Fit.get_rec_stats()[iHits];
 
   }
-
-  TGraph* plot = new TGraph(nMeas,Z,X);
-  plot->SetName(plotName);
-  plot->SetTitle(plotTitle);
-  plot->GetXaxis()->SetTitle("Z position (cm)");
-  plot->GetYaxis()->SetTitle("X position (cm)");
-  plot->Write();
-
-  counterlo++;
-
-}
-
-//****************************************************************************************
-void MINDplotter::highChi_ID_track(const Trajectory& traj, double trajMax) {
-//****************************************************************************************
-
-  m.message("++ Output of high Chi2 track ++",bhep::VERBOSE);
-
-  const int nMeas = (int)traj.nmeas();
-  double X[nMeas], Z[nMeas];
-  
-  TString plotName, plotTitle;
-  plotName = "hiChiID"+to_string(counterhi);
-  plotTitle = "Trajectory of correctly ID'd particle with high max local #chi^{2} = "+to_string(trajMax);
-  
-  for (int iMeas = 0;iMeas < nMeas;iMeas++){
-
-    X[iMeas] = traj.measurement(iMeas).vector()[0]/cm;
-    Z[iMeas] = traj.measurement(iMeas).position()[2]/cm;
-    
-  }
-  
-  
-  TGraph* plot2 = new TGraph(nMeas,Z,X);
-  plot2->SetName(plotName);
-  plot2->SetTitle(plotTitle);
-  plot2->GetXaxis()->SetTitle("Z position (cm)");
-  plot2->GetYaxis()->SetTitle("X position (cm)");
-  plot2->Write();
-
-  counterhi++;
-  
-}
-
-//****************************************************************************************
-void MINDplotter::patternStats(const EVector& vec) {
-//****************************************************************************************
-  if (Eff == NULL){
-    Eff = new TProfile("eff","Pattern recognition efficiency as func muon true p",50,0,50);
-    Purit = new TProfile("purit","Pattern recognition purity as func muon true p",50,0,50);
-  }
-
-  double efficiency;
-  double purity;
-  efficiency = vec[1]/vec[2];
-  purity = vec[1]/vec[0];
-
-  Eff->Fill(part->p()/GeV, efficiency);
-  Purit->Fill(part->p()/GeV, purity);
 
 }

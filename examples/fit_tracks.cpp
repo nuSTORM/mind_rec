@@ -65,6 +65,7 @@ int main(int argc, char* argv[]){
   
   fit->initialize(eman->get_dst_properties());
 
+  
   plot->initialize("/home/alaing/ntuples/MINDpulls.root",bhep::NORMAL);
   
   //add run properties to output dst header
@@ -98,36 +99,10 @@ int main(int argc, char* argv[]){
       if (p.name()=="void") continue;
       
       fitOk = fit->execute(p);
+
+      plot->execute(*fit, e, fitOk);
     }
     
-    if (fitOk){
-      
-      const Trajectory& traj = fit->get_traj();
-      State state;
-      bool ok = plot->extrap_to_vertex(traj, e.vertex(), fit, state);
-      if (!ok) cout << "Extrapolation Failed" << endl;
-      else {
-	
-	fit->man().model_svc().model(RP::particle_helix)
-	  .representation().convert(state, RP::slopes_z);
-	v = state.hv().vector();
-	M = state.hv().matrix();
-	bool ok2 = plot->execute(v,M,e);
-	if (ok2){
-	  double ChiMax = run_store.fetch_dstore("chi2node_max");
-	  plot->max_local_chi2(traj,ChiMax,v);
-	  plot->position_pulls(v,M,e);
-	  plot->momentum_pulls(v,M);
-	  plot->direction_pulls(v,M);
-	  plot->momentum_efficiency(v,M);
-	  plot->hit_efficiency(v,M);
-
-	  const EVector& patR = fit->get_rec_stats();
-	  plot->patternStats(patR);
-	}
-	
-      }
-    }
     //save event containing fit info 
     eman->write(e); 
   }

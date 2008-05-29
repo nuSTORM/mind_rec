@@ -34,9 +34,12 @@ ANA vsim I 0
 # maximum chi2 for tracks
 RUN chi2fit_max D 50
 
-# maximum local chi2 for nodes
+# maximum local chi2 for nodes (muon fit)
 RUN chi2node_max D 50
 RUN max_outliers I 5
+
+# maximum local chi2 for nodes (pattern rec.)
+RUN pat_rec_max_chi D 200
 
 # lowest and highest number of hits required for fit.
 RUN low_Pass_hits I 6
@@ -60,7 +63,7 @@ ANA max_seed_hits I 15
 
 DATA idst_files SV 1
 /home/alaing/ntuples/tndmu_10GeV_10k.gz
-/home/alaing/ntuples/hadrons.gz
+# /home/alaing/ntuples/hadrons.gz
 # /home/alaing/ntuples/tndmu_ms_eloss_10k.gz
 # /home/alaing/ntuples/tndmu_noeloss_10k.gz
 # /home/alaing/ntuples/tndmu_ms_eloss.gz
@@ -73,7 +76,7 @@ DATA idst_files SV 1
 
 DATA odst_files SV 1
 /home/alaing/ntuples/tndmu_10GeV_10k.FITTED.gz
-/home/alaing/ntuples/hadrons.FITTED.gz
+# /home/alaing/ntuples/hadrons.FITTED.gz
 # /home/alaing/ntuples/tndmu_ms_eloss_10k.FITTED.gz
 # /home/alaing/ntuples/tndmu_noeloss_10k.FITTED.gz
 # /home/alaing/ntuples/tndmu_ms_eloss.FITTED.gz

@@ -34,9 +34,11 @@ public:
   //-------------------------------------------------// 
     
   const Trajectory& get_traj(){return _traj;}
-  const EVector& get_rec_stats(){return _patRecStat;}
+  const vector<bool>& get_rec_stats(){return _patRecStat;}
+  int get_fail_type(){return _failType;}
 
   Measurement* get_meas(int num){return _meas[num];}
+  int get_nMeas(){return (int)_meas.size();}
 
   double getChi2(){return _traj.quality();}
   
@@ -93,7 +95,6 @@ protected:
   bool perform_pattern_rec(const State& seed);
   bool filter_close_measurements(measurement_vector& Fmeas,
 				 const State& seed);
-  void compute_rec_stats();
 
   //-------- get traj from event----------//
   bool readTrajectory(const bhep::particle& part);
@@ -166,13 +167,19 @@ protected:
   int max_outliers;
   double chi2fit_max;
   double facRef;
+  double patRec_maxChi;
     
   Trajectory _traj;
   measurement_vector _meas;
   measurement_vector _hadmeas;
 
   //Vector to contain the relevant results of a pattern recognition run.
-  EVector _patRecStat;
+  vector<bool> _patRecStat;
+  
+  //value set to identify where a traj failed:
+  //0=too few hits. 1=too many hits. 2=outside fiducial. 3=no convergence with kink.
+  //4=Couldn't find seed for patrec. 5=Failed in pat rec filtering
+  int _failType;
 
   size_t nnodes;
 

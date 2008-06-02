@@ -114,7 +114,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
-  statTree->Branch("hadronMom", &_hadP, "hadP/D");
+  statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
   statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I");
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
@@ -213,7 +213,7 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt) {
 /* sets true particle momentum for calculation and returns a reference
    to the particle */
 
-  _nuEng = atof( evt.fetch_property("Enu").c_str() );
+  _nuEng = atof( evt.fetch_property("Enu").c_str() ) * GeV;
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
  

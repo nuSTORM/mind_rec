@@ -150,6 +150,7 @@ protected:
 
   //counters to aid pattern rec.
   int iGroup;
+  int _nConsecHoles;
 
   //------------------ Physics -----------------//
     

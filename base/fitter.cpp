@@ -1009,6 +1009,7 @@ bool fitter::perform_pattern_rec(const State& seed) {
   bool ok;
   double curZ, preZ;
   double tolerance = 1 * cm;
+  _nConsecHoles = 0;
 
   //fitter parameters.
   patman().fitting_svc().select_fitter("kalman");
@@ -1037,15 +1038,22 @@ bool fitter::perform_pattern_rec(const State& seed) {
 	
 	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
 
-	if (ok && _meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+	if (ok){
 	  _patRecStat[iGroup-1] = true;
+	  
+	  if (_meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+	    _recChi[0] = TMath::Max(_traj.node(_traj.last_fitted_node()).quality(), _recChi[0]);
+	  else _recChi[1] = TMath::Min(_traj.node(_traj.last_fitted_node()).quality(), _recChi[1]);
 
-	if (ok) _recChi[2] = 0;
-	else {
-	  _recChi[2]++;
+	  _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);
+	  _nConsecHoles = 0;
 
-	  if (_recChi[2] > max_consec_missed_planes) {
+	} else {
+	  _nConsecHoles++;
+
+	  if (_nConsecHoles > max_consec_missed_planes) {
 	    _failType = 6;
+	    _recChi[2] = _nConsecHoles;
 	    return ok;
 	  }
 	}
@@ -1114,11 +1122,14 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
 
   }
 
-  if (ok) _recChi[2] = 0;
-  else {
-    _recChi[2]++;
+  if (ok) {
+    _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);
+    _nConsecHoles = 0;
+  } else {
+    _nConsecHoles++;
 
-    if (_recChi[2] > max_consec_missed_planes) {
+    if ( _nConsecHoles > max_consec_missed_planes) {
+      _recChi[2] = _nConsecHoles;
       _failType = 6;
       return false;
     }

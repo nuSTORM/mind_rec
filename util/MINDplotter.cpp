@@ -301,4 +301,8 @@ void MINDplotter::patternStats(fitter& Fit) {
 
   }
 
+  _pChi[0] = Fit.get_PatRec_Chis()[0];
+  _pChi[1] = Fit.get_PatRec_Chis()[1];
+  _pChi[2] = Fit.get_PatRec_Chis()[2];
+
 }

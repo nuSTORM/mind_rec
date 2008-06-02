@@ -130,6 +130,7 @@ bool fitter::execute(bhep::particle& part,bool tklen){
   bool ok; 
   bool fitted=false;
   totFitAttempts++;
+  _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
   
   if (!userseed && ok) computeSeed();

@@ -69,6 +69,7 @@ private:
   EMatrix vertMat;
   
   bhep::particle* _truPart;
+  int _evNo;
   bool _Fit;
   int _fail;
   double _nuEng;
@@ -79,8 +80,12 @@ private:
   int _Q[3];
   double _Chi[2];
   int _nhits;
-  double _hitPos[3][300];
+  int _hitType[3];
+  double _XPos[300];
+  double _YPos[300];
+  double _ZPos[300];
   bool _pR[2][1000];
+  double _pChi[3];
 
   void define_tree_branches();
 

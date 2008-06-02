@@ -42,9 +42,13 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
 
   bool ok;
 
+  _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
   ok = extract_true_particle( evt );
+
+  for (int i = 0;i<3;i++)
+    _hitType[i] = 0;
 
   if (success) {
 
@@ -71,6 +75,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     _qP[1] = 0; _qP[2] = 0;
 
     _Chi[0] = 0; _Chi[1] = 0;
+
+    _Q[1] = 0; _Q[2] = 0;
   }
 
   patternStats( Fit );
@@ -99,6 +105,7 @@ bool MINDplotter::finalize() {
 void MINDplotter::define_tree_branches() {
 //*************************************************************************************
 
+  statTree->Branch("Evt", &_evNo, "EventNo/I");
   statTree->Branch("Fitted", &_Fit, "success/B");
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
@@ -106,11 +113,15 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrPos[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
-  statTree->Branch("ChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
+  statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("hadronMom", &_hadP, "hadP/D");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
-  statTree->Branch("HitPositions", &_hitPos, "X[nhits]/D:Y[nhits]/D:Z[nhits]/D");
+  statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I");
+  statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
+  statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
+  statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
   statTree->Branch("PatternRec", &_pR, "truMu[nhits]/B:inMu[nhits]/B");
+  statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/I");
 
 }
 
@@ -120,7 +131,7 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
 				   fitter& fitObj, State& ste) {
 //*************************************************************************************
 
-  m.message("++Extrapolation function, Finding best fit to vertex++",bhep::NORMAL);
+  m.message("++Extrapolation function, Finding best fit to vertex++",bhep::VERBOSE);
 
   ste = traj.node(traj.first_fitted_node()).state();
 
@@ -266,19 +277,27 @@ void MINDplotter::max_local_chi2(const Trajectory& traj) {
 void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   
+  bool muHit;
   _nhits = Fit.get_nMeas();
 
   for (int iHits = 0;iHits < _nhits;iHits++){
 
-    _hitPos[0][iHits] = Fit.get_meas(iHits)->vector()[0];
-    _hitPos[1][iHits] = Fit.get_meas(iHits)->vector()[1];
-    _hitPos[2][iHits] = Fit.get_meas(iHits)->surface().position()[2];
-
-    if (Fit.get_meas(iHits)->name("MotherParticle").compare("Hadronic_vector")!=0)
+    _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
+    _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
+    _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
+    
+    if (Fit.get_meas(iHits)->name("MotherParticle").compare("Hadronic_vector")!=0){
       _pR[0][iHits] = true;
-    else _pR[0][iHits] = false;
+      _hitType[0]++;
+      muHit = true;
+    }
+    else {_pR[0][iHits] = false; muHit = false;}
 
     _pR[1][iHits] = Fit.get_rec_stats()[iHits];
+    if (Fit.get_rec_stats()[iHits] == true){
+      _hitType[1]++;
+      if (muHit) _hitType[2]++;
+    }
 
   }
 

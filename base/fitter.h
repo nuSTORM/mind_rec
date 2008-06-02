@@ -36,6 +36,7 @@ public:
   const Trajectory& get_traj(){return _traj;}
   const vector<bool>& get_rec_stats(){return _patRecStat;}
   int get_fail_type(){return _failType;}
+  EVector& get_PatRec_Chis(){return _recChi;};
 
   Measurement* get_meas(int num){return _meas[num];}
   int get_nMeas(){return (int)_meas.size();}
@@ -147,7 +148,7 @@ protected:
   int nonFid;
   int patFail;
 
-  //counter to aid pattern rec.
+  //counters to aid pattern rec.
   int iGroup;
 
   //------------------ Physics -----------------//
@@ -167,15 +168,19 @@ protected:
   int max_outliers;
   double chi2fit_max;
   double facRef;
+
   double patRec_maxChi;
+  int patRec_max_outliers;
+  int max_consec_missed_planes;
     
   Trajectory _traj;
   measurement_vector _meas;
   measurement_vector _hadmeas;
 
-  //Vector to contain the relevant results of a pattern recognition run.
+  //Vectors to contain the relevant results of a pattern recognition run.
   vector<bool> _patRecStat;
-  
+  EVector _recChi;
+
   //value set to identify where a traj failed:
   //0=too few hits. 1=too many hits. 2=outside fiducial. 3=no convergence with kink.
   //4=Couldn't find seed for patrec. 5=Failed in pat rec filtering

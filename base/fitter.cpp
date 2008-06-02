@@ -147,8 +147,8 @@ bool fitter::execute(bhep::particle& part,bool tklen){
     else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
     if (!fitted) {
       
-      if (_traj.last_fitted_node() < (int)_meas.size()-1)
-	{  kink++; cout << "Traj. failed after kink found" << endl;
+      if (_traj.last_fitted_node() < (int)_meas.size()-1 && _failType!=3)
+	{  kink++;
 	_failType = 4; }
       
       m.message("++Failed fit trajectory++",bhep::NORMAL);
@@ -158,7 +158,10 @@ bool fitter::execute(bhep::particle& part,bool tklen){
   
   userseed=false;
   
-  if (fitted) { fitSucceed++; _failType = 0; } 
+  if (fitted) {
+    fitSucceed++; 
+    if (_failType!=3) _failType = 0;
+  } 
   
   return fitted;
   
@@ -330,10 +333,8 @@ bool fitter::readTrajectory(const bhep::particle& part){
   
   if (patternRec && ok){
     ok = find_muon_pattern();
-    if (!ok) {
-      cout << "Failed in pattern rec." << endl;
+    if (!ok)
       patFail++;
-    }
   }
 
   // Check that the 'muon' can be fitted.
@@ -355,10 +356,11 @@ bool fitter::recTrajectory(const bhep::particle& p) {
  
     reset();
 
+    int lowPass = store.fetch_istore("low_Pass_hits");
     //--------- take hits from particle -------//
     
     const vector<bhep::hit*>& hits = p.hits("MIND");     
-    if (hits.size()==0) { 
+    if ((int)hits.size() < lowPass ) { 
       toofew++; 
       _failType = 1;
       return false;
@@ -386,7 +388,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     //--------- add measurements to trajectory --------//
    
     if (patternRec) {
-      
+      if ((int)hits.size() < min_seed_hits) {toofew++; _failType = 1; return false;}
       sort( _meas.begin(), _meas.end(), reverseSorter() );
       //sortingReverseByZ() defined in recpack/Trajectory.h>
     } else {
@@ -402,36 +404,32 @@ bool fitter::recTrajectory(const bhep::particle& p) {
 bool fitter::check_valid_traj() {
 //*************************************************************
 
-  //--------- Reject too few or too many hits --------//
-  int lowPass = store.fetch_istore("low_Pass_hits");
+  double zCut = store.fetch_dstore("z_cut");
+  double xCut = store.fetch_dstore("x_cut");
+  double yCut = store.fetch_dstore("y_cut");
+
+  //--------- Reject too many hits --------//
   int highPass = store.fetch_istore("high_Pass_hits");
   
   if ((int)_traj.nmeas() > highPass) { 
     toomany++;
     _failType = 2; 
     return false; }
-  if ((int)_traj.nmeas() < lowPass) { 
-    toofew++;
-    _failType = 1;
-    return false; }
   
   //---- Reject if initial meas outside fid. Vol ----//
-  if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-500*cm)
+  if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-zCut*cm)
     { nonFid++; 
-    _failType = 3;
-    return false; }
+    _failType = 3;}
 
-  else if (_traj.nodes()[0]->measurement().vector()[0] > geom.getPlaneX()/2-100*cm
-	   || _traj.nodes()[0]->measurement().vector()[0] < -geom.getPlaneX()/2+100*cm)
+  else if (_traj.nodes()[0]->measurement().vector()[0] > geom.getPlaneX()/2-xCut*cm
+	   || _traj.nodes()[0]->measurement().vector()[0] < -geom.getPlaneX()/2+xCut*cm)
     { nonFid++;
-    _failType = 3;
-    return false; }
+    _failType = 3;}
 
-  else if (_traj.nodes()[0]->measurement().vector()[1] > geom.getPlaneY()/2-100*cm
-	   || _traj.nodes()[0]->measurement().vector()[1] < -geom.getPlaneY()/2+100*cm)
+  else if (_traj.nodes()[0]->measurement().vector()[1] > geom.getPlaneY()/2-yCut*cm
+	   || _traj.nodes()[0]->measurement().vector()[1] < -geom.getPlaneY()/2+yCut*cm)
     { nonFid++;
-    _failType = 3;
-    return false; }
+    _failType = 3;}
   
   return true;
 }
@@ -648,7 +646,7 @@ void fitter::setSeed(EVector r, double factor){
   double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   
-  m.message("reset energy loss to approx value",bhep::NORMAL);
+  m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   //v[5]=dr[2];//1;
   v[5]=-1/pSeed;
@@ -768,6 +766,8 @@ void fitter::readParam(){
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
     patRec_maxChi = store.fetch_dstore("pat_rec_max_chi");
+    patRec_max_outliers = store.fetch_istore("pat_rec_max_outliers");
+    max_consec_missed_planes = store.fetch_istore("max_consec_missed_planes");
 
     X0 = store.fetch_dstore("x0") * mm;
     
@@ -828,6 +828,9 @@ void fitter::define_pattern_rec_param() {
   patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
     set_max_local_chi2ndf(patRec_maxChi);
 
+  patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+    set_number_allowed_outliers(patRec_max_outliers);
+
 }
 
 //*****************************************************************************
@@ -840,6 +843,8 @@ bool fitter::find_muon_pattern() {
   _patRecStat.clear();
   int measCount = (int)_meas.size();
   _patRecStat = vector<bool> (measCount, 0);
+  _recChi = EVector(3,0);
+  _recChi[1] = 100000; //SetLarge dummy value for minChiHadron bit.
 
   State patternSeed;
   
@@ -944,10 +949,8 @@ bool fitter::get_patternRec_seed(State& seed) {
   
   //bool ok = perform_least_squares(seed);
   bool ok = perform_kalman_fit(seed);
-  if (!ok) {
-    cout<<"Kalman fit for ssed failed"<<endl;
+  if (!ok)
     _failType = 5;
-  }
 
   return ok;
 }
@@ -1030,17 +1033,21 @@ bool fitter::perform_pattern_rec(const State& seed) {
 	  return ok;}
 
       } else {
-	//	_traj.add_measurement(*NeedFiltered[0]);
-	//cout << *NeedFiltered[0] << endl;
+	
 	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
 
-	if (_meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+	if (ok && _meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
 	  _patRecStat[iGroup-1] = true;
 
-	if (!ok) {
-	  cout << "failed in proj of isolated hit"<<endl;
-	  _failType = 6;
-	  return ok;}
+	if (ok) _recChi[2] = 0;
+	else {
+	  _recChi[2]++;
+
+	  if (_recChi[2] > max_consec_missed_planes) {
+	    _failType = 6;
+	    return ok;
+	  }
+	}
 
       }
 	
@@ -1077,7 +1084,6 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
 
     ok = patman().matching_svc().match_trajectory_measurement(_traj, *Fmeas[iMat],
 							      Chi2[iMat]);
-    if (!ok) cout << "Chi not identified for hit" << endl;
   }
 
   long ChiMin = TMath::LocMin(nMeas, Chi2);
@@ -1085,10 +1091,20 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
   for (int iFilt = 0;iFilt < nMeas;iFilt++) {
 
     if (iFilt == (int)ChiMin){
+
       ok = patman().fitting_svc().filter(*Fmeas[(int)iFilt], seed , _traj);
+
       if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
-	  .compare("Hadronic_vector")!=0)
+	  .compare("Hadronic_vector")!=0) {
+
 	_patRecStat[iGroup-(nMeas-(int)ChiMin)] = true;
+
+	_recChi[0] = TMath::Max(Chi2[iFilt], _recChi[0]);
+
+      }
+      else if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
+	       .compare("Hadronic_vector")==0)
+	_recChi[1] = TMath::Min(Chi2[iFilt], _recChi[1]);
 
       else cout<< "Filter failed" <<endl;
     }
@@ -1096,6 +1112,16 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
       _hadmeas.push_back( Fmeas[(int)iFilt] );
 
   }
- 
-  return ok;
+
+  if (ok) _recChi[2] = 0;
+  else {
+    _recChi[2]++;
+
+    if (_recChi[2] > max_consec_missed_planes) {
+      _failType = 6;
+      return false;
+    }
+  }
+  
+  return true;
 }

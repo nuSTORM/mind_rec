@@ -422,13 +422,11 @@ bool fitter::check_valid_traj() {
     { nonFid++; 
     _failType = 3;}
 
-  else if (_traj.nodes()[0]->measurement().vector()[0] > geom.getPlaneX()/2-xCut*cm
-	   || _traj.nodes()[0]->measurement().vector()[0] < -geom.getPlaneX()/2+xCut*cm)
+  else if (fabs(_traj.nodes()[0]->measurement().vector()[0]) > geom.getPlaneX()/2-xCut*cm)
     { nonFid++;
     _failType = 3;}
 
-  else if (_traj.nodes()[0]->measurement().vector()[1] > geom.getPlaneY()/2-yCut*cm
-	   || _traj.nodes()[0]->measurement().vector()[1] < -geom.getPlaneY()/2+yCut*cm)
+  else if (fabs(_traj.nodes()[0]->measurement().vector()[1]) > geom.getPlaneY()/2-yCut*cm)
     { nonFid++;
     _failType = 3;}
   
@@ -1041,8 +1039,10 @@ bool fitter::perform_pattern_rec(const State& seed) {
 	if (ok){
 	  _patRecStat[iGroup-1] = true;
 	  
-	  if (_meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+	  if (_meas[iGroup-1]->name("MotherParticle").compare("Hadronic_vector")!=0){
+	    
 	    _recChi[0] = TMath::Max(_traj.node(_traj.last_fitted_node()).quality(), _recChi[0]);
+	  }
 	  else _recChi[1] = TMath::Min(_traj.node(_traj.last_fitted_node()).quality(), _recChi[1]);
 
 	  _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);

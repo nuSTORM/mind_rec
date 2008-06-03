@@ -110,7 +110,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
   statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
-  statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrPos[2]/D");
+  statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");

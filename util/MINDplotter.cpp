@@ -121,6 +121,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
   statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
   statTree->Branch("PatternRec", &_pR, "truMu[nhits]/B:inMu[nhits]/B");
+  statTree->Branch("FittedNodes",&_node,"fitNode[nhits]/B");
   statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/I");
 
 }
@@ -278,6 +279,7 @@ void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   
   bool muHit;
+  int nNode = (int)Fit.get_traj().size()-1;
   _nhits = Fit.get_nMeas();
 
   for (int iHits = 0;iHits < _nhits;iHits++){
@@ -294,11 +296,17 @@ void MINDplotter::patternStats(fitter& Fit) {
     else {_pR[0][iHits] = false; muHit = false;}
 
     _pR[1][iHits] = Fit.get_rec_stats()[iHits];
+
     if (Fit.get_rec_stats()[iHits] == true){
       _hitType[1]++;
       if (muHit) _hitType[2]++;
-    }
 
+      if ( Fit.get_traj().node(nNode).status("fitted") )
+	_node[iHits] = true;
+      else _node[iHits] = false;
+      nNode--;
+    }
+    else _node[iHits] = false;
   }
 
   _pChi[0] = Fit.get_PatRec_Chis()[0];

@@ -91,14 +91,14 @@ int main(int argc, char* argv[]){
     // loop over particles
     
     vector<bhep::particle*> parts = e.digi_particles(); 
-    cout <<"There are " << parts.size() << " digis in event " << i << endl;
+    cout <<"There are " << parts.size() << " digis in event " << e.event_number() << endl;
     for (size_t part=0; part<parts.size();part++){
       
       bhep::particle& p = *parts[part];
       
       if (p.name()=="void") continue;
       
-      fitOk = fit->execute(p);
+      fitOk = fit->execute(p,e.event_number());
 
       plot->execute(*fit, e, fitOk);
     }

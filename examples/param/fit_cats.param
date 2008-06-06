@@ -35,7 +35,7 @@ ANA vsim I 0
 RUN chi2fit_max D 50
 
 # maximum local chi2 for nodes (muon fit)
-RUN chi2node_max D 50
+RUN chi2node_max D 30
 RUN max_outliers I 5
 
 # maximum local chi2 for nodes (pattern rec.)

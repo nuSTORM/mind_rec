@@ -27,7 +27,7 @@ public:
   //init
   bool initialize(const bhep::sstore&) ;
   //exe
-  bool execute(bhep::particle& part,bool tklen=false);
+  bool execute(bhep::particle& part,int evNo,bool tklen=false);
   bool execute(bhep::particle& part,State seed,bool tklen=false);
   //end
   bool finalize() ;

@@ -84,7 +84,8 @@ private:
   double _XPos[300];
   double _YPos[300];
   double _ZPos[300];
-  bool _pR[2][1000];
+  bool _pR[2][300];
+  bool _node[300];
   double _pChi[3];
 
   void define_tree_branches();

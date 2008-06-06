@@ -122,7 +122,7 @@ bool fitter::execute(bhep::particle& part,State seed,bool tklen){
 }
 
 //*************************************************************
-bool fitter::execute(bhep::particle& part,bool tklen){
+bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
 //*************************************************************
     
   m.message("+++ fitter execute function ++++",bhep::VERBOSE);
@@ -132,7 +132,10 @@ bool fitter::execute(bhep::particle& part,bool tklen){
   totFitAttempts++;
   _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
-  
+  // if (evNo==1292 || evNo==2440 || evNo==4636 || evNo==5344){
+//     std::string fuck = "VERBOSE";
+//     Messenger::Level maw = Messenger::str(fuck);
+//     man().fitting_svc().fitter(model).set_verbosity(maw);
   if (!userseed && ok) computeSeed();
   
   if (ok) {
@@ -156,7 +159,10 @@ bool fitter::execute(bhep::particle& part,bool tklen){
     }
   }
   else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
-  
+  // std::string shite = "MUTE";
+//   Messenger::Level paw = Messenger::str(shite);
+//   man().fitting_svc().fitter(model).set_verbosity(paw);
+//   }
   userseed=false;
   
   if (fitted) {
@@ -418,18 +424,12 @@ bool fitter::check_valid_traj() {
     return false; }
   
   //---- Reject if initial meas outside fid. Vol ----//
-  if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-zCut*cm)
+  if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-zCut*cm
+      || fabs(_traj.nodes()[0]->measurement().vector()[0]) > geom.getPlaneX()/2-xCut*cm
+      || fabs(_traj.nodes()[0]->measurement().vector()[1]) > geom.getPlaneY()/2-yCut*cm)
     { nonFid++; 
     _failType = 3;}
-
-  else if (fabs(_traj.nodes()[0]->measurement().vector()[0]) > geom.getPlaneX()/2-xCut*cm)
-    { nonFid++;
-    _failType = 3;}
-
-  else if (fabs(_traj.nodes()[0]->measurement().vector()[1]) > geom.getPlaneY()/2-yCut*cm)
-    { nonFid++;
-    _failType = 3;}
-  
+    
   return true;
 }
 
@@ -591,7 +591,7 @@ void fitter::computeSeed() {
     //use position slightly offset from first meas as seed 
 
     EVector v(3,0); 
-        
+    
     v[0] = _traj.nodes()[0]->measurement().vector()[0];
     v[1] = _traj.nodes()[0]->measurement().vector()[1];
     v[2] = _traj.nodes()[0]->measurement().surface().position()[2];   
@@ -630,15 +630,16 @@ void fitter::setSeed(EVector r, double factor){
   // take as seed the state vector
   EVector v(6,0), v2(1,0);
   EMatrix C(6,6,0), C2(1,1,0);
-  EVector dr(3,0);
+  EVector dr(3,0); EVector dr2(3,0);
 
   v[0]=r[0];
   v[1]=r[1];
   v[2]=r[2];
 
   find_directSeed(dr, 1);
-  v[3] = dr[0]/dr[2];
-  v[4] = dr[1]/dr[2];
+  find_directSeed(dr2,2);
+  v[3] = (dr[0]/dr[2] + dr2[0]/dr2[2])/2;
+  v[4] = (dr[1]/dr[2] + dr2[1]/dr2[2])/2;
 
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   double pSeed = (double)(0.060*_traj.nmeas())*GeV;
@@ -713,18 +714,32 @@ void fitter::find_directSeed(EVector& R, int sense){
 //*************************************************************
 
   if (sense==1){
-    R[0] = _traj.nodes()[1]->measurement().vector()[0]
-      - _traj.nodes()[0]->measurement().vector()[0];
-    R[1] = _traj.nodes()[1]->measurement().vector()[1]
-      - _traj.nodes()[0]->measurement().vector()[1];
-    R[2] = _traj.nodes()[1]->measurement().surface().position()[2]
-      - _traj.nodes()[0]->measurement().surface().position()[2];
+    R[0] = (_traj.nodes()[4]->measurement().vector()[0]
+	    - _traj.nodes()[0]->measurement().vector()[0]);
+    // + (_traj.nodes()[2]->measurement().vector()[0]
+    //       - _traj.nodes()[0]->measurement().vector()[0]);
+    R[1] = (_traj.nodes()[4]->measurement().vector()[1]
+	    - _traj.nodes()[0]->measurement().vector()[1]);
+    //  + (_traj.nodes()[2]->measurement().vector()[1]
+//       - _traj.nodes()[0]->measurement().vector()[1]);
+    R[2] = (_traj.nodes()[4]->measurement().surface().position()[2]
+	    - _traj.nodes()[0]->measurement().surface().position()[2]);
+    //  + (_traj.nodes()[2]->measurement().surface().position()[2]
+    //       - _traj.nodes()[0]->measurement().surface().position()[2]);
   }
   if (sense==-1){
     R[0] = _meas[0]->vector()[0] - _meas[1]->vector()[0];
     R[1] = _meas[0]->vector()[1] - _meas[1]->vector()[1];
     R[2] = _meas[0]->surface().position()[2] 
       - _meas[1]->surface().position()[2];
+  }
+  if (sense==2){
+    R[0] = (_traj.nodes()[2]->measurement().vector()[0]
+	    - _traj.nodes()[0]->measurement().vector()[0]);
+    R[1] = (_traj.nodes()[2]->measurement().vector()[1]
+	    - _traj.nodes()[0]->measurement().vector()[1]);
+    R[2] = (_traj.nodes()[2]->measurement().surface().position()[2]
+	    - _traj.nodes()[0]->measurement().surface().position()[2]);
   }
 
   R /= R.norm();
@@ -940,7 +955,7 @@ bool fitter::get_patternRec_seed(State& seed) {
   //Seedstate fit properties
   seed.set_name(RP::particle_helix);
   seed.set_name(RP::representation,RP::slopes_z);
-  V2[0] = 1; //Fit against particle flow.
+  V2[0] = 1; 
   seed.set_hv(RP::sense,HyperVector(V2,M2));
   seed.set_hv(HyperVector(V,M));
   

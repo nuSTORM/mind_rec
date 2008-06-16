@@ -638,8 +638,10 @@ void fitter::setSeed(EVector r, double factor){
 
   find_directSeed(dr, 1);
   find_directSeed(dr2,2);
-  v[3] = (dr[0]/dr[2] + dr2[0]/dr2[2])/2;
-  v[4] = (dr[1]/dr[2] + dr2[1]/dr2[2])/2;
+  dr += dr2;
+  dr /= dr.norm();
+  v[3] = dr[0]/dr[2];// + dr2[0]/dr2[2]);
+  v[4] = dr[1]/dr[2];// + dr2[1]/dr2[2]);
 
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   double pSeed = (double)(0.060*_traj.nmeas())*GeV;

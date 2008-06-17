@@ -638,10 +638,21 @@ void fitter::setSeed(EVector r, double factor){
 
   find_directSeed(dr, 1);
   find_directSeed(dr2,2);
-  dr += dr2;
-  dr /= dr.norm();
-  v[3] = dr[0]/dr[2];// + dr2[0]/dr2[2]);
-  v[4] = dr[1]/dr[2];// + dr2[1]/dr2[2]);
+  //Compare the two possible direction seeds.
+  double Dx = (v[0]+(dr[0]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
+    - (v[0]+(dr2[0]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
+  double Dy = (v[1]+(dr[1]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
+    - (v[1]+(dr2[1]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
+
+  if (fabs(Dx)< 3*cm && fabs(Dy)< 3*cm){
+    dr += dr2;
+    dr /= dr.norm();
+    v[3] = dr[0]/dr[2];// + dr2[0]/dr2[2]);
+    v[4] = dr[1]/dr[2];// + dr2[1]/dr2[2]);
+  } else {
+    v[3] = dr[0]/dr[2];
+    v[4] = dr[1]/dr[2];
+  }
 
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   double pSeed = (double)(0.060*_traj.nmeas())*GeV;
@@ -668,7 +679,8 @@ void fitter::setSeed(EVector r, double factor){
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
   
-  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z).convert(seedstate,RP::default_rep);
+  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+    .convert(seedstate,RP::default_rep);
 
 }
 
@@ -715,19 +727,17 @@ EMatrix fitter::setSeedCov(EMatrix C0, double factor){
 void fitter::find_directSeed(EVector& R, int sense){
 //*************************************************************
 
+  int farPos;
+
   if (sense==1){
-    R[0] = (_traj.nodes()[4]->measurement().vector()[0]
+    if (_traj.nmeas()>10) farPos = 9;
+    else farPos = 4;
+    R[0] = (_traj.nodes()[farPos]->measurement().vector()[0]
 	    - _traj.nodes()[0]->measurement().vector()[0]);
-    // + (_traj.nodes()[2]->measurement().vector()[0]
-    //       - _traj.nodes()[0]->measurement().vector()[0]);
-    R[1] = (_traj.nodes()[4]->measurement().vector()[1]
+    R[1] = (_traj.nodes()[farPos]->measurement().vector()[1]
 	    - _traj.nodes()[0]->measurement().vector()[1]);
-    //  + (_traj.nodes()[2]->measurement().vector()[1]
-//       - _traj.nodes()[0]->measurement().vector()[1]);
-    R[2] = (_traj.nodes()[4]->measurement().surface().position()[2]
+    R[2] = (_traj.nodes()[farPos]->measurement().surface().position()[2]
 	    - _traj.nodes()[0]->measurement().surface().position()[2]);
-    //  + (_traj.nodes()[2]->measurement().surface().position()[2]
-    //       - _traj.nodes()[0]->measurement().surface().position()[2]);
   }
   if (sense==-1){
     R[0] = _meas[0]->vector()[0] - _meas[1]->vector()[0];

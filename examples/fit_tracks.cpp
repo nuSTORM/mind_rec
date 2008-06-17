@@ -78,6 +78,8 @@ int main(int argc, char* argv[]){
   EVector v;
   EMatrix M;  
 
+  bool patR = ana_store.fetch_istore("patRec");
+
   for(int i=0; i < nevents; i++) {
     
     bool ok = eman->status();
@@ -100,7 +102,7 @@ int main(int argc, char* argv[]){
       
       fitOk = fit->execute(p,e.event_number());
 
-      plot->execute(*fit, e, fitOk);
+      plot->execute(*fit, e, fitOk, patR);
     }
     
     //save event containing fit info 

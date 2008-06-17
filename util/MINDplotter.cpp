@@ -37,7 +37,8 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
 }
 
 //*************************************************************************************
-bool MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
+bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
+			  bool success, bool patRec) {
 //*************************************************************************************
 
   bool ok;
@@ -79,7 +80,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     _Q[1] = 0; _Q[2] = 0;
   }
 
-  patternStats( Fit );
+  if (patRec)
+    patternStats( Fit );
 
   //Fill tree event with the values.
   statTree->Fill();

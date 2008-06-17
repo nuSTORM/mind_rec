@@ -33,7 +33,7 @@ class MINDplotter{
 
   //Main functions for output initialization.
   bool initialize(TString outFileName, bhep::prlevel vlevel=bhep::NORMAL);
-  bool execute(fitter& Fit, const bhep::event& evt, bool success);
+  bool execute(fitter& Fit, const bhep::event& evt, bool success, bool patRec);
   bool finalize();
 //   //
   //To calculate expected vertex position give trajectory and vertex location.

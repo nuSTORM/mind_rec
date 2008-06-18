@@ -417,11 +417,18 @@ bool fitter::check_valid_traj() {
 
   //--------- Reject too many hits --------//
   int highPass = store.fetch_istore("high_Pass_hits");
-  
+  int lowPass = store.fetch_istore("low_Pass_hits");
+
   if ((int)_traj.nmeas() > highPass) { 
     toomany++;
     _failType = 2; 
     return false; }
+
+  if ((int)_traj.nmeas() < lowPass ) { 
+      toofew++; 
+      _failType = 1;
+      return false;
+    }
   
   //---- Reject if initial meas outside fid. Vol ----//
   if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-zCut*cm
@@ -662,7 +669,7 @@ void fitter::setSeed(EVector r, double factor){
   m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   //v[5]=dr[2];//1;
-  v[5]=-1/pSeed;
+  v[5]=1/pSeed;
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
@@ -910,8 +917,8 @@ bool fitter::get_patternRec_seedtraj() {
     else {
       
       _traj.add_measurement(*_meas[Iso-1]);
-      if (_meas[Iso-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
-	_patRecStat[Iso-1] = true;
+      //if (_meas[Iso-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
+      _patRecStat[Iso-1] = true;
       prevZ = currentZ;
       
     }
@@ -1130,12 +1137,13 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
 
       ok = patman().fitting_svc().filter(*Fmeas[(int)iFilt], seed , _traj);
 
-      if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
-	  .compare("Hadronic_vector")!=0) {
+      if (ok) {
 
 	_patRecStat[iGroup-(nMeas-(int)ChiMin)] = true;
 
-	_recChi[0] = TMath::Max(Chi2[iFilt], _recChi[0]);
+	if (_meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
+	    .compare("Hadronic_vector")!=0)
+	  _recChi[0] = TMath::Max(Chi2[iFilt], _recChi[0]);
 
       }
       else if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")

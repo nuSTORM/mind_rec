@@ -46,7 +46,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
-  ok = extract_true_particle( evt );
+  ok = extract_true_particle(evt, Fit);
 
   for (int i = 0;i<3;i++)
     _hitType[i] = 0;
@@ -210,7 +210,7 @@ void MINDplotter::direction_pulls() {
 }
 
 //*************************************************************************************
-bool MINDplotter::extract_true_particle(const bhep::event& evt) {
+bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
 //*************************************************************************************
 
 /* sets true particle momentum for calculation and returns a reference
@@ -253,6 +253,15 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt) {
   //True x,y position.
   _X[0][0] = evt.vertex().x(); _X[0][1] = evt.vertex().y();
 
+  _nhits = Fit.get_nMeas();
+
+  for (int iHits = 0;iHits < _nhits;iHits++){
+
+    _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
+    _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
+    _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
+  }
+
   return true;
 }
 
@@ -285,10 +294,6 @@ void MINDplotter::patternStats(fitter& Fit) {
   _nhits = Fit.get_nMeas();
 
   for (int iHits = 0;iHits < _nhits;iHits++){
-
-    _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
-    _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
-    _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
     
     if (Fit.get_meas(iHits)->name("MotherParticle").compare("Hadronic_vector")!=0){
       _pR[0][iHits] = true;

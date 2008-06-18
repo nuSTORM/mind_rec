@@ -90,7 +90,7 @@ private:
 
   void define_tree_branches();
 
-  bool extract_true_particle(const bhep::event& evt);
+  bool extract_true_particle(const bhep::event& evt, fitter& Fit);
 
 };
 

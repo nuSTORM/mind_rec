@@ -80,7 +80,7 @@ private:
   int _Q[3];
   double _Chi[2];
   int _nhits;
-  int _hitType[3];
+  int _hitType[4];
   double _XPos[300];
   double _YPos[300];
   double _ZPos[300];

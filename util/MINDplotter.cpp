@@ -48,7 +48,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _fail = Fit.get_fail_type();
   ok = extract_true_particle(evt, Fit);
 
-  for (int i = 0;i<3;i++)
+  for (int i = 0;i<4;i++)
     _hitType[i] = 0;
 
   if (success) {
@@ -118,7 +118,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
-  statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I");
+  statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I");
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
   statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
   statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
@@ -173,7 +173,10 @@ void MINDplotter::position_pulls() {
   _X[1][0] = vert[0]; _X[1][1] = vert[2];
 
   //Corresponding Error.
-  _X[2][0] = vertMat[0][0]; _X[2][1] = vertMat[1][1];
+  if (vertMat[0][0]>0)
+    _X[2][0] = sqrt(vertMat[0][0]);
+  if (vertMat[1][1]>0)
+    _X[2][1] = sqrt(vertMat[1][1]);
 
 }
 
@@ -189,7 +192,8 @@ void MINDplotter::momentum_pulls() {
   _qP[1] = vert[5];
 
   //Corresponding Error.
-  _qP[2] = vertMat[5][5];
+  if (vertMat[5][5]>0)
+    _qP[2] = sqrt(vertMat[5][5]);
 
   //Correctly ID'd charge?.
   if (_Q[0] == _Q[1]) _Q[2] = true;
@@ -205,7 +209,10 @@ void MINDplotter::direction_pulls() {
   _Th[1][0] = vert[3]; _Th[1][1] = vert[4];
 
   //Corresponding error.
-  _Th[2][0] = vertMat[3][3]; _Th[2][1] = vertMat[4][4];
+  if (vertMat[3][3]>0)
+    _Th[2][0] = sqrt(vertMat[3][3]);
+  if (vertMat[4][4]>0)
+    _Th[2][1] = sqrt(vertMat[4][4]);
 
 }
 
@@ -220,6 +227,8 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
  
+  int nNode = (int)Fit.get_traj().size()-1;
+
   int count = 0;
   for (int iParts=0;iParts < (int)Pospart.size();iParts++){
     if (Pospart[iParts]->name().compare("mu-")==0){
@@ -260,6 +269,14 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
     _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
     _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
+
+    if (Fit.get_rec_stats()[iHits] == true){
+      if ( Fit.get_traj().node(nNode).status("fitted") ){
+	_node[iHits] = true; _hitType[3]++; }
+      else _node[iHits] = false;
+      nNode--;
+    }
+    else _node[iHits] = false;
   }
 
   return true;
@@ -273,10 +290,11 @@ void MINDplotter::max_local_chi2(const Trajectory& traj) {
 
   size_t nNodes = traj.size();
   double trajMax = 0;
-
+  
   for (size_t iNode = 0;iNode < nNodes;iNode++){
-
-    trajMax = TMath::Max(trajMax, traj.node(iNode).quality() );
+    cout << iNode << endl;
+    if ( traj.node(iNode).qualitymap().has_key("predicted") )
+      trajMax = TMath::Max(trajMax, traj.node(iNode).quality("predicted") );
 
   }
 
@@ -290,7 +308,6 @@ void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   
   bool muHit;
-  int nNode = (int)Fit.get_traj().size()-1;
   _nhits = Fit.get_nMeas();
 
   for (int iHits = 0;iHits < _nhits;iHits++){
@@ -308,12 +325,8 @@ void MINDplotter::patternStats(fitter& Fit) {
       _hitType[1]++;
       if (muHit) _hitType[2]++;
 
-      if ( Fit.get_traj().node(nNode).status("fitted") )
-	_node[iHits] = true;
-      else _node[iHits] = false;
-      nNode--;
     }
-    else _node[iHits] = false;
+    
   }
 
   _pChi[0] = Fit.get_PatRec_Chis()[0];

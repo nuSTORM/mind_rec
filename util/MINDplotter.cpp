@@ -272,7 +272,7 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
     _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
 
-    if (patRec){
+    if (!patRec){
       if ( Fit.get_traj().node(nNode).status("fitted") )
 	_hitType[3]++;
       nNode--;

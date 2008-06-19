@@ -45,7 +45,7 @@ RUN max_consec_missed_planes I 3
 
 # lowest and highest number of hits required for fit.
 RUN low_Pass_hits I 6
-RUN high_Pass_hits I 395
+RUN high_Pass_hits I 400
 
 # Fiducial cuts. (reduction in z and reduction at both sides in x,y. cm)
 RUN z_cut D 500

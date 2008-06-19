@@ -46,7 +46,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
-  ok = extract_true_particle(evt, Fit);
+  ok = extract_true_particle(evt, Fit, patRec);
 
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
@@ -217,7 +217,8 @@ void MINDplotter::direction_pulls() {
 }
 
 //*************************************************************************************
-bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
+bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
+					bool patRec) {
 //*************************************************************************************
 
 /* sets true particle momentum for calculation and returns a reference
@@ -227,7 +228,8 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
  
-  int nNode = (int)Fit.get_traj().size()-1;
+  int nNode;
+  if (patRec) nNode = (int)Fit.get_traj().size()-1;
 
   int count = 0;
   for (int iParts=0;iParts < (int)Pospart.size();iParts++){
@@ -270,13 +272,11 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
     _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
 
-    if (Fit.get_rec_stats()[iHits] == true){
-      if ( Fit.get_traj().node(nNode).status("fitted") ){
-	_node[iHits] = true; _hitType[3]++; }
-      else _node[iHits] = false;
+    if (patRec){
+      if ( Fit.get_traj().node(nNode).status("fitted") )
+	_hitType[3]++;
       nNode--;
     }
-    else _node[iHits] = false;
   }
 
   return true;
@@ -309,6 +309,7 @@ void MINDplotter::patternStats(fitter& Fit) {
   
   bool muHit;
   _nhits = Fit.get_nMeas();
+  int nNode = (int)Fit.get_traj().size()-1;
 
   for (int iHits = 0;iHits < _nhits;iHits++){
     
@@ -325,7 +326,12 @@ void MINDplotter::patternStats(fitter& Fit) {
       _hitType[1]++;
       if (muHit) _hitType[2]++;
 
+      if ( Fit.get_traj().node(nNode).status("fitted") ){
+	_node[iHits] = true; _hitType[3]++; }
+      else _node[iHits] = false;
+      nNode--;
     }
+    else _node[iHits] = false;
     
   }
 

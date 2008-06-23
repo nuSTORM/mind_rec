@@ -12,6 +12,9 @@
 #include <recpack/LsqFitter.h>
 #include <recpack/ParticleState.h>
 
+#include <TH1F.h>
+#include <TF1.h>
+
 using namespace Recpack;
 
 class fitter{
@@ -79,6 +82,8 @@ protected:
   void computeSeed();
   void setSeed(EVector v, double factor=1.);
   void find_directSeed(EVector& R, int sense);
+  void mom_from_parabola(int nplanes, EVector& V);
+
   //seed error
   EMatrix setSeedCov(EVector,double factor=1.);
   EMatrix setSeedCov(EMatrix C0, double factor);
@@ -151,6 +156,9 @@ protected:
   //counters to aid pattern rec.
   int iGroup;
   int _nConsecHoles;
+
+  //seedFit start point.
+  double _firstPoint;
 
   //------------------ Physics -----------------//
     

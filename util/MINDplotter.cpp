@@ -227,9 +227,6 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
   _nuEng = atof( evt.fetch_property("Enu").c_str() ) * GeV;
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
- 
-  int nNode;
-  if (patRec) nNode = (int)Fit.get_traj().size()-1;
 
   int count = 0;
   for (int iParts=0;iParts < (int)Pospart.size();iParts++){
@@ -272,13 +269,11 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
     _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
 
-    if (!patRec){
-      if ( Fit.get_traj().node(nNode).status("fitted") )
+    if (!patRec)
+      if ( Fit.get_traj().node(iHits).status("fitted") )
 	_hitType[3]++;
-      nNode--;
-    }
   }
-
+  
   return true;
 }
 
@@ -292,7 +287,7 @@ void MINDplotter::max_local_chi2(const Trajectory& traj) {
   double trajMax = 0;
   
   for (size_t iNode = 0;iNode < nNodes;iNode++){
-    cout << iNode << endl;
+    
     if ( traj.node(iNode).qualitymap().has_key("predicted") )
       trajMax = TMath::Max(trajMax, traj.node(iNode).quality("predicted") );
 

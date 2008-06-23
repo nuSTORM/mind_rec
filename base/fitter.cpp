@@ -661,15 +661,26 @@ void fitter::setSeed(EVector r, double factor){
     v[4] = dr[1]/dr[2];
   }
 
+  cout << "Old slopes: " << endl
+       << v[3] << ", "<< v[4]<<endl;
+
+  //Approximate p from parabola.
+  _firstPoint = _traj.measurement(0).surface().position()[2];
+
+  mom_from_parabola( (int)_traj.nmeas(), v);
+
+  // v[3] = dr[0]/dr[2];
+//   v[4] = dr[1]/dr[2];
+
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
-  double pSeed = (double)(0.060*_traj.nmeas())*GeV;
-  double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
+  //double pSeed2 = (double)(0.060*_traj.nmeas())*GeV;
+  double de_dx = -7.87*(0.013*(abs(1/v[5])/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   
   m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   //v[5]=dr[2];//1;
-  v[5]=1/pSeed;
+  //v[5]=1/(pSeed*GeV);
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
@@ -678,14 +689,15 @@ void fitter::setSeed(EVector r, double factor){
   C[3][3] = C[4][4] = 1.;
   //C[5][5] = 10.;
   C[5][5] = pow(v[5],2)*3;
-
+  
   seedstate.set_name(RP::particle_helix);
   seedstate.set_name(RP::representation,RP::slopes_z);
   //seedstate.set_name(RP::representation,RP::default_rep);
   v2[0] = 1;
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
-  
+  cout << "Seed For Fit: " << endl
+       << seedstate << endl;
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seedstate,RP::default_rep);
 
@@ -763,6 +775,82 @@ void fitter::find_directSeed(EVector& R, int sense){
 
   R /= R.norm();
   
+}
+
+//*****************************************************************************
+double fitf(Double_t *x,Double_t *par) { 
+//*****************************************************************************
+
+
+  double z = x[0]; //-(_firstPoint);
+  //  double arg = 0; 
+  //  double d = 2*par[1]*par[2]*par[2]/(1+par[1]*par[1]);
+  double fitval = par[0]+par[1]*z+par[2]*z*z; // + d*pow(z,3);
+
+  return fitval ;
+
+}
+
+//*****************************************************************************
+double fitf2(Double_t *x,Double_t *par) { 
+//*****************************************************************************
+
+  double z = x[0];
+
+  double fitval = par[0] + par[1]*z;
+
+  return fitval;
+}
+
+//*****************************************************************************
+void fitter::mom_from_parabola(int nplanes, EVector& V){
+//*****************************************************************************
+
+  if (nplanes>15) nplanes = 15;
+
+  double z0 = 0;
+  double z1 = _traj.measurement(nplanes-1).surface().position()[2] - _firstPoint;
+  TH1F* trajFitXZ = new TH1F("1","", nplanes, z0, z1+5);
+  TH1F* trajFitYZ = new TH1F("2","", nplanes, z0, z1+5);
+
+  TF1 *func = new TF1("fit",fitf,-3,3,3);
+  func->SetParameters(0.,0.,0.0001);
+  func->SetParNames("a", "b", "c");
+  
+  TF1 *func2 = new TF1("fit2",fitf2,-3,3,3);
+  func->SetParameters(0.,0.0001);
+  func->SetParNames("d","e");
+
+  for (int i=0;i<(int)_traj.nmeas();i++){
+
+    const EVector& m = _traj.measurement(i).vector();
+
+    trajFitXZ->SetBinContent(i,m[0]);
+    trajFitXZ->SetBinError(i,1.);
+
+    trajFitYZ->SetBinContent(i,m[1]);
+    trajFitYZ->SetBinError(i,1.);
+
+  }
+
+  trajFitXZ->Fit("fit", "QN");
+  trajFitYZ->Fit("fit2", "QN");
+
+  double b = func->GetParameter(1);
+  double c = func->GetParameter(2);
+  V[4] = func2->GetParameter(1);
+  //cout << b << endl;
+  V[3] = b;// + 2*c*z1;
+
+  //double p;
+  if (c!=0)
+    V[5] = 1/(-0.3*1.*pow((1+b*b),3./2.)/(2*c)*0.01 * GeV);
+  
+
+  delete trajFitXZ;
+  delete trajFitYZ;
+
+  //return p;
 }
 
 //*****************************************************************************
@@ -930,7 +1018,7 @@ bool fitter::get_patternRec_seedtraj() {
     _failType = 5;
     return false;}
   
-  iGroup = (int)_traj.nmeas();
+  iGroup = (int)_traj.nmeas()-1;
 
   return true;
 

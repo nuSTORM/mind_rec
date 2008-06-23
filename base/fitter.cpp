@@ -643,26 +643,26 @@ void fitter::setSeed(EVector r, double factor){
   v[1]=r[1];
   v[2]=r[2];
 
-  find_directSeed(dr, 1);
-  find_directSeed(dr2,2);
-  //Compare the two possible direction seeds.
-  double Dx = (v[0]+(dr[0]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
-    - (v[0]+(dr2[0]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
-  double Dy = (v[1]+(dr[1]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
-    - (v[1]+(dr2[1]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
+  // find_directSeed(dr, 1);
+//   find_directSeed(dr2,2);
+//   //Compare the two possible direction seeds.
+//   double Dx = (v[0]+(dr[0]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
+//     - (v[0]+(dr2[0]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
+//   double Dy = (v[1]+(dr[1]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
+//     - (v[1]+(dr2[1]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
 
-  if (fabs(Dx)< 3*cm && fabs(Dy)< 3*cm){
-    dr += dr2;
-    dr /= dr.norm();
-    v[3] = dr[0]/dr[2];// + dr2[0]/dr2[2]);
-    v[4] = dr[1]/dr[2];// + dr2[1]/dr2[2]);
-  } else {
-    v[3] = dr[0]/dr[2];
-    v[4] = dr[1]/dr[2];
-  }
+//   if (fabs(Dx)< 3*cm && fabs(Dy)< 3*cm){
+//     dr += dr2;
+//     dr /= dr.norm();
+//     v[3] = dr[0]/dr[2];// + dr2[0]/dr2[2]);
+//     v[4] = dr[1]/dr[2];// + dr2[1]/dr2[2]);
+//   } else {
+//     v[3] = dr[0]/dr[2];
+//     v[4] = dr[1]/dr[2];
+//   }
 
-  cout << "Old slopes: " << endl
-       << v[3] << ", "<< v[4]<<endl;
+//   cout << "Old slopes: " << endl
+//        << v[3] << ", "<< v[4]<<endl;
 
   //Approximate p from parabola.
   _firstPoint = _traj.measurement(0).surface().position()[2];
@@ -759,10 +759,10 @@ void fitter::find_directSeed(EVector& R, int sense){
 	    - _traj.nodes()[0]->measurement().surface().position()[2]);
   }
   if (sense==-1){
-    R[0] = _meas[0]->vector()[0] - _meas[1]->vector()[0];
-    R[1] = _meas[0]->vector()[1] - _meas[1]->vector()[1];
+    R[0] = _meas[0]->vector()[0] - _meas[4]->vector()[0];
+    R[1] = _meas[0]->vector()[1] - _meas[4]->vector()[1];
     R[2] = _meas[0]->surface().position()[2] 
-      - _meas[1]->surface().position()[2];
+      - _meas[4]->surface().position()[2];
   }
   if (sense==2){
     R[0] = (_traj.nodes()[2]->measurement().vector()[0]
@@ -809,7 +809,7 @@ void fitter::mom_from_parabola(int nplanes, EVector& V){
   if (nplanes>15) nplanes = 15;
 
   double z0 = 0;
-  double z1 = _traj.measurement(nplanes-1).surface().position()[2] - _firstPoint;
+  double z1 = abs(_traj.measurement(nplanes-1).surface().position()[2] - _firstPoint);
   TH1F* trajFitXZ = new TH1F("1","", nplanes, z0, z1+5);
   TH1F* trajFitYZ = new TH1F("2","", nplanes, z0, z1+5);
 
@@ -821,15 +821,15 @@ void fitter::mom_from_parabola(int nplanes, EVector& V){
   func->SetParameters(0.,0.0001);
   func->SetParNames("d","e");
 
-  for (int i=0;i<(int)_traj.nmeas();i++){
+  for (int i=0;i<nplanes;i++){
 
     const EVector& m = _traj.measurement(i).vector();
 
-    trajFitXZ->SetBinContent(i,m[0]);
-    trajFitXZ->SetBinError(i,1.);
+    trajFitXZ->SetBinContent(i+1,m[0]);
+    trajFitXZ->SetBinError(i+1,1.);
 
-    trajFitYZ->SetBinContent(i,m[1]);
-    trajFitYZ->SetBinError(i,1.);
+    trajFitYZ->SetBinContent(i+1,m[1]);
+    trajFitYZ->SetBinError(i+1,1.);
 
   }
 
@@ -1028,7 +1028,7 @@ bool fitter::get_patternRec_seedtraj() {
 bool fitter::get_patternRec_seed(State& seed) {
 //*****************************************************************************
   
-  int lastMeas = (int)_meas.size() - 1;
+ int lastMeas = (int)_meas.size() - 1;
   
   EVector V(6,0); EVector V2(1,0);
   EMatrix M(6,6,0); EMatrix M2(1,1,0);
@@ -1042,15 +1042,20 @@ bool fitter::get_patternRec_seed(State& seed) {
   V[3] = dr[0]/dr[2];
   V[4] = dr[1]/dr[2];
   
+  // _firstPoint = _traj.measurement(0).surface().position()[2];
+
+//   mom_from_parabola( (int)_traj.nmeas(), V);
   //Approximate momentum by extent (hard wired for 5cm iron/scint
   //separation at mo) using same empirical functions as in isolated
   //muon fitting.
   double Xtent = (_meas[0]->surface().position()[2]
     - _meas[lastMeas]->surface().position()[2])/5;
   double pSeed = (0.060*Xtent)*GeV;
-  double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
+  double de_dx = -7.87*(0.013*(abs(1/V[5])/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   
+  // V[3] = -V[3];
+//   V[4] = -V[4];
   V[5] = 1./pSeed;
   
   //Errors
@@ -1066,7 +1071,8 @@ bool fitter::get_patternRec_seed(State& seed) {
   seed.set_hv(RP::sense,HyperVector(V2,M2));
   seed.set_hv(HyperVector(V,M));
   
-  patman().model_svc().model(RP::particle_helix).representation(RP::slopes_z).convert(seed,RP::default_rep);
+  patman().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+    .convert(seed,RP::default_rep);
   
   //bool ok = perform_least_squares(seed);
   bool ok = perform_kalman_fit(seed);

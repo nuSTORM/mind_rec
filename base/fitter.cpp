@@ -1051,7 +1051,7 @@ bool fitter::get_patternRec_seed(State& seed) {
   double Xtent = (_meas[0]->surface().position()[2]
     - _meas[lastMeas]->surface().position()[2])/5;
   double pSeed = (0.060*Xtent)*GeV;
-  double de_dx = -7.87*(0.013*(abs(1/V[5])/GeV)+1.5)*MeV/cm;
+  double de_dx = -7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   
   // V[3] = -V[3];
@@ -1190,20 +1190,48 @@ bool fitter::perform_pattern_rec(const State& seed) {
 	
       NeedFiltered.clear();
       NeedFiltered.push_back( _meas[iGroup] );
-      if (iGroup==(int)_meas.size()-1)
+
+      if (iGroup==(int)_meas.size()-1){
 	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
+	cout <<"Filtering final measurement"<<endl;
+	if (ok) _patRecStat[iGroup] = true;
+	else {
+	  _nConsecHoles++;
+	  
+	  if (_nConsecHoles > max_consec_missed_planes) {
+	    _failType = 6;
+	    _recChi[2] = _nConsecHoles;
+	    return ok;
+	  }
+	}
+	
+      }
       iGroup++;
 
     } else {
+
       NeedFiltered.push_back( _meas[iGroup] );
-      if (iGroup==(int)_meas.size()-1)
+
+      if (iGroup==(int)_meas.size()-1){
 	ok = filter_close_measurements(NeedFiltered, seed);
+	cout <<"Filtering final measurement"<<endl;
+	if (!ok) {
+	  _nConsecHoles++;
+	  
+	  if (_nConsecHoles > max_consec_missed_planes) {
+	    _failType = 6;
+	    _recChi[2] = _nConsecHoles;
+	    return ok;
+	  }
+	}
+	
+      }
       iGroup++;
     }
 
   }
 
-  return ok;
+  return true;
 
 }
 

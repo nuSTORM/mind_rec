@@ -50,12 +50,12 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
 
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
-
+  
   if (success) {
 
     State ste;
     ok = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
-
+    
     if (ok) {
       max_local_chi2( Fit.get_traj() );
       position_pulls();
@@ -82,7 +82,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
 
   if (patRec)
     patternStats( Fit );
-
+  
   //Fill tree event with the values.
   statTree->Fill();
 
@@ -314,14 +314,14 @@ void MINDplotter::patternStats(fitter& Fit) {
       muHit = true;
     }
     else {_pR[0][iHits] = false; muHit = false;}
-
+    
     _pR[1][iHits] = Fit.get_rec_stats()[iHits];
-
+    
     if (Fit.get_rec_stats()[iHits] == true){
       _hitType[1]++;
       if (muHit) _hitType[2]++;
-
-      if ( Fit.get_traj().node(nNode).status("fitted") ){
+      
+      if ( Fit.get_traj().node(nNode).status("fitted") ){	
 	_node[iHits] = true; _hitType[3]++; }
       else _node[iHits] = false;
       nNode--;

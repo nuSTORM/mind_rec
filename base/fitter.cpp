@@ -696,8 +696,8 @@ void fitter::setSeed(EVector r, double factor){
   v2[0] = 1;
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
-  cout << "Seed For Fit: " << endl
-       << seedstate << endl;
+  // cout << "Seed For Fit: " << endl
+//        << seedstate << endl;
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seedstate,RP::default_rep);
 
@@ -809,7 +809,7 @@ void fitter::mom_from_parabola(int nplanes, EVector& V){
   if (nplanes>15) nplanes = 15;
 
   double z0 = 0;
-  double z1 = abs(_traj.measurement(nplanes-1).surface().position()[2] - _firstPoint);
+  double z1 = _traj.measurement(nplanes-1).surface().position()[2] - _firstPoint;
   TH1F* trajFitXZ = new TH1F("1","", nplanes, z0, z1+5);
   TH1F* trajFitYZ = new TH1F("2","", nplanes, z0, z1+5);
 
@@ -1018,7 +1018,7 @@ bool fitter::get_patternRec_seedtraj() {
     _failType = 5;
     return false;}
   
-  iGroup = (int)_traj.nmeas()-1;
+  iGroup = (int)_traj.nmeas();
 
   return true;
 
@@ -1194,6 +1194,8 @@ bool fitter::perform_pattern_rec(const State& seed) {
 
     } else {
       NeedFiltered.push_back( _meas[iGroup] );
+      if (iGroup==(int)_meas.size()-1)
+	ok = filter_close_measurements(NeedFiltered, seed);
       iGroup++;
     }
 

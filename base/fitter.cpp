@@ -759,10 +759,10 @@ void fitter::find_directSeed(EVector& R, int sense){
 	    - _traj.nodes()[0]->measurement().surface().position()[2]);
   }
   if (sense==-1){
-    R[0] = _meas[0]->vector()[0] - _meas[4]->vector()[0];
-    R[1] = _meas[0]->vector()[1] - _meas[4]->vector()[1];
+    R[0] = _meas[0]->vector()[0] - _meas[3]->vector()[0];
+    R[1] = _meas[0]->vector()[1] - _meas[3]->vector()[1];
     R[2] = _meas[0]->surface().position()[2] 
-      - _meas[4]->surface().position()[2];
+      - _meas[3]->surface().position()[2];
   }
   if (sense==2){
     R[0] = (_traj.nodes()[2]->measurement().vector()[0]
@@ -1190,6 +1190,8 @@ bool fitter::perform_pattern_rec(const State& seed) {
 	
       NeedFiltered.clear();
       NeedFiltered.push_back( _meas[iGroup] );
+      if (iGroup==(int)_meas.size()-1)
+	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
       iGroup++;
 
     } else {

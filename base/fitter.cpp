@@ -661,8 +661,8 @@ void fitter::setSeed(EVector r, double factor){
   
   double pSeed;
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
-  if (v[5] == 0) { pSeed2 = (double)(0.060*_traj.nmeas())*GeV;
-  v[5] = 1.0/pSeed2; }
+  if (v[5] == 0) { pSeed = (double)(0.060*_traj.nmeas())*GeV;
+  v[5] = 1.0/pSeed; }
   double de_dx = -7.87*(0.013*(abs(1/v[5])/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   

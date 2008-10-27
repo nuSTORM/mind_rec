@@ -20,10 +20,10 @@ using namespace std;
 
 int main(int argc, char* argv[]){
     
-  if (argc<3){
+  if (argc<4){
     
     cout << "Execution requires 2 or 3 arguments." << endl;
-    cout << "Call with ./root_2_dst <InFile> <Gaus sigma, in cm>" << endl;
+    cout << "Call with ./root_2_dst <InFile> <Gaus sigma, in cm> <rndm seed>" << endl;
     cout << "and optional  <No. events of interest>" << endl;
 
     return -1;
@@ -31,6 +31,7 @@ int main(int argc, char* argv[]){
   
   Char_t *inFileName;
   double smearRes;
+  long rndmSeed;
   Int_t nEvents;
 
   inFileName = argv[1];
@@ -47,8 +48,11 @@ int main(int argc, char* argv[]){
   //Get Gaussian resulution for smear.
   smearRes = atof(argv[2]);
 
+  //Get seed value for random engine
+  rndmSeed = (long)atof(argv[3]);
+
   //Set number of events to be read.
-  if (argc==4) nEvents = atoi(argv[3]);
+  if (argc==5) nEvents = atoi(argv[4]);
   else nEvents = (Int_t)Data->GetEntries();
 
   if (nEvents>(Int_t)Data->GetEntries()){
@@ -61,7 +65,7 @@ int main(int argc, char* argv[]){
     
   root2dst* cvt = new root2dst(c);
     
-  cvt->initialize(Data, outFileName, smearRes);
+  cvt->initialize(smearRes, rndmSeed, Data, outFileName);
   
   cout << "Starting Loop over events" << endl;
   for(int i=1; i < nEvents+1; i++) {

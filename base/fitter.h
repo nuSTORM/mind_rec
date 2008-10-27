@@ -13,6 +13,7 @@
 #include <recpack/ParticleState.h>
 
 #include <TH1F.h>
+#include <TGraph.h>
 #include <TF1.h>
 
 using namespace Recpack;
@@ -158,7 +159,7 @@ protected:
   int _nConsecHoles;
 
   //seedFit start point.
-  double _firstPoint;
+  //double _firstPoint;
 
   //------------------ Physics -----------------//
     

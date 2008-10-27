@@ -46,10 +46,11 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
-  ok = extract_true_particle(evt, Fit, patRec);
 
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
+
+  ok = extract_true_particle(evt, Fit, patRec);
   
   if (success) {
 
@@ -79,7 +80,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
 
     _Q[1] = 0; _Q[2] = 0;
   }
-
+  
   if (patRec)
     patternStats( Fit );
   
@@ -124,7 +125,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
   statTree->Branch("PatternRec", &_pR, "truMu[nhits]/B:inMu[nhits]/B");
   statTree->Branch("FittedNodes",&_node,"fitNode[nhits]/B");
-  statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/I");
+  statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/D");
 
 }
 
@@ -302,36 +303,39 @@ void MINDplotter::max_local_chi2(const Trajectory& traj) {
 void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   
-  bool muHit;
   _nhits = Fit.get_nMeas();
-  int nNode = (int)Fit.get_traj().size()-1;
+  int nNode;
+  if (_fail != 7) nNode = (int)Fit.get_traj().size()-1;
+  bool isMu;
 
   for (int iHits = 0;iHits < _nhits;iHits++){
     
     if (Fit.get_meas(iHits)->name("MotherParticle").compare("Hadronic_vector")!=0){
+      isMu = true;
       _pR[0][iHits] = true;
       _hitType[0]++;
-      muHit = true;
     }
-    else {_pR[0][iHits] = false; muHit = false;}
+    else {_pR[0][iHits] = false;} // muHit = false;}
     
-    _pR[1][iHits] = Fit.get_rec_stats()[iHits];
-    
-    if (Fit.get_rec_stats()[iHits] == true){
-      _hitType[1]++;
-      if (muHit) _hitType[2]++;
-      
-      if ( Fit.get_traj().node(nNode).status("fitted") ){	
-	_node[iHits] = true; _hitType[3]++; }
-      else _node[iHits] = false;
-      nNode--;
+    if (_fail != 7){
+      if (Fit.get_rec_stats()[iHits] == true){
+	_pR[1][iHits] = true;
+	_hitType[1]++;
+	if ( isMu ) _hitType[2]++;
+	
+	if ( Fit.get_traj().node(nNode).status("fitted") ){	
+	  _node[iHits] = true; _hitType[3]++; }
+	else _node[iHits] = false;
+	nNode--;
+      }
+      else { _node[iHits] = false; _pR[1][iHits] = false; }
     }
-    else _node[iHits] = false;
-    
-  }
 
-  _pChi[0] = Fit.get_PatRec_Chis()[0];
-  _pChi[1] = Fit.get_PatRec_Chis()[1];
-  _pChi[2] = Fit.get_PatRec_Chis()[2];
+  }
+  if (_fail != 7){
+    _pChi[0] = Fit.get_PatRec_Chis()[0];
+    _pChi[1] = Fit.get_PatRec_Chis()[1];
+    _pChi[2] = Fit.get_PatRec_Chis()[2];
+  }
 
 }

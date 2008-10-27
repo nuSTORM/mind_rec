@@ -57,7 +57,7 @@ int main(int argc, char* argv[]){
   
   EventManager2* eman = new EventManager2(data_store,bhep::NORMAL);
   
-  fitter* fit = new fitter(ana_store,bhep::NORMAL);
+  fitter* fit = new fitter(ana_store,bhep::MUTE);
 
   MINDplotter* plot = new MINDplotter();
   
@@ -94,6 +94,7 @@ int main(int argc, char* argv[]){
     
     vector<bhep::particle*> parts = e.digi_particles(); 
     cout <<"There are " << parts.size() << " digis in event " << e.event_number() << endl;
+
     for (size_t part=0; part<parts.size();part++){
       
       bhep::particle& p = *parts[part];
@@ -103,6 +104,7 @@ int main(int argc, char* argv[]){
       fitOk = fit->execute(p,e.event_number());
 
       plot->execute(*fit, e, fitOk, patR);
+      cout << "After plot"<<endl;
     }
     
     //save event containing fit info 

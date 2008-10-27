@@ -30,7 +30,8 @@ public:
   
   ~root2dst(){};
   
-  bool initialize(TTree *InPutTree, TString OutFileName, double res);
+  bool initialize(double res, long seed, TTree *InPutTree=NULL,
+		  TString OutFileName="");
   bool execute();
   bool finalize();
 
@@ -40,9 +41,7 @@ public:
   particle* define_lead_particle();
   bool hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit);
   particle* define_hadron();
-  particle* create_digital_representation(particle& mu, particle& had,
-					  const vector<hit*>& muHit,
-					  const vector<hit*>& hadHit);
+  particle* create_digital_representation(const vector<particle*>& tru_parts);
 
   //Handy int/float to string converters.
   TString ToString(Int_t num){

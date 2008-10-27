@@ -21,18 +21,21 @@ root2dst::root2dst(bhep::prlevel vlevel){
 
 
 //*************************************************************
-bool root2dst::initialize(TTree *InPutTree, TString OutFileName,
-			  double res) {
+bool root2dst::initialize(double res, long seed,
+			  TTree *InPutTree, TString OutFileName) {
 //*************************************************************
     
   m.message("+++ root2dst init  function ++++",bhep::NORMAL);
   
-  outgz.open((string)OutFileName);
+  if (InPutTree != NULL){
+    outgz.open((string)OutFileName);
 
-  dataIn = InPutTree;
-  dataIn->SetBranchStatus("*",0);
+    dataIn = InPutTree;
+    dataIn->SetBranchStatus("*",0);
 
-  long seed = 178263094;
+  }
+
+  //long seed = 178263094;
   ranGen = RanluxEngine(seed, 4);
 
   sigMa = res;
@@ -71,8 +74,10 @@ bool root2dst::execute(){
 bool root2dst::finalize() {
 //*************************************************************
   
-  outgz.close();
-  delete dataIn;
+  if (dataIn != NULL){
+    outgz.close();
+    delete dataIn;
+  }
 
   m.message("+++ root2dst finalize function ++++",bhep::NORMAL);
     
@@ -135,7 +140,8 @@ void root2dst::make_particles() {
 
   vector<hit*> muHit, hadHit;
   bool ok = hits_fromFile(muHit, hadHit);
-
+  vector<particle*> all_parts;
+  
   if (ok) {
 
     if (muHit.size() != 0)
@@ -148,8 +154,11 @@ void root2dst::make_particles() {
 	hadHit[jHit]->set_mother_particle(*hadron);
 	hadron->add_hit("MIND", hadHit[jHit]);
       }
-    
-    digPar = create_digital_representation(*muon, *hadron, muHit, hadHit);
+  
+    all_parts.push_back( muon );
+    all_parts.push_back( hadron );
+
+    digPar = create_digital_representation(all_parts);
     
     nuEvent[nevt]->add_true_particle(muon);
     nuEvent[nevt]->add_true_particle(hadron);
@@ -292,9 +301,7 @@ bool root2dst::hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit) {
 
 
 //***************************************************************
-particle* root2dst::create_digital_representation(particle& mu, particle& had,
-						  const vector<hit*>& muHit,
-						  const vector<hit*>& hadHit) {
+particle* root2dst::create_digital_representation(const vector<particle*>& tru_parts) {
 //***************************************************************
 
 /*Makes a digital particle with only the hits, to be used in
@@ -305,36 +312,30 @@ particle* root2dst::create_digital_representation(particle& mu, particle& had,
 
   particle *hitMap = new particle(pT, "unknown");
 
+  vector<hit*> part_hits;
   double X, Y, Z;
 
-  for (Int_t iHit = 0;iHit < (Int_t)muHit.size();iHit++) {
-    
-    X = muHit[iHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
-    Y = muHit[iHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
-    Z = muHit[iHit]->x().z()/cm;
-    
-    Point3D hitPos(X * cm,Y * cm,Z * cm);
-    hit* digHit = new hit("MIND");
-    digHit->set_point(hitPos);
+  for (Int_t iPart = 0;iPart < (Int_t)tru_parts.size();iPart++) {
 
-    digHit->set_mother_particle(mu);
-    hitMap->add_hit("MIND", digHit);
-
+    part_hits = tru_parts[iPart]->hits("MIND");
+    
+    for (Int_t iHit = 0;iHit < (Int_t)part_hits.size();iHit++) {
+      
+      X = part_hits[iHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+      Y = part_hits[iHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+      Z = part_hits[iHit]->x().z()/cm;
+      
+      Point3D hitPos(X * cm,Y * cm,Z * cm);
+      hit* digHit = new hit("MIND");
+      digHit->set_point(hitPos);
+      
+      digHit->set_mother_particle( *tru_parts[iPart] );
+      hitMap->add_hit("MIND", digHit);
+      
+    }
+    part_hits.clear();
+    
   }
-  for (Int_t jHit = 0;jHit < (Int_t)hadHit.size();jHit++) {
-    
-    X = hadHit[jHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
-    Y = hadHit[jHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
-    Z = hadHit[jHit]->x().z()/cm;
-
-    Point3D hitPos(X * cm,Y * cm,Z * cm);
-    hit* digHit = new hit("MIND");
-    digHit->set_point(hitPos);
-
-    digHit->set_mother_particle(had);
-    hitMap->add_hit("MIND", digHit);
-
-  }
-
+  
   return hitMap;
 }

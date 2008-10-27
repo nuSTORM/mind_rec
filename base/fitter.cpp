@@ -132,10 +132,7 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
   totFitAttempts++;
   _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
-  // if (evNo==1292 || evNo==2440 || evNo==4636 || evNo==5344){
-//     std::string fuck = "VERBOSE";
-//     Messenger::Level maw = Messenger::str(fuck);
-//     man().fitting_svc().fitter(model).set_verbosity(maw);
+
   if (!userseed && ok) computeSeed();
   
   if (ok) {
@@ -159,10 +156,7 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
     }
   }
   else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
-  // std::string shite = "MUTE";
-//   Messenger::Level paw = Messenger::str(shite);
-//   man().fitting_svc().fitter(model).set_verbosity(paw);
-//   }
+  
   userseed=false;
   
   if (fitted) {
@@ -362,16 +356,9 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
  
     reset();
-
-    int lowPass = store.fetch_istore("low_Pass_hits");
     //--------- take hits from particle -------//
     
-    const vector<bhep::hit*>& hits = p.hits("MIND");     
-    if ((int)hits.size() < lowPass ) { 
-      toofew++; 
-      _failType = 1;
-      return false;
-    }
+    const vector<bhep::hit*>& hits = p.hits("MIND");  
     
     //------------- loop over hits ------------//
  
@@ -395,7 +382,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     //--------- add measurements to trajectory --------//
    
     if (patternRec) {
-      if ((int)hits.size() < min_seed_hits) {toofew++; _failType = 1; return false;}
+      if ((int)hits.size() < min_seed_hits) {toofew++; _failType = 7; return false;}
       sort( _meas.begin(), _meas.end(), reverseSorter() );
       //sortingReverseByZ() defined in recpack/Trajectory.h>
     } else {
@@ -665,15 +652,17 @@ void fitter::setSeed(EVector r, double factor){
 //        << v[3] << ", "<< v[4]<<endl;
 
   //Approximate p from parabola.
-  _firstPoint = _traj.measurement(0).surface().position()[2];
+  //_firstPoint = _traj.measurement(0).surface().position()[2];
 
   mom_from_parabola( (int)_traj.nmeas(), v);
 
   // v[3] = dr[0]/dr[2];
 //   v[4] = dr[1]/dr[2];
-
+  
+  double pSeed;
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
-  //double pSeed2 = (double)(0.060*_traj.nmeas())*GeV;
+  if (v[5] == 0) { pSeed2 = (double)(0.060*_traj.nmeas())*GeV;
+  v[5] = 1.0/pSeed2; }
   double de_dx = -7.87*(0.013*(abs(1/v[5])/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
   
@@ -759,10 +748,10 @@ void fitter::find_directSeed(EVector& R, int sense){
 	    - _traj.nodes()[0]->measurement().surface().position()[2]);
   }
   if (sense==-1){
-    R[0] = _meas[0]->vector()[0] - _meas[3]->vector()[0];
-    R[1] = _meas[0]->vector()[1] - _meas[3]->vector()[1];
+    R[0] = _meas[0]->vector()[0] - _meas[2]->vector()[0];
+    R[1] = _meas[0]->vector()[1] - _meas[2]->vector()[1];
     R[2] = _meas[0]->surface().position()[2] 
-      - _meas[3]->surface().position()[2];
+      - _meas[2]->surface().position()[2];
   }
   if (sense==2){
     R[0] = (_traj.nodes()[2]->measurement().vector()[0]
@@ -807,31 +796,46 @@ void fitter::mom_from_parabola(int nplanes, EVector& V){
 //*****************************************************************************
 
   if (nplanes>15) nplanes = 15;
+  const int fitpoints = nplanes;
 
-  double z0 = 0;
-  double z1 = _traj.measurement(nplanes-1).surface().position()[2] - _firstPoint;
-  TH1F* trajFitXZ = new TH1F("1","", nplanes, z0, z1+5);
-  TH1F* trajFitYZ = new TH1F("2","", nplanes, z0, z1+5);
+  double xpos[fitpoints], ypos[fitpoints], zpos[fitpoints];
+  
+  for (int ipoint=0;ipoint < nplanes;ipoint++){
+    
+    xpos[ipoint] = _traj.measurement(ipoint).vector()[0];
+    ypos[ipoint] = _traj.measurement(ipoint).vector()[1];
+    zpos[ipoint] = _traj.measurement(ipoint).surface().position()[2]
+      - _traj.measurement(0).surface().position()[2];
+
+  }
+
+  TGraph *trajFitXZ = new TGraph(nplanes, xpos, zpos);
+  TGraph *trajFitYZ = new TGraph(nplanes, ypos, zpos);
+
+  // double z0 = 0;
+//   double z1 = _traj.measurement(nplanes-1).surface().position()[2] - _firstPoint;
+//   TH1F* trajFitXZ = new TH1F("1","", nplanes, z0, z1);
+//   TH1F* trajFitYZ = new TH1F("2","", nplanes, z0, z1);
 
   TF1 *func = new TF1("fit",fitf,-3,3,3);
   func->SetParameters(0.,0.,0.0001);
   func->SetParNames("a", "b", "c");
   
-  TF1 *func2 = new TF1("fit2",fitf2,-3,3,3);
-  func->SetParameters(0.,0.0001);
-  func->SetParNames("d","e");
+  TF1 *func2 = new TF1("fit2",fitf,-3,3,3);
+  func->SetParameters(0.,0.,0.0001);
+  func->SetParNames("d","e", "f");
 
-  for (int i=0;i<nplanes;i++){
+  // for (int i=0;i<nplanes;i++){
 
-    const EVector& m = _traj.measurement(i).vector();
+//     const EVector& m = _traj.measurement(i).vector();
 
-    trajFitXZ->SetBinContent(i+1,m[0]);
-    trajFitXZ->SetBinError(i+1,1.);
+//     trajFitXZ->SetBinContent(i+1,m[0]);
+//     trajFitXZ->SetBinError(i+1,1.);
 
-    trajFitYZ->SetBinContent(i+1,m[1]);
-    trajFitYZ->SetBinError(i+1,1.);
+//     trajFitYZ->SetBinContent(i+1,m[1]);
+//     trajFitYZ->SetBinError(i+1,1.);
 
-  }
+//   }
 
   trajFitXZ->Fit("fit", "QN");
   trajFitYZ->Fit("fit2", "QN");
@@ -839,13 +843,12 @@ void fitter::mom_from_parabola(int nplanes, EVector& V){
   double b = func->GetParameter(1);
   double c = func->GetParameter(2);
   V[4] = func2->GetParameter(1);
-  //cout << b << endl;
-  V[3] = b;// + 2*c*z1;
+  V[3] = b;
 
   //double p;
   if (c!=0)
     V[5] = 1/(-0.3*1.*pow((1+b*b),3./2.)/(2*c)*0.01 * GeV);
-  
+  else V[5] = 0;
 
   delete trajFitXZ;
   delete trajFitYZ;
@@ -1174,6 +1177,7 @@ bool fitter::perform_pattern_rec(const State& seed) {
 	  else _recChi[1] = TMath::Min(_traj.node(_traj.last_fitted_node()).quality(), _recChi[1]);
 
 	  _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);
+	  _recChi[2] = _nConsecHoles;
 	  _nConsecHoles = 0;
 
 	} else {
@@ -1215,15 +1219,8 @@ bool fitter::perform_pattern_rec(const State& seed) {
       if (iGroup==(int)_meas.size()-1){
 	ok = filter_close_measurements(NeedFiltered, seed);
 	cout <<"Filtering final measurement"<<endl;
-	if (!ok) {
-	  _nConsecHoles++;
-	  
-	  if (_nConsecHoles > max_consec_missed_planes) {
-	    _failType = 6;
-	    _recChi[2] = _nConsecHoles;
-	    return ok;
-	  }
-	}
+	if (!ok) 
+	  return ok;
 	
       }
       iGroup++;
@@ -1285,6 +1282,7 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
 
   if (ok) {
     _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);
+    _recChi[2] = _nConsecHoles;
     _nConsecHoles = 0;
   } else {
     _nConsecHoles++;

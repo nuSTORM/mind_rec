@@ -8,8 +8,26 @@
 #  parameters for the setup
 #############################################
 
+# MIND dimensions (m)
+RUN MIND_x D 14.
+RUN MIND_y D 14.
+RUN MIND_z D 40.
+
+# MIND internal dimensions (cm)
+# ****IRON****
+RUN widthI D 4.
+
 # radiation length (mm)
-RUN x0 D 17.58
+RUN x0Fe D 17.58
+
+# ****SCIN****
+RUN widthS D 1.
+RUN nplane I 1
+
+# radiation length (mm)
+RUN x0Sc D 413.1
+
+########
 
 # energy loss (MeV/cm)
 RUN de_dx D -8
@@ -39,18 +57,18 @@ RUN chi2node_max D 50
 RUN max_outliers I 5
 
 # maximum local chi2 for nodes (pattern rec.)
-RUN pat_rec_max_chi D 200
+RUN pat_rec_max_chi D 100
 RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 
 # lowest and highest number of hits required for fit.
-RUN low_Pass_hits I 6
+RUN low_Pass_hits I 14
 RUN high_Pass_hits I 400
 
 # Fiducial cuts. (reduction in z and reduction at both sides in x,y. cm)
-RUN z_cut D 500
-RUN x_cut D 100
-RUN y_cut D 100
+RUN z_cut D 300
+RUN x_cut D 50
+RUN y_cut D 50
 
 # fit data twice (0=false, 1=true)
 ANA refit I 1

@@ -13,7 +13,7 @@
 #include <recpack/ParticleState.h>
 
 #include <TH1F.h>
-#include <TGraph.h>
+#include <TGraphErrors.h>
 #include <TF1.h>
 
 using namespace Recpack;
@@ -37,15 +37,20 @@ public:
   bool finalize() ;
   //-------------------------------------------------// 
     
-  const Trajectory& get_traj(){return _traj;}
-  const vector<bool>& get_rec_stats(){return _patRecStat;}
+  const Trajectory& get_traj(){
+    if (reseed_ok == 0) return _traj;
+    else return _traj2; }
+  //const vector<bool>& get_rec_stats(){return _patRecStat;}
+  vector<double>& get_fit_tracker(){ return _fitTracker; }
   int get_fail_type(){return _failType;}
   EVector& get_PatRec_Chis(){return _recChi;};
 
   Measurement* get_meas(int num){return _meas[num];}
   int get_nMeas(){return (int)_meas.size();}
 
-  double getChi2(){return _traj.quality();}
+  double getChi2(){
+    if (reseed_ok == 0) return _traj.quality();
+    else return _traj2.quality(); }
   
   Measurement* getMeasurement(bhep::hit& hit);
   
@@ -80,10 +85,10 @@ protected:
   void readParam();
     
   //seed for fit
-  void computeSeed();
-  void setSeed(EVector v, double factor=1.);
+  void computeSeed(int firsthit=0);
+  void setSeed(EVector v, int firsthit=0);
   void find_directSeed(EVector& R, int sense);
-  void mom_from_parabola(int nplanes, EVector& V);
+  void mom_from_parabola(int nplanes, int firsthit, EVector& V);
 
   //seed error
   EMatrix setSeedCov(EVector,double factor=1.);
@@ -91,6 +96,8 @@ protected:
  
   //fit trajectory
   bool fitTrajectory(State seed);
+  bool reseed_traj();
+  //void check_starting_measurements();
 
   //Pattern recognition functions.
   void define_pattern_rec_param();
@@ -158,8 +165,8 @@ protected:
   int iGroup;
   int _nConsecHoles;
 
-  //seedFit start point.
-  //double _firstPoint;
+  //bit to tell if reseed perfromed
+  int reseed_ok;
 
   //------------------ Physics -----------------//
     
@@ -184,17 +191,19 @@ protected:
   int max_consec_missed_planes;
     
   Trajectory _traj;
+  Trajectory _traj2;
   measurement_vector _meas;
   measurement_vector _hadmeas;
 
   //Vectors to contain the relevant results of a pattern recognition run.
-  vector<bool> _patRecStat;
+  //vector<bool> _patRecStat;
   EVector _recChi;
 
   //value set to identify where a traj failed:
   //0=too few hits. 1=too many hits. 2=outside fiducial. 3=no convergence with kink.
   //4=Couldn't find seed for patrec. 5=Failed in pat rec filtering
   int _failType;
+  vector<double> _fitTracker;
 
   size_t nnodes;
 

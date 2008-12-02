@@ -44,6 +44,7 @@ protected:
     
   void readParam();
   void createGeom();
+  void add_slab(int plane, const dict::Key det_vol);
   void setResolution();
   void addProperties();
   
@@ -67,7 +68,8 @@ protected:
   double MOTHER_x, MIND_x;
   double MOTHER_y, MIND_y;
   double MOTHER_z, MIND_z;
-    
+  double IRON_z, SCINT_z;
+  int nScint;
 
   // -------------------------------------------------------------//
   //                         |  PHYSICS |                         //
@@ -82,7 +84,7 @@ protected:
   
   //------------------- PROPERTIES OF MATERIALS -----------------//
     
-  double X0;
+  double X0Fe, X0Sc;
   double de_dx;
   
   //-------------------------------------------------------------//

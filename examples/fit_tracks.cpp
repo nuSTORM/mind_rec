@@ -55,7 +55,7 @@ int main(int argc, char* argv[]){
   data_reader.read();
   //
   
-  EventManager2* eman = new EventManager2(data_store,bhep::NORMAL);
+  EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
   
   fitter* fit = new fitter(ana_store,bhep::MUTE);
 
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]){
   fit->initialize(eman->get_dst_properties());
 
   
-  plot->initialize("/home/alaing/ntuples/MINDpulls.root",bhep::NORMAL);
+  plot->initialize("/home/alaing/ntuples/MINDpulls.root",bhep::MUTE);
   
   //add run properties to output dst header
   
@@ -104,7 +104,6 @@ int main(int argc, char* argv[]){
       fitOk = fit->execute(p,e.event_number());
 
       plot->execute(*fit, e, fitOk, patR);
-      cout << "After plot"<<endl;
     }
     
     //save event containing fit info 

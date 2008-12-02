@@ -40,20 +40,22 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
 bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
 			  bool success, bool patRec) {
 //*************************************************************************************
-
+  
   bool ok;
 
   _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
-
+  
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
+
+  track_fit( Fit );
 
   ok = extract_true_particle(evt, Fit, patRec);
   
   if (success) {
-
+    
     State ste;
     ok = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
     
@@ -111,6 +113,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Evt", &_evNo, "EventNo/I");
   statTree->Branch("Fitted", &_Fit, "success/B");
   statTree->Branch("Fail", &_fail, "FailType/I");
+  statTree->Branch("fitTypes", &_fitTracker, "predP/D:firstfit/D:reseed/D:predP2/D:succ/D");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
   statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
@@ -123,9 +126,35 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
   statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
   statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
-  statTree->Branch("PatternRec", &_pR, "truMu[nhits]/B:inMu[nhits]/B");
+  statTree->Branch("MuHits", &_mus, "truMu[nhits]/B");
+  statTree->Branch("CandHits", &_cand, "inMu[nhits]/B");
   statTree->Branch("FittedNodes",&_node,"fitNode[nhits]/B");
   statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/D");
+
+}
+
+//*************************************************************************************
+void MINDplotter::track_fit(fitter& fit) {
+//*************************************************************************************
+
+  if (_fail != 1 || _fail != 7) {
+    vector<double> info = fit.get_fit_tracker();
+
+    size_t nEnt = info.size();
+
+    _fitTracker[0] = info[0];
+    if (nEnt > 1) _fitTracker[1] = info[1];
+    else _fitTracker[1] = 0;
+    if (nEnt > 2) _fitTracker[2] = info[2];
+    else _fitTracker[2] = 0;
+    if (nEnt > 3) _fitTracker[3] = info[3];
+    else _fitTracker[3] = 0;
+    if (nEnt > 4) _fitTracker[4] = info[4];
+    else _fitTracker[4] = 0;
+  }
+  else
+    for (int i=0;i<5;i++)
+      _fitTracker[i] = 0;
 
 }
 
@@ -304,22 +333,24 @@ void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   
   _nhits = Fit.get_nMeas();
+  const dict::Key candHit = "inMu";
   int nNode;
   if (_fail != 7) nNode = (int)Fit.get_traj().size()-1;
   bool isMu;
-
+  
   for (int iHits = 0;iHits < _nhits;iHits++){
     
-    if (Fit.get_meas(iHits)->name("MotherParticle").compare("Hadronic_vector")!=0){
+    if (Fit.get_meas(iHits)->name("MotherParticle").compare("mu+")==0
+	|| Fit.get_meas(iHits)->name("MotherParticle").compare("mu-")==0){
       isMu = true;
-      _pR[0][iHits] = true;
+      _mus[iHits] = true;
       _hitType[0]++;
     }
-    else {_pR[0][iHits] = false;} // muHit = false;}
+    else {_mus[iHits] = false; isMu = false;}
     
-    if (_fail != 7){
-      if (Fit.get_rec_stats()[iHits] == true){
-	_pR[1][iHits] = true;
+    if ( _fail != 7 && Fit.get_meas(iHits)->names().has_key(candHit) ){
+      if ( Fit.get_meas(iHits)->name(candHit).compare("True")==0 ){//has_key(candHit) ){
+	_cand[iHits] = true;
 	_hitType[1]++;
 	if ( isMu ) _hitType[2]++;
 	
@@ -328,14 +359,20 @@ void MINDplotter::patternStats(fitter& Fit) {
 	else _node[iHits] = false;
 	nNode--;
       }
-      else { _node[iHits] = false; _pR[1][iHits] = false; }
-    }
+      else { _node[iHits] = false; _cand[iHits] = false; }
+    } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
 
   }
+  
   if (_fail != 7){
     _pChi[0] = Fit.get_PatRec_Chis()[0];
     _pChi[1] = Fit.get_PatRec_Chis()[1];
     _pChi[2] = Fit.get_PatRec_Chis()[2];
+  }
+  
+  for (int iclear = _nhits;iclear<300;iclear++){
+    _mus[iclear] = false; _cand[iclear] = false;
+    _node[iclear] = false;
   }
 
 }

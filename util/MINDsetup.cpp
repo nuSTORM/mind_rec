@@ -101,12 +101,51 @@ void MINDsetup::createGeom(){
 
   _gsetup.add_volume("mother",vol_name,det);
    
+  //Introduce IRON scintillator sandwiches.
+  // int nplanes = (int)( MIND_z / (IRON_z + nScint * SCINT_z) );
+
+//   for (int iplane = 0;iplane < nplanes;iplane++) {
+
+//     add_slab(iplane, "mother");
+
+//   }
 
   std::cout << _gsetup << std::endl;
 
 }
 
+//*************************************************************
+void MINDsetup::add_slab(int plane, const dict::Key det_vol){
+//*************************************************************
 
+  EVector plane_pos(3,0);
+  //Names for particular sections
+  const dict::Key iron_name = "IRON_plane"+bhep::to_string(plane);
+  
+  //Define positions
+  double slab_width = IRON_z + nScint * SCINT_z;
+  double mind_front = -MIND_z/2;
+
+  //Scintillator.
+  plane_pos[2] = mind_front + slab_width * plane + IRON_z + SCINT_z/2;
+  const dict::Key scint_name = "SCINT_plane"+bhep::to_string(plane_pos[2]);
+
+  Volume* Sc_slab = new Box(plane_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,SCINT_z/2);
+
+  _gsetup.add_volume(det_vol,scint_name,Sc_slab);
+
+  _gsetup.set_volume_property(scint_name,"X0",X0Sc);
+  
+  //IRON
+  plane_pos[2] = mind_front + slab_width * plane + IRON_z/2;
+
+  Volume* Fe_slab = new Box(plane_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,IRON_z/2);
+
+  _gsetup.add_volume(det_vol,iron_name,Fe_slab);
+
+  _gsetup.set_volume_property(iron_name,"X0",X0Fe);
+  
+}
 
 //*************************************************************
 void MINDsetup::setResolution(){
@@ -144,17 +183,20 @@ void MINDsetup::addProperties(){
   BField = EVector(3,0);
   BField[1] = B_int;
 
-  _gsetup.set_volume_property("mother","BField",BField);
-  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
+  // _gsetup.set_volume_property("mother","BField",BField);
+//   _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
+
+  _gsetup.set_volume_property_to_sons("mother","BField",BField);
+  _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
     
   const dict::Key vol_name = "Detector";
-  _gsetup.set_volume_property(vol_name,"BField",BField);
-  _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
+//   _gsetup.set_volume_property(vol_name,"BField",BField);
+//   _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
   
-  _gsetup.set_volume_property(vol_name,"X0",X0);
+  _gsetup.set_volume_property(vol_name,"X0",X0Fe);
   _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
 
-  _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
+  // _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
   _msetup.message("+++de/dx added to MIND:",de_dx,bhep::VERBOSE);
   
  
@@ -170,20 +212,25 @@ void MINDsetup::readParam(){
     bhep::prlevel c = bhep::VERBOSE;
     
 
-    MIND_x = 1400*cm; 
+    MIND_x = _pstore.fetch_dstore("MIND_x") * m; 
       
     _msetup.message("MIND height:",MIND_x/cm,"cm",c);
     
-    MIND_y = 1400*cm; 
+    MIND_y =  _pstore.fetch_dstore("MIND_y") * m;
       
     _msetup.message("MIND width:",MIND_y/cm,"cm",c);
     
-    MIND_z = 4000*cm; 
+    MIND_z =  _pstore.fetch_dstore("MIND_z") * m;
       
     _msetup.message("MIND length:",MIND_z/cm,"cm",c);
     
-  
     //-------------------------------------------------------------//
+    //                      | INNER DIMENSIONS |                   //
+    //-------------------------------------------------------------//
+
+    IRON_z = _pstore.fetch_dstore("widthI") * cm;
+    SCINT_z = _pstore.fetch_dstore("widthS") * cm;
+    nScint = _pstore.fetch_istore("nplane");
 
     //--------------------------- VOLUMES ------------------------//
     
@@ -207,11 +254,12 @@ void MINDsetup::readParam(){
     //            |  RADIATION LENGTH AND ENERGY LOSS |             //
     // -------------------------------------------------------------//
     
-    X0 = _pstore.fetch_dstore("x0") * mm;
+    X0Fe = _pstore.fetch_dstore("x0Fe") * mm;
+    X0Sc = _pstore.fetch_dstore("x0Sc") * mm;
     de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
     //X0 = 1e9 *mm;
 
-    _msetup.message("Radiation length:",X0/cm,"cm",c);
+    _msetup.message("Radiation length:",X0Fe/cm,"cm",c);
 
     // -------------------------------------------------------------//
     //                       |  MEASUREMENTS |                    //

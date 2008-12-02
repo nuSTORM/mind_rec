@@ -53,6 +53,9 @@ class MINDplotter{
   /* Function to plot stats about pattern recogntion */
   void patternStats(fitter& Fit);
 
+  /*Function to record types of fit and quality of seed*/
+  void track_fit(fitter& fit);
+
 protected:
 
   bhep::prlevel level;
@@ -72,6 +75,7 @@ private:
   int _evNo;
   bool _Fit;
   int _fail;
+  double _fitTracker[5];
   double _nuEng;
   double _hadP[3];
   double _X[3][2];
@@ -84,7 +88,8 @@ private:
   double _XPos[300];
   double _YPos[300];
   double _ZPos[300];
-  bool _pR[2][300];
+  bool _mus[300];
+  bool _cand[300];
   bool _node[300];
   double _pChi[3];
 

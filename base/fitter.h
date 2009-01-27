@@ -40,7 +40,7 @@ public:
   const Trajectory& get_traj(){
     if (reseed_ok == 0) return _traj;
     else return _traj2; }
-  //const vector<bool>& get_rec_stats(){return _patRecStat;}
+  EVector& get_had_unit(){return _hadunit;}
   vector<double>& get_fit_tracker(){ return _fitTracker; }
   int get_fail_type(){return _failType;}
   EVector& get_PatRec_Chis(){return _recChi;};
@@ -97,7 +97,9 @@ protected:
   //fit trajectory
   bool fitTrajectory(State seed);
   bool reseed_traj();
-  //void check_starting_measurements();
+  void check_starting_measurements();
+  void remove_suspected_hads();
+  bool fitHadrons();
 
   //Pattern recognition functions.
   void define_pattern_rec_param();
@@ -207,6 +209,8 @@ protected:
 
   size_t nnodes;
 
+  //Temporary fix (??). vector to store hadron unit dir vec.
+  EVector _hadunit;
     
   //-------------- verbosity levels ------------//
 

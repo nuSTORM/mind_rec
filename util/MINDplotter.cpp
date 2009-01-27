@@ -66,6 +66,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
       momentum_pulls();
     }
 
+    hadron_direction(Fit);
+
   }
 
   //If fit not successful set rec values to zero.
@@ -81,6 +83,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     _Chi[0] = 0; _Chi[1] = 0;
 
     _Q[1] = 0; _Q[2] = 0;
+
+    _haddot = 99;
   }
   
   if (patRec)
@@ -121,6 +125,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
+  statTree->Branch("hadDir", &_haddot, "dotProd/D");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
   statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I");
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
@@ -307,6 +312,18 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
   return true;
 }
 
+//*************************************************************************************
+void MINDplotter::hadron_direction(fitter& fit) {
+//*************************************************************************************
+  
+  double normal;
+  EVector fitunit = fit.get_had_unit();
+  normal = sqrt(pow(_hadP[0],2)+pow(_hadP[1],2)+pow(_hadP[2],2));
+
+  if (fitunit[0]==0 && fitunit[1]==0) _haddot = 99;
+  else _haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);
+
+}
 //*************************************************************************************
 void MINDplotter::max_local_chi2(const Trajectory& traj) {
 //*************************************************************************************

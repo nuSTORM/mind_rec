@@ -39,6 +39,8 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   kink = 0;
   nonFid = 0;
   patFail = 0;
+  _hadunit = EVector(3,0);
+  _hadunit[2] = 1.;
   
   // read parameters
   readParam();
@@ -133,7 +135,7 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
   totFitAttempts++;
   _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
-
+  
   reseed_ok = 0;
 
   if (!userseed && ok) computeSeed();
@@ -142,6 +144,9 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
     
     fitted = fitTrajectory(seedstate);
     
+    if ( fitted )
+      bool checker = fitHadrons();
+
     addFitInfo(part,fitted);
     
     if (tklen) addTrackLength(part,_traj);
@@ -182,7 +187,7 @@ void fitter::reset() {
   _traj.reset();
   _traj2.reset();
   stc_tools::destroy(_meas);
-  
+  _hadmeas.clear();
 
   //reset virtual planes
   
@@ -293,6 +298,9 @@ bool fitter::fitTrajectory(State seed) {
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
 	  
+	  double de_dx = (2.47-14.82*pow(fabs(1./v[5])/GeV, 0.085))*MeV/cm;
+	  geom.setDeDx(de_dx);
+
 	  EMatrix C = setSeedCov(C0,facRef);
 	  
 	  man().model_svc().model(RP::particle_helix).representation()
@@ -331,12 +339,12 @@ bool fitter::reseed_traj(){
   _fitTracker.push_back( 1 );
   //start excluding the first 5% of the hits.
   if ( (int)_traj.nmeas() < 10 ) return false;
-  else if ( (int)_traj.nmeas() > 50 ) starthit = 5;  
+  else if ( (int)_traj.nmeas() > 30 ) starthit = 3;  
   else starthit = (int)_traj.nmeas()/10;
   int remCount = 0;
   reseed_ok = 1;
   computeSeed( starthit );
-  
+
   for (int ipoint = starthit;ipoint < (int)_traj.nmeas();ipoint++)
     _traj2.add_measurement( _traj.nodes()[ipoint]->measurement() );
   
@@ -377,7 +385,7 @@ bool fitter::reseed_traj(){
     const dict::Key candHit = "inMu";
     const dict::Key hit_in = "False";
     int irem = (int)_meas.size() - 1;
-    //for (int irem = (int)_traj.nmeas()-;irem < (int)_traj.nmeas();irem++)
+    
     while ( remCount != starthit ) {
       if ( _meas[irem]->names().has_key(candHit) ){
 	_meas[irem]->set_name(candHit, hit_in);
@@ -387,6 +395,68 @@ bool fitter::reseed_traj(){
   } else _fitTracker.push_back( 0 );
   
   return reSeed;
+}
+
+//*************************************************************
+bool fitter::fitHadrons(){
+//*************************************************************
+  
+  size_t nhadhits = _hadmeas.size();
+  if (nhadhits<2) {
+    _hadunit[0] = 0; _hadunit[1] = 0; return false;}
+  const int nplanes = ( (int)_hadmeas[0]->surface().position()[2]
+			- (int)_hadmeas[nhadhits-1]->surface().position()[2] + 50 )/50;
+  
+  if (nplanes<2) {
+    _hadunit[0] = 0; _hadunit[1] = 0; return false;}
+  double x[nplanes], y[nplanes], z[nplanes], testZ, curZ;
+  
+  size_t hits_used = 0, imeas = 0;
+  int ientry = nplanes-1;
+  double tolerance = 1 * cm;
+  
+  do {  
+    
+    int count = 0;
+    x[ientry] = _hadmeas[imeas]->vector()[0];
+    y[ientry] = _hadmeas[imeas]->vector()[1];
+    z[ientry] = _hadmeas[imeas]->surface().position()[2];
+    testZ = z[ientry];
+    hits_used++;
+    count++;
+    
+    for (size_t i=hits_used;i < nhadhits;i++){
+      curZ = _hadmeas[i]->surface().position()[2];
+      if (curZ >= testZ-tolerance){
+	x[ientry] += _hadmeas[i]->vector()[0];
+	y[ientry] += _hadmeas[i]->vector()[1];
+	z[ientry] += curZ;
+	count++;
+	hits_used++;
+      } else break;
+    }
+    
+    x[ientry] /= (double)count; y[ientry] /= (double)count; 
+    z[ientry] /= (double)count;
+    ientry--;
+    imeas+=count;
+    
+  } while (hits_used != nhadhits);
+  
+  TGraph *gr1 = new TGraph(nplanes, z, x);
+  TGraph *gr2 = new TGraph(nplanes, z, y);
+  
+  TF1 *fitfunc = new TF1("fitfun","[0]+[1]*x",-3,3);
+  
+  gr1->Fit("fitfun","QN");
+  _hadunit[0] = fitfunc->GetParameter(1);
+
+  gr2->Fit("fitfun","QN");
+  _hadunit[1] = fitfunc->GetParameter(1);
+  
+  _hadunit /= _hadunit.norm();
+  
+  return true;
 }
 
 //*************************************************************
@@ -484,9 +554,24 @@ bool fitter::check_valid_traj() {
   double xCut = store.fetch_dstore("x_cut");
   double yCut = store.fetch_dstore("y_cut");
 
-  cout << "Smwell"<<endl;
-  _traj.remove_measurement( *_meas[0] );
-  cout << "slfhsdfsjd222"<<endl;
+  // cout << "Smwell"<<endl;
+//   // if ( _traj.nmeas() >= 20 )
+// //     check_starting_measurements();
+//   _traj2.add_measurement( *_meas[0] );
+//   _traj2.add_measurement( *_meas[1] );
+//   _traj2.add_measurement( *_meas[2] );
+//   _traj2.sort_nodes(1);
+//   cout << "sdflfhjsalhfsdj"<<endl;
+//   _traj2.remove_measurement( _traj2.node(0).measurement() );
+//     cout << "Yes? "<< _traj.nodes()[0]->measurement().vector()[0];
+//     cout << ", "<<_traj.nodes()[0]->measurement().vector()[1];
+//     cout << ", "<<_traj.nodes()[0]->measurement().surface().position()[2]<<endl;
+//     cout << _traj.nodes()[0]->measurement().hv()<<endl;
+//     _traj.remove_measurement( _traj.node(0).measurement() );
+//   cout << "Yes2? "<< _traj.nodes()[0]->measurement().vector()[0];
+//   cout << ", "<<_traj.nodes()[0]->measurement().vector()[1];
+//   cout << ", "<<_traj.nodes()[0]->measurement().surface().position()[2]<<endl;
+//   cout << "slfhsdfsjd222"<<endl;
   //--------- Reject too many hits --------//
   int highPass = store.fetch_istore("high_Pass_hits");
   int lowPass = store.fetch_istore("low_Pass_hits");
@@ -512,13 +597,78 @@ bool fitter::check_valid_traj() {
   return true;
 }
 
-// //*************************************************************
-// void fitter::check_starting_measurements(){
-// //*************************************************************
+//*****************************************************************************
+double fitf(Double_t *x,Double_t *par) { 
+//*****************************************************************************
 
-  
 
-// }
+  double z = x[0]; //-(_firstPoint);
+  //  double arg = 0; 
+  //  double d = 2*par[1]*par[2]*par[2]/(1+par[1]*par[1]);
+  double fitval = par[0]+par[1]*z+par[2]*z*z; // + d*pow(z,3);
+
+  return fitval ;
+
+}
+
+//*************************************************************
+void fitter::check_starting_measurements(){
+//*************************************************************
+  cout << "in check function"<<endl;
+  double x1[15], x2[15], z1[15], z2[15], q1, q2;
+
+  for (int ipoint = 0;ipoint < 20;ipoint++){
+    if (ipoint < 15){
+      x1[ipoint] = _traj.measurement(ipoint).vector()[0];
+      z1[ipoint] = _traj.measurement(ipoint).surface().position()[2]; }
+
+    if (ipoint > 4){
+      x2[ipoint-5] = _traj.measurement(ipoint).vector()[0];
+      z2[ipoint-5] = _traj.measurement(ipoint).surface().position()[2]; }
+  }
+
+  TGraph *gr1 = new TGraph(15, z1, x1);
+  TGraph *gr2 = new TGraph(15, z2, x2);
+
+  TF1* fit1 = new TF1("fit1", fitf, -3, 3, 3);
+  fit1->SetParameters(0.,0.,0.0001);
+
+  gr1->Fit("fit1","QN");
+  q1 = fit1->GetParameter(2)/abs(fit1->GetParameter(2));
+
+  gr2->Fit("fit1","QN");
+  q2 = fit1->GetParameter(2)/abs(fit1->GetParameter(2));
+
+  if (q1 != q2)
+    remove_suspected_hads();
+
+}
+
+//*************************************************************
+void fitter::remove_suspected_hads(){
+//*************************************************************
+  cout << "in removal function" <<endl;
+  int irem = (int)_meas.size() - 1;
+  int remCount = 0;
+
+  const dict::Key candHit = "inMu";
+  const dict::Key hit_in = "False";
+
+  while (remCount != 5){
+
+    if ( _meas[irem]->names().has_key(candHit) ){
+      cout << irem << endl;
+      _traj.remove_measurement( *_meas[irem] );
+      cout << "done" <<endl;
+      _meas[irem]->set_name(candHit, hit_in);
+      remCount++; 
+      _hadmeas.push_back( _meas[irem] );
+    }
+
+    irem--;
+  }
+
+}
 
 //*************************************************************
 int fitter::getQ(){
@@ -714,7 +864,6 @@ void fitter::setSeed(EVector r, int firsthit){
 
   seedstate.keepDiagonalMatrix();
   */
-
   // take as seed the state vector
   EVector v(6,0), v2(1,0);
   EMatrix C(6,6,0), C2(1,1,0);
@@ -759,7 +908,6 @@ void fitter::setSeed(EVector r, int firsthit){
   v[5] = 1.0/pSeed; }
   double de_dx = (2.47-14.82*pow(fabs(1./v[5])/GeV, 0.085))*MeV/cm;//-7.87*(0.013*(abs(1/v[5])/GeV)+1.5)*MeV/cm;
   geom.setDeDx(de_dx);
-  
   m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   //v[5]=dr[2];//1;
@@ -783,7 +931,6 @@ void fitter::setSeed(EVector r, int firsthit){
 //        << seedstate << endl;
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seedstate,RP::default_rep);
-
 }
 
 //*************************************************************
@@ -858,20 +1005,6 @@ void fitter::find_directSeed(EVector& R, int sense){
 
   R /= R.norm();
   
-}
-
-//*****************************************************************************
-double fitf(Double_t *x,Double_t *par) { 
-//*****************************************************************************
-
-
-  double z = x[0]; //-(_firstPoint);
-  //  double arg = 0; 
-  //  double d = 2*par[1]*par[2]*par[2]/(1+par[1]*par[1]);
-  double fitval = par[0]+par[1]*z+par[2]*z*z; // + d*pow(z,3);
-
-  return fitval ;
-
 }
 
 //*****************************************************************************

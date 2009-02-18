@@ -16,6 +16,8 @@
 #include <TGraphErrors.h>
 #include <TF1.h>
 
+//#include <mind/event_clarif.h>
+
 using namespace Recpack;
 
 class fitter{
@@ -41,6 +43,7 @@ public:
     if (reseed_ok == 0) return _traj;
     else return _traj2; }
   EVector& get_had_unit(){return _hadunit;}
+  double get_had_eng(){return _hadEng;}
   vector<double>& get_fit_tracker(){ return _fitTracker; }
   int get_fail_type(){return _failType;}
   EVector& get_PatRec_Chis(){return _recChi;};
@@ -97,9 +100,8 @@ protected:
   //fit trajectory
   bool fitTrajectory(State seed);
   bool reseed_traj();
-  void check_starting_measurements();
-  void remove_suspected_hads();
   bool fitHadrons();
+  double eng_scale(double visEng);
 
   //Pattern recognition functions.
   void define_pattern_rec_param();
@@ -176,6 +178,7 @@ protected:
 
   int dim; //dimension of model state
   int meas_dim; //dimension of measurement
+  double _tolerance; //pos. resolution/plane tolerance
   
   State seedstate;   
   EVector qoverp;
@@ -211,7 +214,14 @@ protected:
 
   //Temporary fix (??). vector to store hadron unit dir vec.
   EVector _hadunit;
-    
+  double _hadEng;
+  
+  /*****************************************************************************
+   * Stuff relevant for event classification, will be uncommented when needed. *
+   *                                                                           *
+   * event_classif* _classify;                                                  *
+   *****************************************************************************/
+
   //-------------- verbosity levels ------------//
 
   int vfit,vnav,vmod,vmat,vsim;
@@ -221,7 +231,16 @@ protected:
 class reverseSorter{
 public:
   bool operator()(const Measurement* p1, const Measurement* p2){
-    if (p2->position()[2] < p1->position()[2]) return true;
+    if (p2->surface().position()[2] < p1->surface().position()[2]) return true;
+    return false;
+  }
+
+};
+
+class forwardSorter{
+public:
+  bool operator()(const Measurement* p1, const Measurement* p2){
+    if (p2->surface().position()[2] > p1->surface().position()[2]) return true;
     return false;
   }
 

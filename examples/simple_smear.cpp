@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
   //
 
   int nEvents;
-  double smearRes;
+  double smearRes[2];
 
   if ( !run_store.find_istore("nEvents") ) {
     std::cout << "Parameter file must contain number of events "
@@ -62,7 +62,14 @@ int main(int argc, char* argv[]) {
 	      << "as double Gaus_Sigma in group RUN" << std::endl;
     return -1;
   }
-  else smearRes = run_store.fetch_dstore("Gaus_Sigma");
+  else smearRes[0] = run_store.fetch_dstore("Gaus_Sigma");
+
+  if ( !run_store.find_dstore("Eng_Res") ) {
+    std::cout << "Parameter file must contain Energy resolution"
+	      << "as double Eng_Res in group RUN" << std::endl;
+    return -1;
+  }
+  else smearRes[1] = run_store.fetch_dstore("Eng_Res");
 
   if ( !run_store.find_dstore("Gen_seed") ) {
     std::cout << "Parameter file must contain generator seed "

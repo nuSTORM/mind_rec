@@ -81,6 +81,7 @@ private:
   double _fitTracker[5];
   double _nuEng;
   double _hadP[3];
+  double _hadE[2];
   double _haddot;
   double _X[3][2];
   double _Th[3][2];
@@ -89,12 +90,12 @@ private:
   double _Chi[2];
   int _nhits;
   int _hitType[4];
-  double _XPos[300];
-  double _YPos[300];
-  double _ZPos[300];
-  bool _mus[300];
-  bool _cand[300];
-  bool _node[300];
+  double _XPos[400];
+  double _YPos[400];
+  double _ZPos[400];
+  bool _mus[400];
+  bool _cand[400];
+  bool _node[400];
   double _pChi[3];
 
   void define_tree_branches();

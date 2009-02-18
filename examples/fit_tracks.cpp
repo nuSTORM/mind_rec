@@ -79,7 +79,7 @@ int main(int argc, char* argv[]){
   EMatrix M;  
 
   bool patR = ana_store.fetch_istore("patRec");
-
+  
   for(int i=0; i < nevents; i++) {
     
     bool ok = eman->status();
@@ -93,21 +93,21 @@ int main(int argc, char* argv[]){
     // loop over particles
     
     vector<bhep::particle*> parts = e.digi_particles(); 
-    cout <<"There are " << parts.size() << " digis in event " << e.event_number() << endl;
-
-    for (size_t part=0; part<parts.size();part++){
-      
-      bhep::particle& p = *parts[part];
-      
-      if (p.name()=="void") continue;
-      
-      fitOk = fit->execute(p,e.event_number());
-
-      plot->execute(*fit, e, fitOk, patR);
+    cout <<"There are " << parts.size() << " digis in event " << e.event_number() <<endl;
+    if (parts.size() != 0) {
+      for (size_t part=0; part<parts.size();part++){
+	
+	bhep::particle& p = *parts[part];
+	
+	if (p.name()=="void") continue;
+	
+	fitOk = fit->execute(p,e.event_number());
+	
+	plot->execute(*fit, e, fitOk, patR);
+      }
     }
-    
-    //save event containing fit info 
-    eman->write(e); 
+      //save event containing fit info 
+      eman->write(e);
   }
   
   fit->finalize();

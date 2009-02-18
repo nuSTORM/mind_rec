@@ -20,17 +20,17 @@ using namespace std;
 
 int main(int argc, char* argv[]){
     
-  if (argc<4){
+  if (argc<5){
     
     cout << "Execution requires 2 or 3 arguments." << endl;
-    cout << "Call with ./root_2_dst <InFile> <Gaus sigma, in cm> <rndm seed>" << endl;
+    cout << "Call with ./root_2_dst <InFile> <Gaus sigma, in cm> <E res> <rndm seed>" << endl;
     cout << "and optional  <No. events of interest>" << endl;
 
     return -1;
   }
   
   Char_t *inFileName;
-  double smearRes;
+  double smearRes[2];
   long rndmSeed;
   Int_t nEvents;
 
@@ -46,13 +46,16 @@ int main(int argc, char* argv[]){
   In.GetObject("h10", Data);
 
   //Get Gaussian resulution for smear.
-  smearRes = atof(argv[2]);
+  smearRes[0] = atof(argv[2]);
+
+  //Get Energy smear.
+  smearRes[1] = atof(argv[3]);
 
   //Get seed value for random engine
-  rndmSeed = (long)atof(argv[3]);
+  rndmSeed = (long)atof(argv[4]);
 
   //Set number of events to be read.
-  if (argc==5) nEvents = atoi(argv[4]);
+  if (argc==6) nEvents = atoi(argv[5]);
   else nEvents = (Int_t)Data->GetEntries();
 
   if (nEvents>(Int_t)Data->GetEntries()){
@@ -67,7 +70,7 @@ int main(int argc, char* argv[]){
     
   cvt->initialize(smearRes, rndmSeed, Data, outFileName);
   
-  cout << "Starting Loop over events" << endl;
+  cout << "Starting Loop over events " <<nEvents<< endl;
   for(int i=1; i < nEvents+1; i++) {
     
     if (i%100==0) cout<< "Number of events read "<<i<<endl;

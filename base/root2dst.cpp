@@ -21,7 +21,7 @@ root2dst::root2dst(bhep::prlevel vlevel){
 
 
 //*************************************************************
-bool root2dst::initialize(double res, long seed,
+bool root2dst::initialize(double *res, long seed,
 			  TTree *InPutTree, TString OutFileName) {
 //*************************************************************
     
@@ -37,8 +37,9 @@ bool root2dst::initialize(double res, long seed,
 
   //long seed = 178263094;
   ranGen = RanluxEngine(seed, 4);
-
-  sigMa = res;
+  cout << res[0] << "," << res[1] << endl;
+  sigMa = res[0];
+  sigMaE = res[1];
 
   nevt=0;
   
@@ -55,15 +56,18 @@ bool root2dst::execute(){
    */
 
   m.message("+++ root2dst execute function ++++",bhep::VERBOSE);
-
+  cout << nevt<<endl;
   createEvent();
-
-  make_particles();
   
-  outgz.write(*nuEvent[nevt], nevt);
+  bool ok = make_particles();
+
+  //if ( ok )
+  outgz.write(nuEvent, nevt);
   
   nevt++;
- 
+
+  nuEvent.clear();
+    
   return true;
 
 }
@@ -96,8 +100,8 @@ void root2dst::createEvent() {
   Int_t integs[2][2];
   Float_t floas[6][3];
 
-  event *evt = new event((Int_t)nevt);
-  nuEvent.push_back(evt);
+  nuEvent.set_event_number((int)nevt);
+  //nuEvent.push_back(evt);
 
   dataIn->SetBranchStatus("Random",1); dataIn->SetBranchAddress("Random",&integs[0]);
   dataIn->SetBranchStatus("Nutype",1); dataIn->SetBranchAddress("Nutype",&integs[1]);
@@ -110,17 +114,17 @@ void root2dst::createEvent() {
   
   dataIn->GetEntry((Int_t)nevt);
 
-  nuEvent[nevt]->set_vertex(floas[5][0] * cm, floas[5][1] * cm, floas[5][2] * cm);
-
+  nuEvent.set_vertex(floas[5][0] * cm, floas[5][1] * cm, floas[5][2] * cm);
+  
   //Add aditional properties
-  nuEvent[nevt]->add_property("RandomSeed1", (string)ToString(integs[0][0]));
-  nuEvent[nevt]->add_property("RandomSeed2", (string)ToString(integs[0][1]));
-  nuEvent[nevt]->add_property("Nutype", (string)ToString(integs[1][0]));
-  nuEvent[nevt]->add_property("Enu", (string)ToString(floas[0][0]));
-  nuEvent[nevt]->add_property("Xf", (string)ToString(floas[1][0]));
-  nuEvent[nevt]->add_property("Yf", (string)ToString(floas[2][0]));
-  nuEvent[nevt]->add_property("Q2f", (string)ToString(floas[3][0]));
-  nuEvent[nevt]->add_property("Wf", (string)ToString(floas[4][0]));
+  nuEvent.add_property("RandomSeed1", (string)ToString(integs[0][0]));
+  nuEvent.add_property("RandomSeed2", (string)ToString(integs[0][1]));
+  nuEvent.add_property("Nutype", (string)ToString(integs[1][0]));
+  nuEvent.add_property("Enu", (string)ToString(floas[0][0]));
+  nuEvent.add_property("Xf", (string)ToString(floas[1][0]));
+  nuEvent.add_property("Yf", (string)ToString(floas[2][0]));
+  nuEvent.add_property("Q2f", (string)ToString(floas[3][0]));
+  nuEvent.add_property("Wf", (string)ToString(floas[4][0]));
   
   dataIn->SetBranchStatus("*", 0);
 
@@ -128,7 +132,7 @@ void root2dst::createEvent() {
 }
 
 //***************************************************************
-void root2dst::make_particles() {
+bool root2dst::make_particles() {
 //***************************************************************
 
 /* Function to add relevant particles to event */
@@ -160,15 +164,15 @@ void root2dst::make_particles() {
 
     digPar = create_digital_representation(all_parts);
     
-    nuEvent[nevt]->add_true_particle(muon);
-    nuEvent[nevt]->add_true_particle(hadron);
-    nuEvent[nevt]->add_digi_particle(digPar);
+    nuEvent.add_true_particle(muon);
+    nuEvent.add_true_particle(hadron);
+    nuEvent.add_digi_particle(digPar);
 
   }
   else cout << "No. hits in event" << endl;
 
   cout << "All particles defined and appended to event" << endl;
-
+  return ok;
 }
 
 //***************************************************************
@@ -186,12 +190,13 @@ particle* root2dst::define_lead_particle() {
 
   dataIn->SetBranchStatus("Idlead", 1); dataIn->SetBranchAddress("Idlead", &ID);
   dataIn->SetBranchStatus("Plead", 1); dataIn->SetBranchAddress("Plead", &moment);
+  dataIn->SetBranchStatus("Nhits", 1); dataIn->SetBranchAddress("Nhits", &NmuHits);
 
   dataIn->GetEntry((Int_t)nevt);
   
-  Point3D pos = nuEvent[nevt]->vertex();
+  Point3D pos = nuEvent.vertex();
   //multiply by 1000 because ntuple in GeV and DST expects MeV.
-  Vector3D mom(moment[2] * GeV, moment[1] * GeV, moment[0] * GeV);
+  Vector3D mom(moment[0] * GeV, moment[1] * GeV, moment[2] * GeV);
   
   ray *leadstart = new ray(pos, mom);
   
@@ -220,13 +225,16 @@ particle* root2dst::define_hadron() {
 
   Int_t nHad;
   Float_t moment[5];
+  Float_t hadEng;
 
   dataIn->SetBranchStatus("Nhad", 1); dataIn->SetBranchAddress("Nhad", &nHad);
   dataIn->SetBranchStatus("Phadg", 1); dataIn->SetBranchAddress("Phadg", &moment);
+  dataIn->SetBranchStatus("Ehadg", 1); dataIn->SetBranchAddress("Ehadg", &hadEng);
+  dataIn->SetBranchStatus("Nhhits", 1); dataIn->SetBranchAddress("Nhhits", &NhadHits);
 
   dataIn->GetEntry((Int_t)nevt);
   
-  Point3D pos = nuEvent[nevt]->vertex();
+  Point3D pos = nuEvent.vertex();
   
   Vector3D mom(moment[0] * GeV, moment[1] * GeV, moment[2] * GeV);
   
@@ -235,6 +243,7 @@ particle* root2dst::define_hadron() {
   particle *had = new particle(pT, pName, *hadstart);
   cout << "Particle Defined" << endl;
   had->add_property("No_Hadrons_in_Shower", (string)ToString(nHad));
+  had->add_property("HadE", (string)ToString(hadEng));
 
   dataIn->SetBranchStatus("*", 0);
 
@@ -254,21 +263,24 @@ bool root2dst::hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit) {
 
   const Int_t maxHits = 400;
 
-  Int_t NmuHits, NhadHits;
+  //Int_t NmuHits, NhadHits;
   Float_t muHitVec[3][maxHits], hadHitVec[3][maxHits];
+  Float_t muHitE[maxHits], hadHitE[maxHits];
+  
+  if (NmuHits==0 && NhadHits==0) return false;
 
-  dataIn->SetBranchStatus("Nhits", 1); dataIn->SetBranchAddress("Nhits", &NmuHits);
+  //dataIn->SetBranchStatus("Nhits", 1); dataIn->SetBranchAddress("Nhits", &NmuHits);
   dataIn->SetBranchStatus("Xhit", 1); dataIn->SetBranchAddress("Xhit", &muHitVec[0]);
   dataIn->SetBranchStatus("Yhit", 1); dataIn->SetBranchAddress("Yhit", &muHitVec[1]);
   dataIn->SetBranchStatus("Zhit", 1); dataIn->SetBranchAddress("Zhit", &muHitVec[2]);
-  dataIn->SetBranchStatus("Nhhits", 1); dataIn->SetBranchAddress("Nhhits", &NhadHits);
+  dataIn->SetBranchStatus("Ehit", 1); dataIn->SetBranchAddress("Ehit", &muHitE);
+  //dataIn->SetBranchStatus("Nhhits", 1); dataIn->SetBranchAddress("Nhhits", &NhadHits);
   dataIn->SetBranchStatus("Xhhit", 1); dataIn->SetBranchAddress("Xhhit", &hadHitVec[0]);
   dataIn->SetBranchStatus("Yhhit", 1); dataIn->SetBranchAddress("Yhhit", &hadHitVec[1]);
   dataIn->SetBranchStatus("Zhhit", 1); dataIn->SetBranchAddress("Zhhit", &hadHitVec[2]);
+  dataIn->SetBranchStatus("Ehhit", 1); dataIn->SetBranchAddress("Ehhit", &hadHitE);
 
   dataIn->GetEntry((Int_t)nevt);
-  
-  if (NmuHits==0 && NhadHits==0) return false;
 
   if (NmuHits!=0)
     for (Int_t iHit = 0;iHit < NmuHits;iHit++){
@@ -277,7 +289,8 @@ bool root2dst::hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit) {
       
       hit *xyz = new hit("MIND");
       xyz->set_point(hitPos);
-      
+      xyz->add_data("E_dep", bhep::to_string( muHitE[iHit] ));
+
       muHit.push_back(xyz);
       
     }
@@ -289,6 +302,7 @@ bool root2dst::hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit) {
       
       hit *xyz = new hit("MIND");
       xyz->set_point(hitPos);
+      xyz->add_data("E_dep", bhep::to_string( hadHitE[jHit] ));
       
       hadHit.push_back(xyz);
       
@@ -314,25 +328,32 @@ particle* root2dst::create_digital_representation(const vector<particle*>& tru_p
 
   vector<hit*> part_hits;
   double X, Y, Z;
+  double truE, recE, E_sig;
 
   for (Int_t iPart = 0;iPart < (Int_t)tru_parts.size();iPart++) {
 
     part_hits = tru_parts[iPart]->hits("MIND");
-    
-    for (Int_t iHit = 0;iHit < (Int_t)part_hits.size();iHit++) {
-      
-      X = part_hits[iHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
-      Y = part_hits[iHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
-      Z = part_hits[iHit]->x().z()/cm;
-      
-      Point3D hitPos(X * cm,Y * cm,Z * cm);
-      hit* digHit = new hit("MIND");
-      digHit->set_point(hitPos);
-      
-      digHit->set_mother_particle( *tru_parts[iPart] );
-      hitMap->add_hit("MIND", digHit);
-      
-    }
+    if (part_hits.size()!=0)
+      for (Int_t iHit = 0;iHit < (Int_t)part_hits.size();iHit++) {
+	
+	truE = bhep::double_from_string( part_hits[iHit]->data("E_dep") );
+	      E_sig = sigMaE * truE;
+	
+	      recE = truE;// + RandGauss::shoot(&ranGen, 0, E_sig);
+	
+	X = part_hits[iHit]->x().x()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+	Y = part_hits[iHit]->x().y()/cm + RandGauss::shoot(&ranGen, 0, sigMa);
+	Z = part_hits[iHit]->x().z()/cm;
+	
+	Point3D hitPos(X * cm,Y * cm,Z * cm);
+	hit* digHit = new hit("MIND");
+	digHit->set_point(hitPos);
+	digHit->add_data("E_dep", bhep::to_string( recE ));
+	
+	digHit->set_mother_particle( *tru_parts[iPart] );
+	hitMap->add_hit("MIND", digHit);
+	
+      }
     part_hits.clear();
     
   }

@@ -85,6 +85,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     _Q[1] = 0; _Q[2] = 0;
 
     _haddot = 99;
+    _hadE[1] = -99;
   }
   
   if (patRec)
@@ -125,6 +126,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
+  statTree->Branch("hadEng", &_hadE, "truE/D:recE/D");
   statTree->Branch("hadDir", &_haddot, "dotProd/D");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
   statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I");
@@ -279,6 +281,7 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
       _hadP[0] = Pospart[iParts]->px();
       _hadP[1] = Pospart[iParts]->py();
       _hadP[2] = Pospart[iParts]->pz();
+      _hadE[0] = atof( Pospart[iParts]->fetch_property("HadE").c_str() ) * GeV;
     }
   }
   
@@ -319,9 +322,10 @@ void MINDplotter::hadron_direction(fitter& fit) {
   double normal;
   EVector fitunit = fit.get_had_unit();
   normal = sqrt(pow(_hadP[0],2)+pow(_hadP[1],2)+pow(_hadP[2],2));
-
-  if (fitunit[0]==0 && fitunit[1]==0) _haddot = 99;
-  else _haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);
+  //cout << "Plotter: "<<fit.get_had_eng()<<endl;
+  if (fitunit[0]==0 && fitunit[1]==0) {_haddot = 99; _hadE[1] = -99;}
+  else {_haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);
+  _hadE[1] = fit.get_had_eng();}
 
 }
 //*************************************************************************************

@@ -12,7 +12,9 @@ fitter::fitter(const bhep::gstore& pstore,bhep::prlevel vlevel){
   store = pstore;
   
   m = bhep::messenger(level);
-    
+  //
+  //_classify = new event_classif( pstore, vlevel );
+
   m.message("++fitter Messenger generated++",bhep::VERBOSE);
   
 }
@@ -188,6 +190,7 @@ void fitter::reset() {
   _traj2.reset();
   stc_tools::destroy(_meas);
   _hadmeas.clear();
+  _hadEng = 0;
 
   //reset virtual planes
   
@@ -400,7 +403,7 @@ bool fitter::reseed_traj(){
 //*************************************************************
 bool fitter::fitHadrons(){
 //*************************************************************
-  
+  cout << "In fitHad" << endl;
   size_t nhadhits = _hadmeas.size();
   if (nhadhits<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
@@ -409,35 +412,47 @@ bool fitter::fitHadrons(){
   
   if (nplanes<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
-  double x[nplanes], y[nplanes], z[nplanes], testZ, curZ;
+  double x[nplanes], y[nplanes], z[nplanes];
+  double EngPlane, EngHit, testZ, curZ;
   
   size_t hits_used = 0, imeas = 0;
   int ientry = nplanes-1;
-  double tolerance = 1 * cm;
-  
+  double pred;
+  const dict::Key Edep = "E_dep";
+
+  //Assumming energy will be stored as MeV for now.
   do {  
     
     int count = 0;
-    x[ientry] = _hadmeas[imeas]->vector()[0];
-    y[ientry] = _hadmeas[imeas]->vector()[1];
+    EngPlane = 0;
+    EngHit = bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
+    x[ientry] = _hadmeas[imeas]->vector()[0] * EngHit;
+    y[ientry] = _hadmeas[imeas]->vector()[1] * EngHit;
     z[ientry] = _hadmeas[imeas]->surface().position()[2];
     testZ = z[ientry];
     hits_used++;
     count++;
+    EngPlane += EngHit;
+    _hadEng += EngHit;
     
     for (size_t i=hits_used;i < nhadhits;i++){
       curZ = _hadmeas[i]->surface().position()[2];
-      if (curZ >= testZ-tolerance){
-	x[ientry] += _hadmeas[i]->vector()[0];
-	y[ientry] += _hadmeas[i]->vector()[1];
+      if (curZ >= testZ-_tolerance){
+	EngHit = bhep::double_from_string( _hadmeas[i]->name( Edep ) )*GeV;
+	x[ientry] += _hadmeas[i]->vector()[0] * EngHit;
+	y[ientry] += _hadmeas[i]->vector()[1] * EngHit;
 	z[ientry] += curZ;
 	count++;
 	hits_used++;
+	EngPlane += EngHit;
+	_hadEng += EngHit;
+
       } else break;
     }
     
-    x[ientry] /= (double)count; y[ientry] /= (double)count; 
+    x[ientry] /= EngPlane; y[ientry] /= EngPlane; 
     z[ientry] /= (double)count;
+    
     ientry--;
     imeas+=count;
     
@@ -455,8 +470,27 @@ bool fitter::fitHadrons(){
   _hadunit[1] = fitfunc->GetParameter(1);
   
   _hadunit /= _hadunit.norm();
-  
+
+  _hadEng = eng_scale(_hadEng);
+
   return true;
+}
+
+//*************************************************************
+double fitter::eng_scale(double visEng){
+//*************************************************************
+
+  double factor;
+  //Equations/error calc. in log.
+  if (visEng < 100){
+    factor = 5.315 + 0.1955*visEng - 0.001554*pow(visEng, 2);
+  } else if (visEng < 170) {
+    factor = -116.3 + 1.994*visEng - 0.0075*pow(visEng, 2);
+  } else {
+    factor = -1541 + 22.02*visEng - 0.103*pow(visEng, 2) + 0.000159*pow(visEng, 3);
+  }
+
+  return factor * GeV;
 }
 
 //*************************************************************
@@ -532,7 +566,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     
     
     //--------- add measurements to trajectory --------//
-   
+    //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
       if ((int)hits.size() < min_seed_hits) {toofew++; _failType = 7; return false;}
       sort( _meas.begin(), _meas.end(), reverseSorter() );
@@ -554,24 +588,6 @@ bool fitter::check_valid_traj() {
   double xCut = store.fetch_dstore("x_cut");
   double yCut = store.fetch_dstore("y_cut");
 
-  // cout << "Smwell"<<endl;
-//   // if ( _traj.nmeas() >= 20 )
-// //     check_starting_measurements();
-//   _traj2.add_measurement( *_meas[0] );
-//   _traj2.add_measurement( *_meas[1] );
-//   _traj2.add_measurement( *_meas[2] );
-//   _traj2.sort_nodes(1);
-//   cout << "sdflfhjsalhfsdj"<<endl;
-//   _traj2.remove_measurement( _traj2.node(0).measurement() );
-//     cout << "Yes? "<< _traj.nodes()[0]->measurement().vector()[0];
-//     cout << ", "<<_traj.nodes()[0]->measurement().vector()[1];
-//     cout << ", "<<_traj.nodes()[0]->measurement().surface().position()[2]<<endl;
-//     cout << _traj.nodes()[0]->measurement().hv()<<endl;
-//     _traj.remove_measurement( _traj.node(0).measurement() );
-//   cout << "Yes2? "<< _traj.nodes()[0]->measurement().vector()[0];
-//   cout << ", "<<_traj.nodes()[0]->measurement().vector()[1];
-//   cout << ", "<<_traj.nodes()[0]->measurement().surface().position()[2]<<endl;
-//   cout << "slfhsdfsjd222"<<endl;
   //--------- Reject too many hits --------//
   int highPass = store.fetch_istore("high_Pass_hits");
   int lowPass = store.fetch_istore("low_Pass_hits");
@@ -608,65 +624,6 @@ double fitf(Double_t *x,Double_t *par) {
   double fitval = par[0]+par[1]*z+par[2]*z*z; // + d*pow(z,3);
 
   return fitval ;
-
-}
-
-//*************************************************************
-void fitter::check_starting_measurements(){
-//*************************************************************
-  cout << "in check function"<<endl;
-  double x1[15], x2[15], z1[15], z2[15], q1, q2;
-
-  for (int ipoint = 0;ipoint < 20;ipoint++){
-    if (ipoint < 15){
-      x1[ipoint] = _traj.measurement(ipoint).vector()[0];
-      z1[ipoint] = _traj.measurement(ipoint).surface().position()[2]; }
-
-    if (ipoint > 4){
-      x2[ipoint-5] = _traj.measurement(ipoint).vector()[0];
-      z2[ipoint-5] = _traj.measurement(ipoint).surface().position()[2]; }
-  }
-
-  TGraph *gr1 = new TGraph(15, z1, x1);
-  TGraph *gr2 = new TGraph(15, z2, x2);
-
-  TF1* fit1 = new TF1("fit1", fitf, -3, 3, 3);
-  fit1->SetParameters(0.,0.,0.0001);
-
-  gr1->Fit("fit1","QN");
-  q1 = fit1->GetParameter(2)/abs(fit1->GetParameter(2));
-
-  gr2->Fit("fit1","QN");
-  q2 = fit1->GetParameter(2)/abs(fit1->GetParameter(2));
-
-  if (q1 != q2)
-    remove_suspected_hads();
-
-}
-
-//*************************************************************
-void fitter::remove_suspected_hads(){
-//*************************************************************
-  cout << "in removal function" <<endl;
-  int irem = (int)_meas.size() - 1;
-  int remCount = 0;
-
-  const dict::Key candHit = "inMu";
-  const dict::Key hit_in = "False";
-
-  while (remCount != 5){
-
-    if ( _meas[irem]->names().has_key(candHit) ){
-      cout << irem << endl;
-      _traj.remove_measurement( *_meas[irem] );
-      cout << "done" <<endl;
-      _meas[irem]->set_name(candHit, hit_in);
-      remCount++; 
-      _hadmeas.push_back( _meas[irem] );
-    }
-
-    irem--;
-  }
 
 }
 
@@ -725,6 +682,10 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     me->set_hv(HyperVector(hit_pos,cov));
     me->set_surface(geom.setup().surface(surf_name));
     me->set_position(geom.setup().surface(surf_name).position());
+    //Add the hit energy deposit as a key to the Measurement.
+    const dict::Key Edep = "E_dep";
+    const dict::Key EdepVal = hit.data("E_dep");
+    me->set_name(Edep, EdepVal);
     //Add a key to the measurement with the true mother particle for PatRec.
     if (patternRec){
       const dict::Key motherP = "MotherParticle";
@@ -867,7 +828,7 @@ void fitter::setSeed(EVector r, int firsthit){
   // take as seed the state vector
   EVector v(6,0), v2(1,0);
   EMatrix C(6,6,0), C2(1,1,0);
-  EVector dr(3,0); EVector dr2(3,0);
+  //EVector dr(3,0); EVector dr2(3,0);
 
   v[0]=r[0];
   v[1]=r[1];
@@ -1149,6 +1110,7 @@ void fitter::readParam(){
     max_consec_missed_planes = store.fetch_istore("max_consec_missed_planes");
 
     X0 = store.fetch_dstore("x0Fe") * mm;
+    _tolerance = store.fetch_dstore("pos_res") * cm;
     
     vfit = store.fetch_istore("vfit");
     vnav = store.fetch_istore("vnav");
@@ -1248,7 +1210,7 @@ bool fitter::find_muon_pattern() {
 bool fitter::get_patternRec_seedtraj() {
 //*****************************************************************************
 
-  double tolerance = 1 * cm;
+  //double tolerance = 1 * cm;
   int nloops;
   double currentZ, prevZ;
 
@@ -1262,7 +1224,7 @@ bool fitter::get_patternRec_seedtraj() {
 
     currentZ = _meas[Iso]->surface().position()[2];
     
-    if (currentZ >= (prevZ-tolerance)) break;
+    if (currentZ >= (prevZ-_tolerance)) break;
     else {
       
       _traj.add_measurement(*_meas[Iso-1]);
@@ -1292,7 +1254,7 @@ bool fitter::get_patternRec_seedtraj() {
 bool fitter::get_patternRec_seed(State& seed) {
 //*****************************************************************************
   
- int lastMeas = (int)_meas.size() - 1;
+  int lastMeas = (int)_meas.size() - 1;
   
   EVector V(6,0); EVector V2(1,0);
   EMatrix M(6,6,0); EMatrix M2(1,1,0);
@@ -1398,7 +1360,7 @@ bool fitter::perform_pattern_rec(const State& seed) {
 
   bool ok;
   double curZ, preZ;
-  double tolerance = 1 * cm;
+  //double tolerance = 1 * cm;
   _nConsecHoles = 0;
 
   //fitter parameters.
@@ -1415,7 +1377,7 @@ bool fitter::perform_pattern_rec(const State& seed) {
     curZ = _meas[iGroup]->surface().position()[2];
     preZ = _meas[iGroup-1]->surface().position()[2];
 
-    if (curZ < (preZ-tolerance)) {
+    if (curZ < (preZ-_tolerance)) {
       if (NeedFiltered.size() > 1) {
 	
 	ok = filter_close_measurements(NeedFiltered, seed);

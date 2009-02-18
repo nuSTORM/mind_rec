@@ -30,14 +30,14 @@ public:
   
   ~root2dst(){};
   
-  bool initialize(double res, long seed, TTree *InPutTree=NULL,
+  bool initialize(double *res, long seed, TTree *InPutTree=NULL,
 		  TString OutFileName="");
   bool execute();
   bool finalize();
 
   //Functions to create bHEP object from the ntuple
   void createEvent();
-  void make_particles();
+  bool make_particles();
   particle* define_lead_particle();
   bool hits_fromFile(vector<hit*>& muHit, vector<hit*>& hadHit);
   particle* define_hadron();
@@ -74,7 +74,7 @@ protected:
 private:
 
   //The Event
-  vector<event*> nuEvent;
+  bhep::event nuEvent;
 
   //file to write dst to.
   writer_gz outgz;
@@ -85,8 +85,12 @@ private:
   //Random engine for smearing.
   RanluxEngine ranGen;
 
-  //Gaussian sigma for smearing.
+  //Gaussian sigma for smearing position.
   double sigMa;
+  //Gaussian sigma for smearing deposited energy.
+  double sigMaE;
+  //hit check
+  Int_t NmuHits, NhadHits;
 
 };
 

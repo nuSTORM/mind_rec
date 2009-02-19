@@ -50,6 +50,7 @@ protected:
 		       Trajectory& muontraj, measurement_vector& hads);
   bool get_patternRec_seed(State& seed, Trajectory& muontraj, measurement_vector& hits);
   void fit_parabola(EVector& vec, Trajectory& track);
+  bool perform_kalman_fit(State& seed, Trajectory& track);
   //
 
   RecpackManager& man(){return _man;}

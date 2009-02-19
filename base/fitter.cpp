@@ -403,7 +403,7 @@ bool fitter::reseed_traj(){
 //*************************************************************
 bool fitter::fitHadrons(){
 //*************************************************************
-  cout << "In fitHad" << endl;
+  
   size_t nhadhits = _hadmeas.size();
   if (nhadhits<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
@@ -417,7 +417,6 @@ bool fitter::fitHadrons(){
   
   size_t hits_used = 0, imeas = 0;
   int ientry = nplanes-1;
-  double pred;
   const dict::Key Edep = "E_dep";
 
   //Assumming energy will be stored as MeV for now.

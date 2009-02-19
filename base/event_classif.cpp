@@ -65,7 +65,7 @@ bool event_classif::execute(measurement_vector& hits,
   if ( ok )
     ok = chargeCurrent_analysis(hits, muontraj, hads);
 
-  return type;
+  return ok;
 }
 
 //***********************************************************************
@@ -91,11 +91,11 @@ void event_classif::readParam() {
     patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
     max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
 
-    _tolerance = store.fetch_dstore("pos_res") * cm;
+    _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
     
-    vfit = store.fetch_istore("vfit");
-    vnav = store.fetch_istore("vnav");
-    vmod = store.fetch_istore("vmod");
+    vfit = _infoStore.fetch_istore("vfit");
+    vnav = _infoStore.fetch_istore("vnav");
+    vmod = _infoStore.fetch_istore("vmod");
 
 }
 
@@ -218,7 +218,7 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
       muontraj.add_measurement( *(*_hitIt) );
       const dict::Key candHit = "inMu";
       const dict::Key hit_in = "True";
-      _meas[Iso-1]->set_name(candHit, hit_in);
+      (*_hitIt)->set_name(candHit, hit_in);
     } else break;
   }
  
@@ -271,7 +271,7 @@ bool event_classif::muon_extraction(measurement_vector& hits,
   ok = get_patternRec_seed( patternSeed, muontraj, hits);
   
 
-
+  return ok;
 }
 
 //***********************************************************************
@@ -282,15 +282,9 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   EVector V(6,0); EVector V2(1,0);
   EMatrix M(6,6,0); EMatrix M2(1,1,0);
 
-  V[0] = muontraj.nodes()[0]->measurement().vector[0];
-  V[1] = muontraj.nodes()[0]->measurement().vector[1];
+  V[0] = muontraj.nodes()[0]->measurement().vector()[0];
+  V[1] = muontraj.nodes()[0]->measurement().vector()[1];
   V[2] = muontraj.nodes()[0]->measurement().surface().position()[2];
-
-  //Errors
-  M[0][0] = M[1][1] = 15.*cm*cm;
-  M[2][2] = EGeo::zero_cov()/2;
-  M[3][3] = M[4][4] = 1.5;
-  M[5][5] = pow(V[5],2)*4;
 
   //direction
   fit_parabola( V, muontraj);
@@ -305,6 +299,12 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   V[5] = 1./pSeed;
   man().geometry_svc().setup().set_volume_property_to_sons("mother","de_dx",de_dx);
 
+  //Errors
+  M[0][0] = M[1][1] = 15.*cm*cm;
+  M[2][2] = EGeo::zero_cov()/2;
+  M[3][3] = M[4][4] = 1.5;
+  M[5][5] = pow(V[5],2)*4;
+
   //Sense
   V2[0] = 1;
 
@@ -314,10 +314,10 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   seed.set_hv(RP::sense,HyperVector(V2,M2));
   seed.set_hv(HyperVector(V,M));
   
-  patman().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seed,RP::default_rep);
 
-  bool ok = perform_kalman_fit(seed);
+  bool ok = perform_kalman_fit( seed, muontraj);
 
   return ok;
 }
@@ -328,11 +328,9 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
   size_t nMeas = track.nmeas();
 
-  const int entries;
-  if (nMeas > 10) entries = 10;
-  else entries = (int)nMeas;
+  if (nMeas > 10) nMeas = 10;
 
-  double x[entries], y[entries], z[entries];
+  double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas];
 
   for (int iMeas = nMeas-1;iMeas >= 0;iMeas--){
 
@@ -342,8 +340,8 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
   }
 
-  TGraph *gr1 = new TGraph(entries, z, x);
-  TGraph *gr2 = new TGraph(entries, z, y);
+  TGraph *gr1 = new TGraph((const int)nMeas, z, x);
+  TGraph *gr2 = new TGraph((const int)nMeas, z, y);
 
   TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*pow(x,2)+[3]*pow(x,3)+[4]*pow(x,4)",-3,3);
   fun->SetParameters(0.,0.,0.001,0.0001,0.0001);
@@ -359,13 +357,13 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 }
 
 //***********************************************************************
-bool event_classif::perform_kalman_fit(State& seed) {
+bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 //***********************************************************************
 
-  bool ok = patman().fitting_svc().fit(seed, _traj);
+  bool ok = man().fitting_svc().fit(seed, track);
   
   if (ok)
-    seed = _traj.state(_traj.first_fitted_node());
+    seed = track.state(track.first_fitted_node());
 
   return ok;
 

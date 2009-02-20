@@ -51,6 +51,8 @@ protected:
   bool get_patternRec_seed(State& seed, Trajectory& muontraj, measurement_vector& hits);
   void fit_parabola(EVector& vec, Trajectory& track);
   bool perform_kalman_fit(State& seed, Trajectory& track);
+  bool perform_muon_extraction(const State& seed, measurement_vector& hits,
+			       Trajectory& muontraj, measurement_vector& hads);
   //
 
   RecpackManager& man(){return _man;}
@@ -74,6 +76,7 @@ protected:
 
   //interator for hits and container for estimated 'vertex' hit.
   measurement_vector::iterator _hitIt;
+  vector<int>::iterator _planeIt;
   int _vertGuess;
 
   //Properties for muon extraction

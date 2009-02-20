@@ -1500,12 +1500,12 @@ bool fitter::filter_close_measurements(measurement_vector& Fmeas,
 	    .compare("Hadronic_vector")!=0)
 	  _recChi[0] = TMath::Max(Chi2[iFilt], _recChi[0]);
 
-      }
-      else if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
+      } else cout<< "Filter failed" <<endl;
+
+      if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
 	       .compare("Hadronic_vector")==0)
 	_recChi[1] = TMath::Min(Chi2[iFilt], _recChi[1]);
-
-      else cout<< "Filter failed" <<endl;
+      
     }
     else
       _hadmeas.push_back( Fmeas[iFilt] );

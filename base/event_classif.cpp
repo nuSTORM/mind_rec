@@ -209,12 +209,13 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   if ( _meanOcc == 1 ){
     _intType = 2; return ok; }//free muon if positive CC ident, no pat rec required.
   //could have backwards proton, how to exclude?
+
   _hitIt = hits.end() - 1;
 
   _vertGuess = exclude_backwards_particle();
   //Maybe another which looks for kinks very early (backwards proton quasi?)
-  for (size_t ihit = _hitsPerPlane.size()-1;ihit>=0;ihit--, _hitIt--){
-    if ( _hitsPerPlane[ihit] == 1 ){
+  for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin();_planeIt--, _hitIt--){
+    if ( (*_planeIt) == 1 ){
       muontraj.add_measurement( *(*_hitIt) );
       const dict::Key candHit = "inMu";
       const dict::Key hit_in = "True";
@@ -269,6 +270,9 @@ bool event_classif::muon_extraction(measurement_vector& hits,
   State patternSeed;
 
   ok = get_patternRec_seed( patternSeed, muontraj, hits);
+
+  if ( ok )
+    ok = perform_muon_extraction( patternSeed, hits, muontraj, hads);
   
 
   return ok;
@@ -367,4 +371,50 @@ bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 
   return ok;
 
+}
+
+//***********************************************************************
+bool event_classif::perform_muon_extraction(const State& seed, measurement_vector& hits,
+					    Trajectory& muontraj, measurement_vector& hads) {
+//***********************************************************************
+//Loop through multiple occupancy planes finding the best match to the muon
+//traj and filtering it into the trajectory.
+  bool ok;
+  long ChiMin;
+
+  while (_hitIt >= hits.begin() + _vertGuess) {
+
+    double Chi2[(const int)(*_planeIt)];
+
+    for (int iMat = (*_planeIt)-1;iMat >= 0;iMat--, _hitIt--){
+      ok = man().matching_svc().match_trajectory_measurement(muontraj, (*(*_hitIt)), Chi2[iMat]);
+      if ( !ok )
+	Chi2[iMat] = 999999999;
+    }
+
+    ChiMin = TMath::LocMin( (const int)(*_planeIt), Chi2);
+
+    for (int iFil = 0;iFil < (*_planeIt);iFil++){
+
+      if ( iFil == (int)ChiMin) {
+
+	ok = man().fitting_svc().filter(*(*(_hitIt+iFil+1)), seed, muontraj);
+
+	if ( ok ) {
+	  const dict::Key candHit = "inMu";
+	  const dict::Key hit_in = "True";
+	  (*(_hitIt+iFil+1))->set_name(candHit, hit_in);
+	} else cout << "Filter failed"<<endl;
+
+      } else {
+
+	hads.push_back( (*(_hitIt+iFil+1)) );
+
+      }
+    }
+
+    _planeIt--;
+  }
+
+  return true;
 }

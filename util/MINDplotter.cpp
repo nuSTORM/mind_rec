@@ -352,11 +352,10 @@ void MINDplotter::max_local_chi2(const Trajectory& traj) {
 //****************************************************************************************
 void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
-  
+  //Event classifier version.
   _nhits = Fit.get_nMeas();
   const dict::Key candHit = "inMu";
-  int nNode;
-  if (_fail != 7) nNode = (int)Fit.get_traj().size()-1;
+  int nNode = 0;
   bool isMu;
   
   for (int iHits = 0;iHits < _nhits;iHits++){
@@ -378,7 +377,7 @@ void MINDplotter::patternStats(fitter& Fit) {
 	if ( Fit.get_traj().node(nNode).status("fitted") ){	
 	  _node[iHits] = true; _hitType[3]++; }
 	else _node[iHits] = false;
-	nNode--;
+	nNode++;
       }
       else { _node[iHits] = false; _cand[iHits] = false; }
     } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
@@ -386,9 +385,9 @@ void MINDplotter::patternStats(fitter& Fit) {
   }
   
   if (_fail != 7){
-    _pChi[0] = Fit.get_PatRec_Chis()[0];
-    _pChi[1] = Fit.get_PatRec_Chis()[1];
-    _pChi[2] = Fit.get_PatRec_Chis()[2];
+    _pChi[0] = Fit.get_classifier().get_PatRec_Chis()[0];
+    _pChi[1] = Fit.get_classifier().get_PatRec_Chis()[1];
+    _pChi[2] = Fit.get_classifier().get_PatRec_Chis()[2];
   }
   
   for (int iclear = _nhits;iclear<300;iclear++){
@@ -397,3 +396,52 @@ void MINDplotter::patternStats(fitter& Fit) {
   }
 
 }
+
+// //****************************************************************************************
+// void MINDplotter::patternStats(fitter& Fit) {
+// //****************************************************************************************
+//Original version. No event classifier.
+//   _nhits = Fit.get_nMeas();
+//   const dict::Key candHit = "inMu";
+//   int nNode;
+//   if (_fail != 7) nNode = (int)Fit.get_traj().size()-1;
+//   bool isMu;
+  
+//   for (int iHits = 0;iHits < _nhits;iHits++){
+    
+//     if (Fit.get_meas(iHits)->name("MotherParticle").compare("mu+")==0
+// 	|| Fit.get_meas(iHits)->name("MotherParticle").compare("mu-")==0){
+//       isMu = true;
+//       _mus[iHits] = true;
+//       _hitType[0]++;
+//     }
+//     else {_mus[iHits] = false; isMu = false;}
+    
+//     if ( _fail != 7 && Fit.get_meas(iHits)->names().has_key(candHit) ){
+//       if ( Fit.get_meas(iHits)->name(candHit).compare("True")==0 ){//has_key(candHit) ){
+// 	_cand[iHits] = true;
+// 	_hitType[1]++;
+// 	if ( isMu ) _hitType[2]++;
+	
+// 	if ( Fit.get_traj().node(nNode).status("fitted") ){	
+// 	  _node[iHits] = true; _hitType[3]++; }
+// 	else _node[iHits] = false;
+// 	nNode--;
+//       }
+//       else { _node[iHits] = false; _cand[iHits] = false; }
+//     } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
+
+//   }
+  
+//   if (_fail != 7){
+//     _pChi[0] = Fit.get_PatRec_Chis()[0];
+//     _pChi[1] = Fit.get_PatRec_Chis()[1];
+//     _pChi[2] = Fit.get_PatRec_Chis()[2];
+//   }
+  
+//   for (int iclear = _nhits;iclear<300;iclear++){
+//     _mus[iclear] = false; _cand[iclear] = false;
+//     _node[iclear] = false;
+//   }
+
+// }

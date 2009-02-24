@@ -16,7 +16,7 @@
 #include <TGraphErrors.h>
 #include <TF1.h>
 
-//#include <mind/event_clarif.h>
+#include <mind/event_classif.h>
 
 using namespace Recpack;
 
@@ -46,7 +46,7 @@ public:
   double get_had_eng(){return _hadEng;}
   vector<double>& get_fit_tracker(){ return _fitTracker; }
   int get_fail_type(){return _failType;}
-  EVector& get_PatRec_Chis(){return _recChi;};
+ //  EVector& get_PatRec_Chis(){return _recChi;};
 
   Measurement* get_meas(int num){return _meas[num];}
   int get_nMeas(){return (int)_meas.size();}
@@ -62,7 +62,8 @@ public:
   //recpack manager
   
   RecpackManager& man(){return _man;}
-  RecpackManager& patman(){return _patRecman;}
+  event_classif& get_classifier(){ return _classify; }
+  // RecpackManager& patman(){return _patRecman;}
   
   //get tracklength
   
@@ -103,16 +104,16 @@ protected:
   bool fitHadrons();
   double eng_scale(double visEng);
 
-  //Pattern recognition functions.
-  void define_pattern_rec_param();
-  bool find_muon_pattern();
-  bool get_patternRec_seedtraj();
-  bool get_patternRec_seed(State& seed);
-  bool perform_least_squares(State& seed);
-  bool perform_kalman_fit(State& seed);
-  bool perform_pattern_rec(const State& seed);
-  bool filter_close_measurements(measurement_vector& Fmeas,
-				 const State& seed);
+  // //Pattern recognition functions.
+//   void define_pattern_rec_param();
+//   bool find_muon_pattern();
+//   bool get_patternRec_seedtraj();
+//   bool get_patternRec_seed(State& seed);
+//   bool perform_least_squares(State& seed);
+//   bool perform_kalman_fit(State& seed);
+//   bool perform_pattern_rec(const State& seed);
+//   bool filter_close_measurements(measurement_vector& Fmeas,
+// 				 const State& seed);
 
   //-------- get traj from event----------//
   bool readTrajectory(const bhep::particle& part);
@@ -140,7 +141,7 @@ protected:
   MINDsetup geom;
   
   RecpackManager _man;
-  RecpackManager _patRecman;
+  // RecpackManager _patRecman;
 
   vector<Surface*> virtual_planes;
   
@@ -154,7 +155,7 @@ protected:
   bool patternRec; //Pattern recognition algorithm required?
 
   int min_seed_hits; //Minimum isolated hits required for Prec seed.
-  int max_seed_hits; //Max. to be used.
+//   int max_seed_hits; //Max. to be used.
 
   //Counters for fit fails and successes for various reasons.
   int totFitAttempts;
@@ -165,9 +166,9 @@ protected:
   int nonFid;
   int patFail;
 
-  //counters to aid pattern rec.
-  int iGroup;
-  int _nConsecHoles;
+  // //counters to aid pattern rec.
+//   int iGroup;
+//   int _nConsecHoles;
 
   //bit to tell if reseed perfromed
   int reseed_ok;
@@ -191,18 +192,18 @@ protected:
   double chi2fit_max;
   double facRef;
 
-  double patRec_maxChi;
-  int patRec_max_outliers;
-  int max_consec_missed_planes;
+  // double patRec_maxChi;
+//   int patRec_max_outliers;
+//   int max_consec_missed_planes;
     
   Trajectory _traj;
   Trajectory _traj2;
   measurement_vector _meas;
   measurement_vector _hadmeas;
 
-  //Vectors to contain the relevant results of a pattern recognition run.
-  //vector<bool> _patRecStat;
-  EVector _recChi;
+  // //Vectors to contain the relevant results of a pattern recognition run.
+//   //vector<bool> _patRecStat;
+//   EVector _recChi;
 
   //value set to identify where a traj failed:
   //0=too few hits. 1=too many hits. 2=outside fiducial. 3=no convergence with kink.
@@ -216,11 +217,9 @@ protected:
   EVector _hadunit;
   double _hadEng;
   
-  /*****************************************************************************
-   * Stuff relevant for event classification, will be uncommented when needed. *
-   *                                                                           *
-   * event_classif* _classify;                                                  *
-   *****************************************************************************/
+  
+  // Stuff relevant for event classification, will be uncommented when needed.
+  event_classif _classify;
 
   //-------------- verbosity levels ------------//
 

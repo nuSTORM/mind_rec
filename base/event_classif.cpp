@@ -16,13 +16,12 @@
 #include <TMath.h>
 
 //**********************************************************************
-event_classif::event_classif(const bhep::gstore& pstore,
-			     bhep::prlevel vlevel) {
+event_classif::event_classif() {
 //**********************************************************************
 
-  _infoStore = pstore;
+  // _infoStore = pstore;
   
-  m = bhep::messenger( vlevel );
+//   m = bhep::messenger( vlevel );
 
 }
 
@@ -34,11 +33,14 @@ event_classif::~event_classif() {
 }
 
 //***********************************************************************
-bool event_classif::initialize(Setup& det) {
+bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
+			       Setup& det) {
 //***********************************************************************
 
+  m = bhep::messenger( vlevel );
   m.message("++++ Classifier  init  function ++++",bhep::VERBOSE);
 
+  _infoStore = pstore;
   readParam();
 
   set_extract_properties( det );
@@ -91,6 +93,7 @@ void event_classif::readParam() {
     patRec_maxChi = _infoStore.fetch_dstore("pat_rec_max_chi");
     patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
     max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
+    min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
 
     _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
     
@@ -158,13 +161,14 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
   bool ok = true;
 
   size_t nHits = hits.size();
+  
   int count = 0;
   double EngPlane = 0, testZ, curZ;
   size_t hits_used = 0, imeas = 0;
   const dict::Key Edep = "E_dep";
   
   do {
-
+    
     EngPlane += bhep::double_from_string( hits[imeas]->name( Edep ) ) * GeV;
     testZ = hits[imeas]->surface().position()[2];
     count++;
@@ -189,6 +193,8 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
     imeas += count;
     _meanOcc += (double)count;
 
+    count = 0;
+
   } while (hits_used != nHits);
 
   _nplanes = (int)_hitsPerPlane.size();
@@ -206,6 +212,8 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   m.message("++++ Performing CC reconstruction ++++",bhep::VERBOSE);
 
   bool ok = true;
+  _recChi = EVector(3,0);
+  _recChi[1] = 100000; //SetLarge dummy value for minChiHadron bit.
 
   if ( _meanOcc == 1 ){
     _intType = 2; return ok; }//free muon if positive CC ident, no pat rec required.
@@ -224,7 +232,13 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
     } else break;
   }
  
-  ok = muon_extraction( hits, muontraj, hads);
+  if ( (int)muontraj.nmeas() < min_seed_hits ) {
+    ok = false;
+    _failType = 5;
+  }
+
+  if ( ok )
+    ok = muon_extraction( hits, muontraj, hads);
 
   return ok;
 }
@@ -323,6 +337,8 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
     .convert(seed,RP::default_rep);
 
   bool ok = perform_kalman_fit( seed, muontraj);
+  if ( !ok )
+    _failType = 5;
 
   return ok;
 }
@@ -355,6 +371,7 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   vec[3] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[0]
     + 3*fun->GetParameter(3)*pow(vec[0],2) + 4*fun->GetParameter(4)*pow(vec[0],3);
 
+  fun->SetParameters(0.,0.,0.001,0.0001,0.0001);
   gr2->Fit("parfit", "QN");
   vec[4] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[1]
     + 3*fun->GetParameter(3)*pow(vec[1],2) + 4*fun->GetParameter(4)*pow(vec[1],3);
@@ -382,6 +399,7 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
 //traj and filtering it into the trajectory.
   bool ok;
   long ChiMin;
+  int nConsecHole = 0;
 
   while (_hitIt >= hits.begin() + _vertGuess) {
 
@@ -405,7 +423,19 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
 	  const dict::Key candHit = "inMu";
 	  const dict::Key hit_in = "True";
 	  (*(_hitIt+iFil+1))->set_name(candHit, hit_in);
-	} else cout << "Filter failed"<<endl;
+
+	  if ( (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu+")==0 ||
+	       (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu-")==0 )
+	    _recChi[0] = TMath::Max(Chi2[iFil], _recChi[0]);
+	  else
+	    _recChi[1] = TMath::Min(Chi2[iFil], _recChi[1]);
+
+	  if ( nConsecHole > _recChi[2] )
+	    _recChi[2] = nConsecHole;
+
+	  nConsecHole = 0;
+
+	} else nConsecHole++;
 
       } else {
 
@@ -415,6 +445,12 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
     }
 
     _planeIt--;
+
+    if ( nConsecHole > max_consec_missed_planes ) {
+      _failType = 6;
+      return false;
+    }
+
   }
 
   return true;

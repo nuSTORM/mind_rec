@@ -61,7 +61,8 @@ bool root2dst::execute(){
   
   bool ok = make_particles();
 
-  //if ( ok )
+  if ( !ok ) std::cout << "Bad Particles in event" << std::endl;
+
   outgz.write(nuEvent, nevt);
   
   nevt++;

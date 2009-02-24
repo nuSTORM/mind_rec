@@ -21,18 +21,23 @@ class event_classif{
 
 public:
 
-  event_classif(const bhep::gstore& pstore, bhep::prlevel vlevel);
+  event_classif();
 
   virtual ~event_classif();
 
   //-------------- main functions --------------//
-  bool initialize(Setup& det); //needs to take store with all info for pat rec/more?
+  bool initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det); //needs to take store with all info for pat rec/more?
   bool execute(measurement_vector& hits,
 	       Trajectory& muontraj, measurement_vector& hads); //more arguments needed?
   bool finalize();
   //-------------------------------------------//
 
+  //Grabbers for monitoring.
   int get_int_type(){ return _intType; }
+  int get_vertex(){ return _vertGuess; }
+  int get_fail_type(){ return _failType; }
+  EVector& get_PatRec_Chis(){return _recChi;};
+  //
 
 protected:
 
@@ -72,12 +77,17 @@ protected:
   vector<double> _energyPerPlane;
   double _tolerance; //required 'closeness' to be considered in plane.
 
+  //integer for type candidate (NC etc.)
   int _intType;
 
   //interator for hits and container for estimated 'vertex' hit.
   measurement_vector::iterator _hitIt;
   vector<int>::iterator _planeIt;
   int _vertGuess;
+
+  //Monitoring variables.
+  int _failType;
+  EVector _recChi;
 
   //Properties for muon extraction
   string model;
@@ -86,6 +96,7 @@ protected:
   double patRec_maxChi;
   int patRec_max_outliers;
   int max_consec_missed_planes;
+  int min_seed_hits;
 
   int vfit,vnav,vmod,vmat,vsim;
 

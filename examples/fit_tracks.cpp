@@ -17,8 +17,8 @@ int main(int argc, char* argv[]){
     
   //---- set parameters file ----//
     
-  string param_file="param/fit_tracks.param";
-  
+  string param_file="param/fit_cats.param";
+  cout << "Start"<<endl;
   int nevents=1;
   bool fitOk;
   if (argc==2) param_file = argv[1];
@@ -56,13 +56,13 @@ int main(int argc, char* argv[]){
   //
   
   EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
-  
+  cout << "Complete shite as fucking usual!"<<endl;
   fitter* fit = new fitter(ana_store,bhep::MUTE);
-
+  
   MINDplotter* plot = new MINDplotter();
-  
+  cout << "init"<<endl;
   eman->initialize();
-  
+  cout << "done"<<endl;
   fit->initialize(eman->get_dst_properties());
 
   

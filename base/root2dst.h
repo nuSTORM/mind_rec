@@ -81,7 +81,7 @@ private:
 
   //Root tree to be read.
   TTree *dataIn;
-
+  
   //Random engine for smearing.
   RanluxEngine ranGen;
 

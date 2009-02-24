@@ -13,6 +13,7 @@
 
 
 #include <event_classif.h>
+#include <TMath.h>
 
 //**********************************************************************
 event_classif::event_classif(const bhep::gstore& pstore,

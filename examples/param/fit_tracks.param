@@ -11,6 +11,8 @@
 
 # radiation length (mm)
 RUN x0 D 1e9
+# energy loss (MeV/cm)
+RUN de_dx D -8
 
 #############################################
 #  parameters for the analysis
@@ -30,20 +32,20 @@ ANA vsim I 0
 RUN chi2fit_max D 50
 
 # maximum local chi2 for nodes
-RUN chi2node_max D 100
+RUN chi2node_max D 500
 
 # fit data twice (0=false, 1=true)
-ANA refit I 0
+ANA refit I 1
 
 ###  data to read ###
 
 DATA idst_files SV 1
-input_dst_1.gz
+../ntuples/tndmu_ms_eloss_10k.gz
 
 ###  data to write ###
 
 DATA odst_files SV 1
-output_dst_1.gz
+../ntuples/tndmu_ms_eloss_10k.FITTED.gz
 
 
 

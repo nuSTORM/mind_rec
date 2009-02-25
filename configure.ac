@@ -58,6 +58,7 @@ AC_CHECK_HEADERS([Volume.h])
 
 #linker flags 
 AC_SUBST(LDFLAGS)
+AC_SUBST(AM_LDFLAGS)
 
 dnl Use standard <sstream> if found; 
 AC_CHECK_HEADERS([sstream])
@@ -69,7 +70,7 @@ AC_CHECK_HEADERS([ostream])
 dnl change path if your libraries are somewhere else
 AC_SUBST(LIBS)
 
-prog_list="root-config recpack-config bhep-config"
+prog_list="root-config recpack-config bhep-config clhep-config"
 for prog in $prog_list; do
   prog=`which $prog 2> /dev/null`
   test ! -z $prog || AC_MSG_ERROR($prog not found in paths='$PATH': Check your installation)
@@ -81,12 +82,18 @@ done
 AC_MSG_CHECKING([for bhep library])
 AC_CHECK_LIB(bhep, main)
 
+AC_MSG_CHECKING([for CLHEP library])
+AC_CHECK_LIB(CLHEP, main)
+
 AC_MSG_CHECKING([for recpack library])
 AC_CHECK_LIB(recpack, main)
 
+AC_MSG_CHECKING([for root library])
+AC_CHECK_LIB(root, main)
 
 
-LIBS="$LIBS $(root-config --libs)"
+
+# LIBS="$LIBS $(root-config --libs)"
 
 # Configuration inquiry program/script:
 AC_CONFIG_FILES([mind-config], [chmod +x mind-config])

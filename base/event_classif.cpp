@@ -62,7 +62,7 @@ bool event_classif::execute(measurement_vector& hits,
 
   //Occupancy.
   ok = get_plane_occupancy( hits );
-
+  
   /* Code to discriminate between different event types */
   //if identified as CC (should this be a switch?)
   if ( ok )
@@ -215,13 +215,10 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   _recChi = EVector(3,0);
   _recChi[1] = 100000; //SetLarge dummy value for minChiHadron bit.
 
-  if ( _meanOcc == 1 ){
-    _intType = 2; return ok; }//free muon if positive CC ident, no pat rec required.
-  //could have backwards proton, how to exclude?
-
   _hitIt = hits.end() - 1;
 
   _vertGuess = exclude_backwards_particle();
+  
   //Maybe another which looks for kinks very early (backwards proton quasi?)
   for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin();_planeIt--, _hitIt--){
     if ( (*_planeIt) == 1 ){
@@ -232,11 +229,15 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
     } else break;
   }
  
+  if ( _meanOcc == 1 ){
+    _intType = 2; return ok; }//free muon if positive CC ident, no pat rec required.
+  //could have backwards proton, how to exclude?
+
   if ( (int)muontraj.nmeas() < min_seed_hits ) {
     ok = false;
     _failType = 5;
   }
-
+  
   if ( ok )
     ok = muon_extraction( hits, muontraj, hads);
 
@@ -277,7 +278,7 @@ bool event_classif::muon_extraction(measurement_vector& hits,
 //Are there ways to avoid doing full extraction algorithm.
 
   bool ok;
-
+  
   if (_vertGuess != 0)
     for (int i = 0;i < _vertGuess;i++)
       hads.push_back( hits[i] );
@@ -307,7 +308,10 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 
   //direction
   fit_parabola( V, muontraj);
-
+  // EVector dr(3,0);
+//   find_directSeed(dr, muontraj);
+//   V[3] = dr[0]/dr[2];
+//   V[4] = dr[1]/dr[2];
   //Momentum. Estimate from empirical extent function.
   double Xtent = hits[hits.size()-1]->surface().position()[2]
     - hits[_vertGuess]->surface().position()[2];
@@ -349,7 +353,7 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
   size_t nMeas = track.nmeas();
 
-  if (nMeas > 10) nMeas = 10;
+  if (nMeas > 5) nMeas = 5;
 
   double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas];
 
@@ -364,17 +368,18 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   TGraph *gr1 = new TGraph((const int)nMeas, z, x);
   TGraph *gr2 = new TGraph((const int)nMeas, z, y);
 
-  TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*pow(x,2)+[3]*pow(x,3)+[4]*pow(x,4)",-3,3);
-  fun->SetParameters(0.,0.,0.001,0.0001,0.0001);
+  //TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*pow(x,2)+[3]*pow(x,3)+[4]*pow(x,4)",-3,3);
+  TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*x*x",-3,3);
+  fun->SetParameters(0.,0.001,0.001);
 
   gr1->Fit("parfit", "QN");
-  vec[3] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[0]
-    + 3*fun->GetParameter(3)*pow(vec[0],2) + 4*fun->GetParameter(4)*pow(vec[0],3);
+  vec[3] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[0];
+  //+ 3*fun->GetParameter(3)*pow(vec[0],2) + 4*fun->GetParameter(4)*pow(vec[0],3);
 
-  fun->SetParameters(0.,0.,0.001,0.0001,0.0001);
+  fun->SetParameters(0.,0.001,0.001);
   gr2->Fit("parfit", "QN");
-  vec[4] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[1]
-    + 3*fun->GetParameter(3)*pow(vec[1],2) + 4*fun->GetParameter(4)*pow(vec[1],3);
+  vec[4] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[1];
+  //+ 3*fun->GetParameter(3)*pow(vec[1],2) + 4*fun->GetParameter(4)*pow(vec[1],3);
 
 }
 
@@ -454,4 +459,19 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
   }
 
   return true;
+}
+
+//*************************************************************
+void event_classif::find_directSeed(EVector& R, const Trajectory& track){
+//*************************************************************
+
+  R[0] = track.nodes()[0]->measurement().vector()[0]
+    - track.nodes()[2]->measurement().vector()[0];
+  R[1] = track.nodes()[0]->measurement().vector()[1]
+    - track.nodes()[2]->measurement().vector()[1];
+  R[2] = track.nodes()[0]->measurement().surface().position()[2]
+    - track.nodes()[2]->measurement().surface().position()[2];
+  
+  R /= R.norm();
+  
 }

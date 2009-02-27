@@ -58,6 +58,7 @@ protected:
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, measurement_vector& hits,
 			       Trajectory& muontraj, measurement_vector& hads);
+  void find_directSeed(EVector& R, const Trajectory& track);
   //
 
   RecpackManager& man(){return _man;}

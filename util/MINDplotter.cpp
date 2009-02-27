@@ -66,7 +66,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
       momentum_pulls();
     }
 
-    hadron_direction(Fit);
+    //hadron_direction(Fit);
 
   }
 
@@ -328,6 +328,7 @@ void MINDplotter::hadron_direction(fitter& fit) {
   _hadE[1] = fit.get_had_eng();}
 
 }
+
 //*************************************************************************************
 void MINDplotter::max_local_chi2(const Trajectory& traj) {
 //*************************************************************************************
@@ -400,7 +401,7 @@ void MINDplotter::patternStats(fitter& Fit) {
 // //****************************************************************************************
 // void MINDplotter::patternStats(fitter& Fit) {
 // //****************************************************************************************
-//Original version. No event classifier.
+// //Original version. No event classifier.
 //   _nhits = Fit.get_nMeas();
 //   const dict::Key candHit = "inMu";
 //   int nNode;

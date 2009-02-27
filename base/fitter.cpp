@@ -12,8 +12,6 @@ fitter::fitter(const bhep::gstore& pstore,bhep::prlevel vlevel){
   store = pstore;
   
   m = bhep::messenger(level);
-  //
-  //_classify = event_classif( pstore, vlevel );
 
   m.message("++fitter Messenger generated++",bhep::VERBOSE);
   
@@ -87,7 +85,7 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   
   // 
   get_classifier().initialize( store, level, geom.setup() );
-  //define_pattern_rec_param();
+  // define_pattern_rec_param();
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
@@ -520,7 +518,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
   bool ok = recTrajectory(part);
   
   if (patternRec && ok){
-    //ok = find_muon_pattern();
+    // ok = find_muon_pattern();
     ok = get_classifier().execute( _meas, _traj, _hadmeas);
 
     _traj.sort_nodes(1);
@@ -577,7 +575,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
       if ((int)hits.size() < min_seed_hits) {toofew++; _failType = 7; return false;}
-      //sort( _meas.begin(), _meas.end(), reverseSorter() );
+      // sort( _meas.begin(), _meas.end(), reverseSorter() );
       sort( _meas.begin(), _meas.end(), forwardSorter() );
       //sortingReverseByZ() defined in recpack/Trajectory.h>
     } else {

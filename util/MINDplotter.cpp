@@ -14,7 +14,7 @@ MINDplotter::~MINDplotter() {
 }
 
 //*************************************************************************************
-bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
+bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
 //*************************************************************************************
 
   bool ok = true;
@@ -25,7 +25,7 @@ bool MINDplotter::initialize(TString outFileName, bhep::prlevel vlevel) {
 
   m.message("++Creating output root file++",bhep::VERBOSE);
 
-  outFile = new TFile(outFileName, "recreate");
+  outFile = new TFile(outFileName.c_str(), "recreate");
 
   statTree = new TTree("tree", "Tree with pattern rec and fit data for MIND");
 
@@ -46,14 +46,16 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
-  
+
+  if (_fail != 7)
+    _intType = Fit.get_classifier().get_int_type();
+  else _intType = 7;
+
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
 
-  track_fit( Fit );
-
   ok = extract_true_particle(evt, Fit, patRec);
-  
+
   if (success) {
     
     State ste;
@@ -66,7 +68,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
       momentum_pulls();
     }
 
-    //hadron_direction(Fit);
+    hadron_direction(Fit);
 
   }
 
@@ -118,7 +120,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Evt", &_evNo, "EventNo/I");
   statTree->Branch("Fitted", &_Fit, "success/B");
   statTree->Branch("Fail", &_fail, "FailType/I");
-  statTree->Branch("fitTypes", &_fitTracker, "predP/D:firstfit/D:reseed/D:predP2/D:succ/D");
+  statTree->Branch("interaction",&_intType,"Inter/I");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
   statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
@@ -141,39 +143,14 @@ void MINDplotter::define_tree_branches() {
 }
 
 //*************************************************************************************
-void MINDplotter::track_fit(fitter& fit) {
-//*************************************************************************************
-
-  if (_fail != 1 || _fail != 7) {
-    vector<double> info = fit.get_fit_tracker();
-
-    size_t nEnt = info.size();
-
-    _fitTracker[0] = info[0];
-    if (nEnt > 1) _fitTracker[1] = info[1];
-    else _fitTracker[1] = 0;
-    if (nEnt > 2) _fitTracker[2] = info[2];
-    else _fitTracker[2] = 0;
-    if (nEnt > 3) _fitTracker[3] = info[3];
-    else _fitTracker[3] = 0;
-    if (nEnt > 4) _fitTracker[4] = info[4];
-    else _fitTracker[4] = 0;
-  }
-  else
-    for (int i=0;i<5;i++)
-      _fitTracker[i] = 0;
-
-}
-
-//*************************************************************************************
 bool MINDplotter::extrap_to_vertex(const Trajectory& traj, 
 				   const bhep::Point3D& vertexLoc,
 				   fitter& fitObj, State& ste) {
 //*************************************************************************************
 
   m.message("++Extrapolation function, Finding best fit to vertex++",bhep::VERBOSE);
-
-  ste = traj.node(traj.first_fitted_node()).state();
+  if ( fitObj.check_reseed() ) ste = traj.node(traj.last_fitted_node()).state();
+  else ste = traj.node(traj.first_fitted_node()).state();
 
   EVector pos(3,0); pos[2] = vertexLoc.z();
   EVector axis(3,0); axis[2] = 1;
@@ -355,8 +332,9 @@ void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   //Event classifier version.
   _nhits = Fit.get_nMeas();
-  const dict::Key candHit = "inMu";
+  const dict::Key candHit = "inMu"; 
   int nNode = 0;
+  if ( Fit.check_reseed() ) nNode = (int)Fit.get_traj().size()-1;
   bool isMu;
   
   for (int iHits = 0;iHits < _nhits;iHits++){
@@ -378,7 +356,8 @@ void MINDplotter::patternStats(fitter& Fit) {
 	if ( Fit.get_traj().node(nNode).status("fitted") ){	
 	  _node[iHits] = true; _hitType[3]++; }
 	else _node[iHits] = false;
-	nNode++;
+	if ( Fit.check_reseed() ) nNode--;
+	else nNode++;
       }
       else { _node[iHits] = false; _cand[iHits] = false; }
     } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }

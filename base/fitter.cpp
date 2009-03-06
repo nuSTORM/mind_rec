@@ -85,7 +85,6 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   
   // 
   get_classifier().initialize( store, level, geom.setup() );
-  // define_pattern_rec_param();
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
@@ -132,12 +131,12 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
   
   bool ok, checker; 
   bool fitted=false;
-  _fitTracker.clear();
+  //_fitTracker.clear();
   totFitAttempts++;
   _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
   
-  reseed_ok = 0;
+  reseed_ok = false;
 
   if (!userseed && ok) computeSeed();
   
@@ -283,7 +282,6 @@ bool fitter::fitTrajectory(State seed) {
     
     m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
     
-    bool reSeed = false;
     bool ok = man().fitting_svc().fit(seed,_traj);
 
     if (ok && refit){
@@ -301,7 +299,7 @@ bool fitter::fitTrajectory(State seed) {
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
 	  
-	  double de_dx = (2.47-14.82*pow(fabs(1./v[5])/GeV, 0.085))*MeV/cm;
+	  double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
 	  geom.setDeDx(de_dx);
 
 	  EMatrix C = setSeedCov(C0,facRef);
@@ -312,92 +310,161 @@ bool fitter::fitTrajectory(State seed) {
 	  
 	  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
 	    .convert(seedstate,RP::default_rep);
-	  //seedstate.keepDiagonalMatrix();
 	  
 	  ok = man().fitting_svc().fit(seedstate,_traj);
 	}
 	
     }
 
-    _fitTracker.push_back( ok );
+    //_fitTracker.push_back( ok );
 
-    if ( (float)(_traj.last_fitted_node()+1)/(float)_traj.nmeas() < 0.2 ){
-      reSeed = reseed_traj(); 
-      if ( !reSeed ) reseed_ok = 0;
-      else return reSeed;
+    // if ( (float)(_traj.last_fitted_node()+1)/(float)_traj.nmeas() < 0.2 ){
+//       reSeed = reseed_traj(); 
+//       if ( !reSeed ) reseed_ok = 0;
+//       else return reSeed;
+//     }
+    int fitCheck = 0;
+    vector<Node*>::iterator nDIt;
+    for (nDIt = _traj.nodes().begin();nDIt!=_traj.nodes().end();nDIt++)
+      if ( (*nDIt)->status("fitted") )
+	fitCheck++;
+
+    double low_fit_cut;
+    if (get_classifier().get_int_type() == 2)
+      low_fit_cut = store.fetch_dstore("low_fit_cut2");
+    else
+      low_fit_cut = store.fetch_dstore("low_fit_cut0");
+      
+    if (get_classifier().get_int_type() != 2 && !ok)
+      reseed_ok = reseed_traj();
+    else if (get_classifier().get_int_type() != 2 
+	     && fitCheck/(int)_traj.nmeas() < low_fit_cut)
+      reseed_ok = reseed_traj();
+    else if (get_classifier().get_int_type() == 2
+	     && fitCheck/(int)_traj.nmeas() < low_fit_cut){
+      _failType = 8;
+      return false;
     }
     
-    if (ok) ok = checkQuality();
+    if (ok && !reseed_ok) ok = checkQuality();
+    else if ( reseed_ok ) ok = true;
     
     return ok;
 
 }
 
+// //*************************************************************
+// bool fitter::reseed_traj(){
+// //*************************************************************
+//   cout << "Low fit. Reseeding."<<endl;
+//   bool reSeed;
+//   int starthit;
+//   _fitTracker.push_back( 1 );
+//   //start excluding the first 5% of the hits.
+//   if ( (int)_traj.nmeas() < 10 ) return false;
+//   else if ( (int)_traj.nmeas() > 30 ) starthit = 3;  
+//   else starthit = (int)_traj.nmeas()/10;
+//   int remCount = 0;
+//   reseed_ok = 1;
+//   computeSeed( starthit );
+
+//   for (int ipoint = starthit;ipoint < (int)_traj.nmeas();ipoint++)
+//     _traj2.add_measurement( _traj.nodes()[ipoint]->measurement() );
+  
+//   reSeed = man().fitting_svc().fit(seedstate,_traj2);
+  
+//   if (reSeed && refit){
+    
+//     reSeed = checkQuality(); if (!reSeed) return reSeed;
+    
+//     m.message("Going to refit...",bhep::VERBOSE);
+    
+//     //--------- refit using a new seed --------//	
+//     State newstate = _traj2.state(_traj2.first_fitted_node());
+//     man().model_svc().model(RP::particle_helix).representation()
+//       .convert(newstate, RP::slopes_z);
+    
+//     EVector v = newstate.vector();
+//     EMatrix C0 = newstate.matrix();
+    
+//     EMatrix C = setSeedCov(C0,facRef);
+    
+//     man().model_svc().model(RP::particle_helix).representation()
+//       .convert(seedstate, RP::slopes_z);
+//     seedstate.set_hv(HyperVector(v,C)); 
+    
+//     man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+//       .convert(seedstate,RP::default_rep);
+//     //seedstate.keepDiagonalMatrix();
+    
+//     reSeed = man().fitting_svc().fit(seedstate,_traj2);
+
+//   }
+  
+//   if (reSeed) reSeed = checkQuality();
+
+//   if ( reSeed ){
+//     _fitTracker.push_back( 1 );
+//     const dict::Key candHit = "inMu";
+//     const dict::Key hit_in = "False";
+//     int irem = (int)_meas.size() - 1;
+    
+//     while ( remCount != starthit ) {
+//       if ( _meas[irem]->names().has_key(candHit) ){
+// 	_meas[irem]->set_name(candHit, hit_in);
+// 	remCount++; }
+//       irem--;
+//     }
+//   } else _fitTracker.push_back( 0 );
+  
+//   return reSeed;
+// }
+
 //*************************************************************
 bool fitter::reseed_traj(){
 //*************************************************************
-  cout << "Low fit. Reseeding."<<endl;
-  bool reSeed;
-  int starthit;
-  _fitTracker.push_back( 1 );
-  //start excluding the first 5% of the hits.
-  if ( (int)_traj.nmeas() < 10 ) return false;
-  else if ( (int)_traj.nmeas() > 30 ) starthit = 3;  
-  else starthit = (int)_traj.nmeas()/10;
-  int remCount = 0;
-  reseed_ok = 1;
-  computeSeed( starthit );
-
-  for (int ipoint = starthit;ipoint < (int)_traj.nmeas();ipoint++)
-    _traj2.add_measurement( _traj.nodes()[ipoint]->measurement() );
+  bool ok;
   
-  reSeed = man().fitting_svc().fit(seedstate,_traj2);
-  
-  if (reSeed && refit){
-    
-    reSeed = checkQuality(); if (!reSeed) return reSeed;
-    
-    m.message("Going to refit...",bhep::VERBOSE);
-    
-    //--------- refit using a new seed --------//	
-    State newstate = _traj2.state(_traj2.first_fitted_node());
-    man().model_svc().model(RP::particle_helix).representation()
-      .convert(newstate, RP::slopes_z);
-    
-    EVector v = newstate.vector();
-    EMatrix C0 = newstate.matrix();
-    
-    EMatrix C = setSeedCov(C0,facRef);
-    
-    man().model_svc().model(RP::particle_helix).representation()
-      .convert(seedstate, RP::slopes_z);
-    seedstate.set_hv(HyperVector(v,C)); 
-    
-    man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
-      .convert(seedstate,RP::default_rep);
-    //seedstate.keepDiagonalMatrix();
-    
-    reSeed = man().fitting_svc().fit(seedstate,_traj2);
+  State backSeed = get_classifier().get_patRec_seed();
 
-  }
-  
-  if (reSeed) reSeed = checkQuality();
+  vector<Node*>::iterator nIt;
+  for (nIt = _traj.nodes().end()-1;nIt >= _traj.nodes().begin();nIt--)
+    _traj2.add_measurement( (*nIt)->measurement() );
 
-  if ( reSeed ){
-    _fitTracker.push_back( 1 );
-    const dict::Key candHit = "inMu";
-    const dict::Key hit_in = "False";
-    int irem = (int)_meas.size() - 1;
-    
-    while ( remCount != starthit ) {
-      if ( _meas[irem]->names().has_key(candHit) ){
-	_meas[irem]->set_name(candHit, hit_in);
-	remCount++; }
-      irem--;
+  ok = man().fitting_svc().fit(backSeed,_traj2);
+  
+  if (ok && refit){
+     
+    if (_traj2.quality() <= chi2fit_max) {
+
+      m.message("Going to refit...",bhep::VERBOSE);
+      
+      //--------- refit using a new seed --------//	
+      State newstate = _traj2.state(_traj2.first_fitted_node());
+      man().model_svc().model(RP::particle_helix).representation()
+	.convert(newstate, RP::slopes_z);
+      
+      EVector v = newstate.vector();
+      EMatrix C0 = newstate.matrix();
+      
+      double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
+      geom.setDeDx(de_dx);
+      
+      EMatrix C = setSeedCov(C0,facRef);
+	  
+      man().model_svc().model(RP::particle_helix).representation()
+	.convert(seedstate, RP::slopes_z);
+      seedstate.set_hv(HyperVector(v,C)); 
+      
+      man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+	.convert(seedstate,RP::default_rep);
+      
+      ok = man().fitting_svc().fit(seedstate,_traj2);
     }
-  } else _fitTracker.push_back( 0 );
-  
-  return reSeed;
+    
+  }
+
+  return ok;
 }
 
 //*************************************************************
@@ -518,7 +585,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
   bool ok = recTrajectory(part);
   
   if (patternRec && ok){
-    // ok = find_muon_pattern();
+    
     ok = get_classifier().execute( _meas, _traj, _hadmeas);
 
     _traj.sort_nodes(1);
@@ -575,9 +642,9 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
       if ((int)hits.size() < min_seed_hits) {toofew++; _failType = 7; return false;}
-      // sort( _meas.begin(), _meas.end(), reverseSorter() );
+      
       sort( _meas.begin(), _meas.end(), forwardSorter() );
-      //sortingReverseByZ() defined in recpack/Trajectory.h>
+      
     } else {
       _traj.add_measurements(_meas);
 
@@ -625,10 +692,8 @@ double fitf(Double_t *x,Double_t *par) {
 //*****************************************************************************
 
 
-  double z = x[0]; //-(_firstPoint);
-  //  double arg = 0; 
-  //  double d = 2*par[1]*par[2]*par[2]/(1+par[1]*par[1]);
-  double fitval = par[0]+par[1]*z+par[2]*z*z; // + d*pow(z,3);
+  double z = x[0]; 
+  double fitval = par[0]+par[1]*z+par[2]*z*z;
 
   return fitval ;
 
@@ -639,8 +704,11 @@ int fitter::getQ(){
 //*************************************************************
   
   if (model.compare("particle/helix")!=0) return 0;
+  double q;
   
-  double q = _traj.state(_traj.last_fitted_node()).vector()[dim-1];
+  if ( reseed_ok )
+    q = _traj2.state(_traj2.last_fitted_node()).vector()[dim-1];
+  else q = _traj.state(_traj.last_fitted_node()).vector()[dim-1];
   
   if (q<0) q=-1; else q=1;
 
@@ -814,89 +882,37 @@ void fitter::setSeed(EVector r, int firsthit){
   
   m.message("+++ setSeed function ++++",bhep::VERBOSE);
   
-  /*
-  EMatrix C(dim,dim,0);
-  C = setSeedCov(r,factor);
-    
-  double p = 5 * GeV;
-  double q = 1;
-  
-  int sens = 1; // ????? 
-  
-  EVector u(3,0); u[0]=0.0; u[1]=0.0; u[2]=sens; u/=u.norm();
-  EVector eu(3,0); eu[0]=C[3][3]; eu[1]=C[4][4];
-  EVector er(3,0); er[0]=C[0][0]; er[1]=C[1][1]; er[2]=C[2][2]; 
-  double ep = 100 * GeV; // ???? total momentum error
-  
-  seedstate = ParticleState(r,u,p,q,er,eu,ep,model);
-
-  seedstate.keepDiagonalMatrix();
-  */
-  // take as seed the state vector
   EVector v(6,0), v2(1,0);
   EMatrix C(6,6,0), C2(1,1,0);
-  //EVector dr(3,0); EVector dr2(3,0);
 
   v[0]=r[0];
   v[1]=r[1];
   v[2]=r[2];
 
-  // find_directSeed(dr, 1);
-//   find_directSeed(dr2,2);
-//   //Compare the two possible direction seeds.
-//   double Dx = (v[0]+(dr[0]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
-//     - (v[0]+(dr2[0]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
-//   double Dy = (v[1]+(dr[1]/dr[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]))
-//     - (v[1]+(dr2[1]/dr2[2])*(_traj.nodes()[4]->measurement().surface().position()[2]-v[2]));
-
-//   if (fabs(Dx)< 3*cm && fabs(Dy)< 3*cm){
-//     dr += dr2;
-//     dr /= dr.norm();
-//     v[3] = dr[0]/dr[2];// + dr2[0]/dr2[2]);
-//     v[4] = dr[1]/dr[2];// + dr2[1]/dr2[2]);
-//   } else {
-//     v[3] = dr[0]/dr[2];
-//     v[4] = dr[1]/dr[2];
-//   }
-
-//   cout << "Old slopes: " << endl
-//        << v[3] << ", "<< v[4]<<endl;
-
-  //Approximate p from parabola.
-  //_firstPoint = _traj.measurement(0).surface().position()[2];
-
   mom_from_parabola( (int)_traj.nmeas(), firsthit, v);
-  _fitTracker.push_back( 1./v[5] );
-  // v[3] = dr[0]/dr[2];
-//   v[4] = dr[1]/dr[2];
   
   double pSeed;
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   if (v[5] == 0) { pSeed = (double)(0.060*_traj.nmeas())*GeV;
   v[5] = 1.0/pSeed; }
-  double de_dx = (2.47-14.82*pow(fabs(1./v[5])/GeV, 0.085))*MeV/cm;//-7.87*(0.013*(abs(1/v[5])/GeV)+1.5)*MeV/cm;
+  double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
   geom.setDeDx(de_dx);
   m.message("reset energy loss to approx value",bhep::VERBOSE);
-
-  //v[5]=dr[2];//1;
-  //v[5]=1/(pSeed*GeV);
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
   C[0][0] = C[1][1] = 9.*cm*cm;
   C[2][2] = EGeo::zero_cov()/2;
   C[3][3] = C[4][4] = 1.;
-  //C[5][5] = 10.;
   C[5][5] = pow(v[5],2)*3;
   
   seedstate.set_name(RP::particle_helix);
   seedstate.set_name(RP::representation,RP::slopes_z);
-  //seedstate.set_name(RP::representation,RP::default_rep);
+  
   v2[0] = 1;
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
-  // cout << "Seed For Fit: " << endl
-//        << seedstate << endl;
+  
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seedstate,RP::default_rep);
 }
@@ -918,7 +934,7 @@ EMatrix fitter::setSeedCov(EVector v, double factor){
       c[2][2] = EGeo::zero_cov()/2;//no error in z    
    
       c[3][3] = c[4][4] = 3/factor;     
-      //      c[6][6] = pow(1/p,2)/factor;   
+        
       c[6][6] = pow(1/p,2)*100/factor;   
       
     }
@@ -991,12 +1007,10 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
 //*****************************************************************************
 
   int nfit, sign;
-  int fitRange[3];//double fitRange[3];
-  //if (nplanes>15) nplanes = 15;
+  int fitRange[3];
   const int fitpoints = nplanes;
   
   double xpos[fitpoints], ypos[fitpoints], zpos[fitpoints];
-  //double error[fitpoints];
   
   for (int ipoint=firsthit;ipoint < nplanes;ipoint++){
     
@@ -1004,52 +1018,28 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     ypos[ipoint] = _traj.measurement(ipoint).vector()[1];
     zpos[ipoint] = _traj.measurement(ipoint).surface().position()[2]
       - _traj.measurement(firsthit).surface().position()[2];
-    //error[ipoint] = sqrt( geom.getCov()[0][0] );
 
   }
-  if (nplanes <= 15) { nfit = 1; fitRange[0] = nplanes;}//zpos[nplanes-1]; }
+  if (nplanes <= 15) { nfit = 1; fitRange[0] = nplanes;}
   else if (nplanes <= 40) { 
     nfit = 2;
-    //fitRange[0] = zpos[14]; fitRange[1] = zpos[nplanes-1];
     fitRange[0] = 15; fitRange[1] = (int)(0.7*nplanes);
   }
   else if (nplanes > 40) { 
     nfit = 3;
-    // fitRange[0] = zpos[14]; fitRange[1] = zpos[nplanes/2];
-//     fitRange[2] = zpos[nplanes-1];
     fitRange[0] = 15; fitRange[1] = (int)(nplanes/2); fitRange[2] = (int)(0.7*nplanes);
   }
   for (int ifit = 0;ifit < nfit;ifit++) {
-    TGraph *trajFitXZ = new TGraph(fitRange[ifit],zpos, xpos);//nplanes, zpos, xpos);
-    TGraph *trajFitYZ = new TGraph(fitRange[ifit],zpos, ypos);//nplanes, zpos, ypos);
-
-  // double z0 = 0;
-//   double z1 = _traj.measurement(nplanes-1).surface().position()[2] - _firstPoint;
-//   TH1F* trajFitXZ = new TH1F("1","", nplanes, z0, z1);
-//   TH1F* trajFitYZ = new TH1F("2","", nplanes, z0, z1);
-
-
-  //for (int ifit = 0;ifit < nfit;ifit++) {
+    TGraph *trajFitXZ = new TGraph(fitRange[ifit],zpos, xpos);
+    TGraph *trajFitYZ = new TGraph(fitRange[ifit],zpos, ypos);
     
-    TF1 *func = new TF1("fit",fitf2,-3,3,3);//0,fitRange[ifit],3);
+    TF1 *func = new TF1("fit",fitf2,-3,3,3);
     func->SetParameters(0.,0.,0.001,0.0001,0.0001);
     func->SetParNames("a", "b", "c", "d", "e");
     
-    TF1 *func2 = new TF1("fit2",fitf2,-3,3,3);//0,fitRange[ifit],3);
+    TF1 *func2 = new TF1("fit2",fitf2,-3,3,3);
     func2->SetParameters(0.,0.,0.001,0.0001,0.0001);
     func2->SetParNames("f", "g", "h", "i", "j");
-
-  // for (int i=0;i<nplanes;i++){
-
-//     const EVector& m = _traj.measurement(i).vector();
-
-//     trajFitXZ->SetBinContent(i+1,m[0]);
-//     trajFitXZ->SetBinError(i+1,1.);
-
-//     trajFitYZ->SetBinContent(i+1,m[1]);
-//     trajFitYZ->SetBinError(i+1,1.);
-
-//   }
 
     trajFitXZ->Fit("fit", "QN");
     trajFitYZ->Fit("fit2", "QN");
@@ -1060,7 +1050,7 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
 
       V[4] = func2->GetParameter(1);
       V[3] = b;
-      //double p;
+      
       if (c!=0) {
 	V[5] = 1/(-0.3*1.*pow((1+b*b),3./2.)/(2*c)*0.01 * GeV);
 	sign = (int)( V[5]/fabs( V[5] ));
@@ -1072,11 +1062,11 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
 	V[5] = 1/(-0.3*1.*pow((1+b*b),3./2.)/(2*c)*0.01 * GeV);
       } else break;
     }
-    //}
+    
     delete trajFitXZ;
     delete trajFitYZ;
   }
-  //return p;
+  
 }
 
 //*****************************************************************************
@@ -1112,10 +1102,6 @@ void fitter::readParam(){
 
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
-    // patRec_maxChi = store.fetch_dstore("pat_rec_max_chi");
-//     patRec_max_outliers = store.fetch_istore("pat_rec_max_outliers");
-//     max_consec_missed_planes = store.fetch_istore("max_consec_missed_planes");
-
     X0 = store.fetch_dstore("x0Fe") * mm;
     _tolerance = store.fetch_dstore("pos_res") * cm;
     
@@ -1155,384 +1141,8 @@ void fitter::setVerbosity(int v0,int v1,int v2){
   man().model_svc().model(model).propagator().set_verbosity(l2);
   man().model_svc().model(model).tool("noiser/ms").set_verbosity(l2);
 
-  // patman().navigation_svc().set_verbosity(l1);
-//   patman().model_svc().model(model).equation().set_verbosity(l2);
-//   patman().model_svc().model(model).propagator().set_verbosity(l2);
-//   patman().model_svc().model(model).tool("noiser/ms").set_verbosity(l2);
 }
 
-// //*****************************************************************************
-// void fitter::define_pattern_rec_param() {
-// //*****************************************************************************
 
-//   patman().geometry_svc().set_zero_length(1e-5 * mm);
-//   patman().geometry_svc().set_infinite_length(1e12 * mm);
 
-//   // add the setup to the geometry service
-//   patman().geometry_svc().add_setup("main",geom.setup());
-  
-//   // select the setup to be used by the geometry service
-//   patman().geometry_svc().select_setup("main");
-  
-//   patman().navigation_svc().navigator(model).set_unique_surface(true);
-  
-//   patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-//     set_max_local_chi2ndf(patRec_maxChi);
 
-//   patman().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-//     set_number_allowed_outliers(patRec_max_outliers);
-
-// }
-
-// //*****************************************************************************
-// bool fitter::find_muon_pattern() {
-// //*****************************************************************************
-
-// //Algorithms for isolating possible muon from event hits.
-//   m.message("++ Starting Pattern Recognition ++",bhep::VERBOSE);
-
-//   //_patRecStat.clear();
-//   //int measCount = (int)_meas.size();
-//   //_patRecStat = vector<bool> (measCount, 0);
-//   _recChi = EVector(3,0);
-//   _recChi[1] = 100000; //SetLarge dummy value for minChiHadron bit.
-
-//   State patternSeed;
-  
-//   bool ok = get_patternRec_seedtraj();
-//   if (ok)
-//     ok = get_patternRec_seed(patternSeed);
-
-//   if (ok)
-//     ok = perform_pattern_rec(patternSeed);
-  
-//   // Sort the measurements identified as muon hits into ascending
-//   // z for muon fit.
-//   _traj.sort_nodes(1);
-
-//   return ok;
-// }
-
-// //*****************************************************************************
-// bool fitter::get_patternRec_seedtraj() {
-// //*****************************************************************************
-
-//   //double tolerance = 1 * cm;
-//   int nloops;
-//   double currentZ, prevZ;
-
-//   int nMeas = (int)_meas.size();
-//   if (nMeas < max_seed_hits) nloops = nMeas;
-//   else nloops = max_seed_hits;
-
-//   prevZ = _meas[0]->surface().position()[2];
-  
-//   for (int Iso = 1;Iso < nloops;Iso++) {
-
-//     currentZ = _meas[Iso]->surface().position()[2];
-    
-//     if (currentZ >= (prevZ-_tolerance)) break;
-//     else {
-      
-//       _traj.add_measurement(*_meas[Iso-1]);
-//       //if (_meas[Iso-1]->name("MotherParticle").compare("Hadronic_vector")!=0)
-//       //_patRecStat[Iso-1] = true;
-//       const dict::Key candHit = "inMu";
-//       const dict::Key hit_in = "True";
-//       _meas[Iso-1]->set_name(candHit, hit_in);
-//       prevZ = currentZ;
-      
-//     }
-
-//   }
-  
-//   if ((int)_traj.nmeas() < min_seed_hits) { 
-//     cout<<"No seedTraj found"<<endl;
-//     _failType = 5;
-//     return false;}
-  
-//   iGroup = (int)_traj.nmeas();
-
-//   return true;
-
-// }
-
-// //*****************************************************************************
-// bool fitter::get_patternRec_seed(State& seed) {
-// //*****************************************************************************
-  
-//   int lastMeas = (int)_meas.size() - 1;
-  
-//   EVector V(6,0); EVector V2(1,0);
-//   EMatrix M(6,6,0); EMatrix M2(1,1,0);
-//   EVector dr(3,0);
-
-//   V[0] = _meas[0]->vector()[0];
-//   V[1] = _meas[0]->vector()[1];
-//   V[2] = _meas[0]->surface().position()[2];
-  
-//   find_directSeed(dr, -1);
-//   V[3] = dr[0]/dr[2];
-//   V[4] = dr[1]/dr[2];
-  
-//   // _firstPoint = _traj.measurement(0).surface().position()[2];
-
-// //   mom_from_parabola( (int)_traj.nmeas(), V);
-//   //Approximate momentum by extent (hard wired for 5cm iron/scint
-//   //separation at mo) using same empirical functions as in isolated
-//   //muon fitting.
-//   double Xtent = (_meas[0]->surface().position()[2]
-//     - _meas[lastMeas]->surface().position()[2])/5;
-//   double pSeed = (0.060*Xtent)*GeV;
-//   double de_dx = (2.47-14.82*pow((pSeed/GeV), 0.085))*MeV/cm;//-7.87*(0.013*(pSeed/GeV)+1.5)*MeV/cm;
-//   geom.setDeDx(de_dx);
-  
-//   // V[3] = -V[3];
-// //   V[4] = -V[4];
-//   V[5] = 1./pSeed;
-  
-//   //Errors
-//   M[0][0] = M[1][1] = 15.*cm*cm;
-//   M[2][2] = EGeo::zero_cov()/2;//1.*cm*cm;
-//   M[3][3] = M[4][4] = 1.5;
-//   M[5][5] = pow(V[5],2)*4;
-
-//   //Seedstate fit properties
-//   seed.set_name(RP::particle_helix);
-//   seed.set_name(RP::representation,RP::slopes_z);
-//   V2[0] = 1; 
-//   seed.set_hv(RP::sense,HyperVector(V2,M2));
-//   seed.set_hv(HyperVector(V,M));
-  
-//   patman().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
-//     .convert(seed,RP::default_rep);
-  
-//   //bool ok = perform_least_squares(seed);
-//   bool ok = perform_kalman_fit(seed);
-//   if (!ok)
-//     _failType = 5;
-
-//   return ok;
-// }
-
-// //*****************************************************************************
-// bool fitter::perform_least_squares(State& seed) {
-// //*****************************************************************************
-
-//   m.message("++ About to perform least squares fit ++",bhep::VERBOSE);
-  
-//   std::string YerMaw = "NORMAL";
-//   Messenger::Level blah = Messenger::str(YerMaw);
-//   patman().fitting_svc().fitter(model).set_verbosity(blah);
-//   patman().fitting_svc().select_fitter("lsq");
-  
-//   bool ok = patman().fitting_svc().fit(seed, _traj);
-  
-//   //seed.clear();
-//   if (ok)
-//     seed = _traj.state(_traj.first_fitted_node());
-  
-//   return ok;
-// }
-
-// //*****************************************************************************
-// bool fitter::perform_kalman_fit(State& seed) {
-// //*****************************************************************************
-
-//   m.message("++ About to perform kalman fit ++",bhep::VERBOSE);
-  
-//   std::string YerMaw = "NORMAL";
-//   Messenger::Level blah = Messenger::str(YerMaw);
-//   patman().fitting_svc().fitter(model).set_verbosity(blah);
-//   patman().fitting_svc().select_fitter("kalman");
-  
-//   bool ok = patman().fitting_svc().fit(seed, _traj);
-  
-//   //seed.clear();
-//   if (ok)
-//     seed = _traj.state(_traj.first_fitted_node());
-//   // cout << "Seed Check: "<<endl
-// //        <<t<<endl
-// //        <<seed<<endl;
-//   return ok;
-// }
-
-// //*****************************************************************************
-// bool fitter::perform_pattern_rec(const State& seed) {
-// //*****************************************************************************
-
-//   m.message("++ About to perform filter on hits ++",bhep::VERBOSE);
-  
-//   measurement_vector NeedFiltered;
-
-//   bool ok;
-//   double curZ, preZ;
-//   //double tolerance = 1 * cm;
-//   _nConsecHoles = 0;
-
-//   //fitter parameters.
-//   patman().fitting_svc().select_fitter("kalman");
-
-//   while ( iGroup < (int)_meas.size() ) {
-
-//     if ((int)NeedFiltered.size() == 0){
-//       NeedFiltered.push_back( _meas[iGroup] );
-//       iGroup++;
-//       continue;
-//     }
-
-//     curZ = _meas[iGroup]->surface().position()[2];
-//     preZ = _meas[iGroup-1]->surface().position()[2];
-
-//     if (curZ < (preZ-_tolerance)) {
-//       if (NeedFiltered.size() > 1) {
-	
-// 	ok = filter_close_measurements(NeedFiltered, seed);
-// 	if (!ok) {
-// 	  cout<<"Failed in filtering"<<endl; 
-// 	   _failType = 6;
-// 	  return ok;}
-
-//       } else {
-	
-// 	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
-
-// 	if (ok){
-// 	  //_patRecStat[iGroup-1] = true;
-// 	  const dict::Key candHit = "inMu";
-// 	  const dict::Key hit_in = "True";
-// 	  NeedFiltered[0]->set_name(candHit, hit_in);
-	  
-// 	  if (_meas[iGroup-1]->name("MotherParticle").compare("mu+")==0
-// 	      || _meas[iGroup-1]->name("MotherParticle").compare("mu-")==0){
-	    
-// 	    _recChi[0] = TMath::Max(_traj.node(_traj.last_fitted_node()).quality(), _recChi[0]);
-// 	  }
-// 	  else _recChi[1] = TMath::Min(_traj.node(_traj.last_fitted_node()).quality(), _recChi[1]);
-
-// 	  _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);
-// 	  _recChi[2] = _nConsecHoles;
-// 	  _nConsecHoles = 0;
-
-// 	} else {
-// 	  _nConsecHoles++;
-
-// 	  if (_nConsecHoles > max_consec_missed_planes) {
-// 	    _failType = 6;
-// 	    _recChi[2] = _nConsecHoles;
-// 	    return ok;
-// 	  }
-// 	}
-
-//       }
-	
-//       NeedFiltered.clear();
-//       NeedFiltered.push_back( _meas[iGroup] );
-
-//       if (iGroup==(int)_meas.size()-1){
-// 	ok = patman().fitting_svc().filter(*NeedFiltered[0], seed, _traj);
-// 	cout <<"Filtering final measurement"<<endl;
-// 	if (ok) {//_patRecStat[iGroup] = true;
-// 	  const dict::Key candHit = "inMu";
-// 	  const dict::Key hit_in = "True";
-// 	  NeedFiltered[0]->set_name(candHit, hit_in);
-// 	} else {
-// 	  _nConsecHoles++;
-	  
-// 	  if (_nConsecHoles > max_consec_missed_planes) {
-// 	    _failType = 6;
-// 	    _recChi[2] = _nConsecHoles;
-// 	    return ok;
-// 	  }
-// 	}
-	
-//       }
-//       iGroup++;
-
-//     } else {
-
-//       NeedFiltered.push_back( _meas[iGroup] );
-
-//       if (iGroup==(int)_meas.size()-1){
-// 	ok = filter_close_measurements(NeedFiltered, seed);
-// 	cout <<"Filtering final measurement"<<endl;
-// 	if (!ok) 
-// 	  return ok;
-	
-//       }
-//       iGroup++;
-//     }
-
-//   }
-
-//   return true;
-
-// }
-
-// //*****************************************************************************
-// bool fitter::filter_close_measurements(measurement_vector& Fmeas,
-// 				       const State& seed) {
-// //*****************************************************************************
-  
-//   bool ok;
-//   const int nMeas = (int)Fmeas.size();
-//   double Chi2[nMeas];
-
-//   // Filter measurements in Fmeas. Delete all but the lowest chi2
-//   // from traj and cast the corresponding measurement to the
-//   // hadron measurement vector.
-
-  
-//   for (int iMat = 0;iMat < nMeas;iMat++) {
-
-//     ok = patman().matching_svc().match_trajectory_measurement(_traj, *Fmeas[iMat],
-// 							      Chi2[iMat]);
-//   }
-
-//   long ChiMin = TMath::LocMin(nMeas, Chi2);
-
-//   for (int iFilt = 0;iFilt < nMeas;iFilt++) {
-
-//     if (iFilt == (int)ChiMin){
-
-//       ok = patman().fitting_svc().filter(*Fmeas[iFilt], seed , _traj);
-
-//       if (ok) {
-
-// 	//_patRecStat[iGroup-(nMeas-(int)ChiMin)] = true;
-// 	const dict::Key candHit = "inMu";
-// 	const dict::Key hit_in = "True";
-// 	Fmeas[iFilt]->set_name(candHit, hit_in);
-
-// 	if (_meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
-// 	    .compare("Hadronic_vector")!=0)
-// 	  _recChi[0] = TMath::Max(Chi2[iFilt], _recChi[0]);
-
-//       } else cout<< "Filter failed" <<endl;
-
-//       if (ok && _meas[iGroup-(nMeas-(int)ChiMin)]->name("MotherParticle")
-// 	       .compare("Hadronic_vector")==0)
-// 	_recChi[1] = TMath::Min(Chi2[iFilt], _recChi[1]);
-      
-//     }
-//     else
-//       _hadmeas.push_back( Fmeas[iFilt] );
-
-//   }
-
-//   if (ok) {
-//     _recChi[2] = TMath::Max(_nConsecHoles, (int)_recChi[2]);
-//     _recChi[2] = _nConsecHoles;
-//     _nConsecHoles = 0;
-//   } else {
-//     _nConsecHoles++;
-
-//     if ( _nConsecHoles > max_consec_missed_planes) {
-//       _recChi[2] = _nConsecHoles;
-//       _failType = 6;
-//       return false;
-//     }
-//   }
-  
-//   return true;
-// }

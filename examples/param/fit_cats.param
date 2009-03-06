@@ -39,6 +39,9 @@ RUN pos_res D 1.
 #  parameters for the analysis
 #############################################
 
+# monitor ntuple file
+RUN out_file S /home/alaing/ntuples/MINDpulls.root
+
 # type of fit
 RUN kfitter S kalman
 
@@ -63,7 +66,13 @@ RUN max_consec_missed_planes I 3
 
 # lowest and highest number of hits required for fit.
 RUN low_Pass_hits I 14
-RUN high_Pass_hits I 400
+RUN high_Pass_hits I 500
+
+# proportion of nodes which must be fir not to trigger backwards fit.
+RUN low_fit_cut0 D 0.5
+
+# proportion of nodes which must be fit to accept type 2 (free mu) interaction.
+RUN low_fit_cut2 D 0.3
 
 # Fiducial cuts. (reduction in z and reduction at both sides in x,y. cm)
 RUN z_cut D 300

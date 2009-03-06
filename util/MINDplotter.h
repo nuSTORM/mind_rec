@@ -32,7 +32,7 @@ class MINDplotter{
   virtual ~MINDplotter();
 
   //Main functions for output initialization.
-  bool initialize(TString outFileName, bhep::prlevel vlevel=bhep::NORMAL);
+  bool initialize(string outFileName, bhep::prlevel vlevel=bhep::NORMAL);
   bool execute(fitter& Fit, const bhep::event& evt, bool success, bool patRec);
   bool finalize();
 //   //
@@ -52,9 +52,6 @@ class MINDplotter{
 
   /* Function to plot stats about pattern recogntion */
   void patternStats(fitter& Fit);
-
-  /*Function to record types of fit and quality of seed*/
-  void track_fit(fitter& fit);
 
   /*Function to record quality of hadron fit*/
   void hadron_direction(fitter& fit);
@@ -78,7 +75,7 @@ private:
   int _evNo;
   bool _Fit;
   int _fail;
-  double _fitTracker[5];
+  int _intType;
   double _nuEng;
   double _hadP[3];
   double _hadE[2];

@@ -18,35 +18,36 @@
 using namespace bhep;
 
 class event_classif{
-
+  
 public:
-
+  
   event_classif();
-
+  
   virtual ~event_classif();
-
+  
   //-------------- main functions --------------//
   bool initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det); //needs to take store with all info for pat rec/more?
   bool execute(measurement_vector& hits,
 	       Trajectory& muontraj, measurement_vector& hads); //more arguments needed?
   bool finalize();
   //-------------------------------------------//
-
-  //Grabbers for monitoring.
+  
+  //Grabbers for monitoring etc.
   int get_int_type(){ return _intType; }
   int get_vertex(){ return _vertGuess; }
   int get_fail_type(){ return _failType; }
-  EVector& get_PatRec_Chis(){return _recChi;};
+  EVector& get_PatRec_Chis(){ return _recChi; }
+  State& get_patRec_seed(){ return _seedState; }
   //
-
+  
 protected:
-
+  
   void readParam();
   void set_extract_properties(Setup& det);
   void reset();
-
+  
   bool get_plane_occupancy(measurement_vector& hits);
-
+  
   //Functions to be performed on CC mu candidates.  
   bool chargeCurrent_analysis(measurement_vector& hits,
 			      Trajectory& muontraj, measurement_vector& hads);
@@ -60,35 +61,36 @@ protected:
 			       Trajectory& muontraj, measurement_vector& hads);
   void find_directSeed(EVector& R, const Trajectory& track);
   //
-
+  
   RecpackManager& man(){return _man;}
-
+  
   bhep::gstore _infoStore;
-
+  
   //bhep::prlevel level;
-    
+  
   bhep::messenger m;
-
+  
   RecpackManager _man;
-
+  
   //Members to store plane occupancy and mean energy.
   int _nplanes;
   double _meanOcc;
   vector<int> _hitsPerPlane;
   vector<double> _energyPerPlane;
   double _tolerance; //required 'closeness' to be considered in plane.
-
+  
   //integer for type candidate (NC etc.)
   int _intType;
-
+  
   //interator for hits and container for estimated 'vertex' hit.
   measurement_vector::iterator _hitIt;
   vector<int>::iterator _planeIt;
   int _vertGuess;
-
+  
   //Monitoring variables.
   int _failType;
   EVector _recChi;
+  State _seedState;
 
   //Properties for muon extraction
   string model;

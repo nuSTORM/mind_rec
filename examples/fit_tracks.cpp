@@ -65,8 +65,7 @@ int main(int argc, char* argv[]){
   
   fit->initialize(eman->get_dst_properties());
 
-  
-  plot->initialize("/home/alaing/ntuples/MINDpulls.root",bhep::MUTE);
+  plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
   
   //add run properties to output dst header
   

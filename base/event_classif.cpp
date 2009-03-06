@@ -56,7 +56,7 @@ bool event_classif::execute(measurement_vector& hits,
   m.message("++++ Classifier Execute Function ++++", bhep::VERBOSE);
 
   bool ok;
-
+  _intType = 0;
   //reset.
   reset();
 
@@ -290,6 +290,8 @@ bool event_classif::muon_extraction(measurement_vector& hits,
   if ( ok )
     ok = perform_muon_extraction( patternSeed, hits, muontraj, hads);
   
+  if ( ok )
+    _seedState = patternSeed;
 
   return ok;
 }
@@ -353,7 +355,7 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
   size_t nMeas = track.nmeas();
 
-  if (nMeas > 5) nMeas = 5;
+  if (nMeas > 3) nMeas = 3;
 
   double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas];
 
@@ -369,16 +371,16 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   TGraph *gr2 = new TGraph((const int)nMeas, z, y);
 
   //TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*pow(x,2)+[3]*pow(x,3)+[4]*pow(x,4)",-3,3);
-  TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*x*x",-3,3);
-  fun->SetParameters(0.,0.001,0.001);
+  TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
+  fun->SetParameters(0.,0.001);
 
   gr1->Fit("parfit", "QN");
-  vec[3] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[0];
+  vec[3] = fun->GetParameter(1);// + 2*fun->GetParameter(2)*vec[0];
   //+ 3*fun->GetParameter(3)*pow(vec[0],2) + 4*fun->GetParameter(4)*pow(vec[0],3);
 
-  fun->SetParameters(0.,0.001,0.001);
+  fun->SetParameters(0.,0.001);
   gr2->Fit("parfit", "QN");
-  vec[4] = fun->GetParameter(1) + 2*fun->GetParameter(2)*vec[1];
+  vec[4] = fun->GetParameter(1);// + 2*fun->GetParameter(2)*vec[1];
   //+ 3*fun->GetParameter(3)*pow(vec[1],2) + 4*fun->GetParameter(4)*pow(vec[1],3);
 
 }

@@ -335,15 +335,15 @@ bool fitter::fitTrajectory(State seed) {
     else
       low_fit_cut = store.fetch_dstore("low_fit_cut0");
       
-    if (get_classifier().get_int_type() != 2 && !ok)
+    if (get_classifier().get_int_type() != 2){
+      if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+	reseed_ok = reseed_traj();
+    } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut){
       reseed_ok = reseed_traj();
-    else if (get_classifier().get_int_type() != 2 
-	     && fitCheck/(int)_traj.nmeas() < low_fit_cut)
-      reseed_ok = reseed_traj();
-    else if (get_classifier().get_int_type() == 2
-	     && fitCheck/(int)_traj.nmeas() < low_fit_cut){
-      _failType = 8;
-      return false;
+      if (!reseed_ok){
+	_failType = 8;
+	return false;
+      }
     }
     
     if (ok && !reseed_ok) ok = checkQuality();
@@ -424,7 +424,7 @@ bool fitter::fitTrajectory(State seed) {
 bool fitter::reseed_traj(){
 //*************************************************************
   bool ok;
-  
+  std::cout << "Entering backwards fit" << std::endl;  
   State backSeed = get_classifier().get_patRec_seed();
 
   vector<Node*>::iterator nIt;
@@ -865,7 +865,9 @@ void fitter::computeSeed(int firsthit) {
     //use position slightly offset from first meas as seed 
 
     EVector v(3,0); 
-    
+    if ( (double)get_classifier().get_last_iso()/(double)_traj.nmeas() > min_iso_prop )
+      firsthit = (int)_traj.nmeas() - get_classifier().get_last_iso();
+
     v[0] = _traj.nodes()[firsthit]->measurement().vector()[0];
     v[1] = _traj.nodes()[firsthit]->measurement().vector()[1];
     v[2] = _traj.nodes()[firsthit]->measurement().surface().position()[2];   
@@ -1008,26 +1010,26 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
 
   int nfit, sign;
   int fitRange[3];
-  const int fitpoints = nplanes;
+  const int fitpoints = nplanes - firsthit;
   
   double xpos[fitpoints], ypos[fitpoints], zpos[fitpoints];
   
   for (int ipoint=firsthit;ipoint < nplanes;ipoint++){
     
-    xpos[ipoint] = _traj.measurement(ipoint).vector()[0];
-    ypos[ipoint] = _traj.measurement(ipoint).vector()[1];
-    zpos[ipoint] = _traj.measurement(ipoint).surface().position()[2]
+    xpos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[0];
+    ypos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[1];
+    zpos[ipoint-firsthit] = _traj.measurement(ipoint).surface().position()[2]
       - _traj.measurement(firsthit).surface().position()[2];
 
   }
-  if (nplanes <= 15) { nfit = 1; fitRange[0] = nplanes;}
-  else if (nplanes <= 40) { 
+  if (fitpoints <= 15) { nfit = 1; fitRange[0] = fitpoints;}
+  else if (fitpoints <= 40) { 
     nfit = 2;
-    fitRange[0] = 15; fitRange[1] = (int)(0.7*nplanes);
+    fitRange[0] = 15; fitRange[1] = (int)(0.7*fitpoints);
   }
-  else if (nplanes > 40) { 
+  else if (fitpoints > 40) { 
     nfit = 3;
-    fitRange[0] = 15; fitRange[1] = (int)(nplanes/2); fitRange[2] = (int)(0.7*nplanes);
+    fitRange[0] = 15; fitRange[1] = (int)(fitpoints/2); fitRange[2] = (int)(0.7*fitpoints);
   }
   for (int ifit = 0;ifit < nfit;ifit++) {
     TGraph *trajFitXZ = new TGraph(fitRange[ifit],zpos, xpos);
@@ -1094,7 +1096,7 @@ void fitter::readParam(){
     facRef = store.fetch_dstore("facRef");
 
     min_seed_hits = store.fetch_istore("min_seed_hits");
-    //max_seed_hits = store.fetch_istore("max_seed_hits");
+    min_iso_prop = store.fetch_dstore("min_iso_prop");
 
     chi2node_max = store.fetch_dstore("chi2node_max");
     

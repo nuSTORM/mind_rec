@@ -139,6 +139,7 @@ protected:
   bool patternRec; //Pattern recognition algorithm required?
 
   int min_seed_hits; //Minimum isolated hits required for Prec seed.
+  double min_iso_prop;
 
   //Counters for fit fails and successes for various reasons.
   int totFitAttempts;

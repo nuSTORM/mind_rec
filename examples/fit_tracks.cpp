@@ -107,6 +107,7 @@ int main(int argc, char* argv[]){
     }
       //save event containing fit info 
       eman->write(e);
+      
   }
   
   fit->finalize();

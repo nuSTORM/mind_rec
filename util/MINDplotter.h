@@ -74,6 +74,7 @@ private:
   bhep::particle* _truPart;
   int _evNo;
   bool _Fit;
+  bool _reFit;
   int _fail;
   int _intType;
   double _nuEng;

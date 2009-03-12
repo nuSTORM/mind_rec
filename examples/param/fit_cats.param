@@ -56,7 +56,7 @@ ANA vsim I 0
 RUN chi2fit_max D 50
 
 # maximum local chi2 for nodes (muon fit)
-RUN chi2node_max D 50
+RUN chi2node_max D 30
 RUN max_outliers I 5
 
 # maximum local chi2 for nodes (pattern rec.)
@@ -72,7 +72,7 @@ RUN high_Pass_hits I 500
 RUN low_fit_cut0 D 0.5
 
 # proportion of nodes which must be fit to accept type 2 (free mu) interaction.
-RUN low_fit_cut2 D 0.3
+RUN low_fit_cut2 D 0.5
 
 # Fiducial cuts. (reduction in z and reduction at both sides in x,y. cm)
 RUN z_cut D 300
@@ -92,6 +92,10 @@ ANA patRec I 1
 # Min./Max. isolated hits for patRec seed.
 ANA min_seed_hits I 5
 ANA max_seed_hits I 20
+ANA min_check_nodes I 5
+
+# Minumum proportion of isolated hits for central p seed.
+ANA min_iso_prop D 0.8
 
 ###  data to read ###
 

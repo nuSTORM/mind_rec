@@ -38,6 +38,7 @@ public:
   int get_fail_type(){ return _failType; }
   EVector& get_PatRec_Chis(){ return _recChi; }
   State& get_patRec_seed(){ return _seedState; }
+  int get_last_iso(){ return _lastIso; }
   //
   
 protected:
@@ -59,7 +60,6 @@ protected:
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, measurement_vector& hits,
 			       Trajectory& muontraj, measurement_vector& hads);
-  void find_directSeed(EVector& R, const Trajectory& track);
   //
   
   RecpackManager& man(){return _man;}
@@ -81,6 +81,7 @@ protected:
   
   //integer for type candidate (NC etc.)
   int _intType;
+  int _lastIso;
   
   //interator for hits and container for estimated 'vertex' hit.
   measurement_vector::iterator _hitIt;
@@ -100,6 +101,7 @@ protected:
   int patRec_max_outliers;
   int max_consec_missed_planes;
   int min_seed_hits;
+  int min_check;
 
   int vfit,vnav,vmod,vmat,vsim;
 

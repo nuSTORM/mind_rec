@@ -94,6 +94,7 @@ void event_classif::readParam() {
     patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
     max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
     min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
+    min_check =  _infoStore.fetch_istore("min_check_nodes");
 
     _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
     
@@ -220,7 +221,7 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   _vertGuess = exclude_backwards_particle();
   
   //Maybe another which looks for kinks very early (backwards proton quasi?)
-  for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin();_planeIt--, _hitIt--){
+  for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin()+min_check;_planeIt--, _hitIt--){
     if ( (*_planeIt) == 1 ){
       muontraj.add_measurement( *(*_hitIt) );
       const dict::Key candHit = "inMu";
@@ -229,17 +230,24 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
     } else break;
   }
  
-  if ( _meanOcc == 1 ){
-    _intType = 2; return ok; }//free muon if positive CC ident, no pat rec required.
-  //could have backwards proton, how to exclude?
+  _lastIso = (int)muontraj.nmeas();
 
-  if ( (int)muontraj.nmeas() < min_seed_hits ) {
-    ok = false;
-    _failType = 5;
-  }
+  if ( _meanOcc == 1 ){
+    _intType = 2;
+    if ( muontraj.size() !=0 )
+      ok = muon_extraction( hits, muontraj, hads);
+    else ok = false;
+  } else {
+
+    if ( ok && (int)muontraj.nmeas() < min_seed_hits ) {
+      ok = false;
+      _failType = 5;
+    }
   
-  if ( ok )
-    ok = muon_extraction( hits, muontraj, hads);
+    if ( ok )
+      ok = muon_extraction( hits, muontraj, hads);
+
+  }
 
   return ok;
 }
@@ -307,13 +315,10 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   V[0] = muontraj.nodes()[0]->measurement().vector()[0];
   V[1] = muontraj.nodes()[0]->measurement().vector()[1];
   V[2] = muontraj.nodes()[0]->measurement().surface().position()[2];
-
+  
   //direction
   fit_parabola( V, muontraj);
-  // EVector dr(3,0);
-//   find_directSeed(dr, muontraj);
-//   V[3] = dr[0]/dr[2];
-//   V[4] = dr[1]/dr[2];
+  
   //Momentum. Estimate from empirical extent function.
   double Xtent = hits[hits.size()-1]->surface().position()[2]
     - hits[_vertGuess]->surface().position()[2];
@@ -341,7 +346,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seed,RP::default_rep);
-
+  
   bool ok = perform_kalman_fit( seed, muontraj);
   if ( !ok )
     _failType = 5;
@@ -366,14 +371,14 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
     z[iMeas] = track.nodes()[iMeas]->measurement().surface().position()[2];
 
   }
-
+  
   TGraph *gr1 = new TGraph((const int)nMeas, z, x);
   TGraph *gr2 = new TGraph((const int)nMeas, z, y);
 
   //TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*pow(x,2)+[3]*pow(x,3)+[4]*pow(x,4)",-3,3);
   TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
   fun->SetParameters(0.,0.001);
-
+  
   gr1->Fit("parfit", "QN");
   vec[3] = fun->GetParameter(1);// + 2*fun->GetParameter(2)*vec[0];
   //+ 3*fun->GetParameter(3)*pow(vec[0],2) + 4*fun->GetParameter(4)*pow(vec[0],3);
@@ -382,7 +387,7 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   gr2->Fit("parfit", "QN");
   vec[4] = fun->GetParameter(1);// + 2*fun->GetParameter(2)*vec[1];
   //+ 3*fun->GetParameter(3)*pow(vec[1],2) + 4*fun->GetParameter(4)*pow(vec[1],3);
-
+  
 }
 
 //***********************************************************************
@@ -461,19 +466,4 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
   }
 
   return true;
-}
-
-//*************************************************************
-void event_classif::find_directSeed(EVector& R, const Trajectory& track){
-//*************************************************************
-
-  R[0] = track.nodes()[0]->measurement().vector()[0]
-    - track.nodes()[2]->measurement().vector()[0];
-  R[1] = track.nodes()[0]->measurement().vector()[1]
-    - track.nodes()[2]->measurement().vector()[1];
-  R[2] = track.nodes()[0]->measurement().surface().position()[2]
-    - track.nodes()[2]->measurement().surface().position()[2];
-  
-  R /= R.norm();
-  
 }

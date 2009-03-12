@@ -46,11 +46,12 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _evNo = evt.event_number();
   _Fit = success;
   _fail = Fit.get_fail_type();
+  _reFit = Fit.check_reseed();
 
   if (_fail != 7)
     _intType = Fit.get_classifier().get_int_type();
   else _intType = 7;
-
+  
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
 
@@ -119,6 +120,7 @@ void MINDplotter::define_tree_branches() {
 
   statTree->Branch("Evt", &_evNo, "EventNo/I");
   statTree->Branch("Fitted", &_Fit, "success/B");
+  statTree->Branch("backFit",&_reFit,"backFit/B");
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("interaction",&_intType,"Inter/I");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");

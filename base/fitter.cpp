@@ -240,8 +240,6 @@ void fitter::addFitInfo(bhep::particle& part,bool fitted) {
       ok = man().matching_svc().compute_length(_traj2, length);
     else ok = man().matching_svc().compute_length(_traj, length);
 
-    if (!ok) cout << "Shite measurement of length:"<<length << endl;
-    else cout << "Gid length: "<<length<<endl;
     if (hasproperty) {
       
       part.change_property("fitted","1");  
@@ -432,7 +430,7 @@ bool fitter::fitTrajectory(State seed) {
 bool fitter::reseed_traj(){
 //*************************************************************
   bool ok;
-  std::cout << "Entering backwards fit" << std::endl;  
+  //std::cout << "Entering backwards fit" << std::endl;  
   State backSeed = get_classifier().get_patRec_seed();
 
   vector<Node*>::iterator nIt;
@@ -485,9 +483,9 @@ bool fitter::fitHadrons(){
   const dict::Key Edep = "E_dep";
 
   for (engIt = _hadmeas.begin();engIt != _hadmeas.end();engIt++)
-    _hadEng += bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
+    _hadEng += bhep::double_from_string( (*engIt)->name( Edep ) );
 
-  _hadEng = eng_scale(_hadEng);
+  _hadEng = eng_scale( _hadEng );
 
   if (nhadhits<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
@@ -558,17 +556,23 @@ bool fitter::fitHadrons(){
 double fitter::eng_scale(double visEng){
 //*************************************************************
 
-  double factor;
-  //Equations/error calc. in log.
-  if (visEng < 100){
-    factor = 5.315 + 0.1955*visEng - 0.001554*pow(visEng, 2);
-  } else if (visEng < 170) {
-    factor = -116.3 + 1.994*visEng - 0.0075*pow(visEng, 2);
-  } else {
-    factor = -1541 + 22.02*visEng - 0.103*pow(visEng, 2) + 0.000159*pow(visEng, 3);
-  }
+  double factor1, factor2, scaledEng;
+  //Equations/error calc. in log. root from parafit at mo.
+  if ( visEng==0 ) return -99;
+  else if ( visEng > 0.03263 ) visEng = 0.03263;
 
-  return factor * GeV;
+  factor1 = -0.0024 + sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484)
+    /(2*-0.0000484);
+  factor1 = -0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484)
+    /(2*-0.0000484);
+
+  if ( factor1 < 0 )
+    scaledEng = factor2;
+  else if ( factor2 < 0 )
+    scaledEng = factor1;
+  else scaledEng = TMath::Min(factor1, factor2);
+
+  return scaledEng * GeV;
 }
 
 //*************************************************************

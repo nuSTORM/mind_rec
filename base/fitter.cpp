@@ -228,12 +228,20 @@ void fitter::addFitInfo(bhep::particle& part,bool fitted) {
   m.message("+++ addFitInfo function +++",bhep::VERBOSE);
   
   bool hasproperty = part.find_property("fitted");
+  bool ok;
+  double length;
   
   if (fitted) {
     
     m.message("++ Particle fitted",bhep::VERBOSE);
     m.message("++ Chi2 of fit: ",getChi2(),bhep::VERBOSE);
-    
+
+    if ( reseed_ok )
+      ok = man().matching_svc().compute_length(_traj2, length);
+    else ok = man().matching_svc().compute_length(_traj, length);
+
+    if (!ok) cout << "Shite measurement of length:"<<length << endl;
+    else cout << "Gid length: "<<length<<endl;
     if (hasproperty) {
       
       part.change_property("fitted","1");  
@@ -249,7 +257,7 @@ void fitter::addFitInfo(bhep::particle& part,bool fitted) {
       part.add_property("fitChi2",bhep::to_string(getChi2()));
       part.add_property("ndof",bhep::to_string(_traj.ndof())); 
       part.add_property("charge",bhep::to_string(getQ()));
-      part.add_property("length","0");  
+      part.add_property("length",bhep::to_string(length));  
       
     }
 

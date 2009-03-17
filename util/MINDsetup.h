@@ -69,6 +69,7 @@ protected:
   double MOTHER_y, MIND_y;
   double MOTHER_z, MIND_z;
   double IRON_z, SCINT_z;
+  double rel_den;
   int nScint;
 
   // -------------------------------------------------------------//
@@ -84,7 +85,7 @@ protected:
   
   //------------------- PROPERTIES OF MATERIALS -----------------//
     
-  double X0Fe, X0Sc;
+  double X0Fe, X0Sc, X0Eff;
   double de_dx;
   
   //-------------------------------------------------------------//

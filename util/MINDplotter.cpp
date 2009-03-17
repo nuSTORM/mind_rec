@@ -61,6 +61,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     
     State ste;
     ok = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
+    _leng = Fit.get_traj().length();
+    _rangP = (_leng-205.5)/641.8 * GeV;
     
     if (ok) {
       max_local_chi2( Fit.get_traj() );
@@ -86,6 +88,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     _Chi[0] = 0; _Chi[1] = 0;
 
     _Q[1] = 0; _Q[2] = 0;
+    _leng = 0;
+    _rangP = 0;
 
     _haddot = 99;
     _hadE[1] = -99;
@@ -128,6 +132,8 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
+  statTree->Branch("length", &_leng,"lenTraj/D");
+  statTree->Branch("RangeMomentum", &_rangP,"rangP/D");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
   statTree->Branch("hadEng", &_hadE, "truE/D:recE/D");

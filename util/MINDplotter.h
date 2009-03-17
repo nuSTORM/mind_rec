@@ -84,6 +84,8 @@ private:
   double _X[3][2];
   double _Th[3][2];
   double _qP[3];
+  double _leng;
+  double _rangP;
   int _Q[3];
   double _Chi[2];
   int _nhits;

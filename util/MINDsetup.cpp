@@ -193,7 +193,7 @@ void MINDsetup::addProperties(){
 //   _gsetup.set_volume_property(vol_name,"BField",BField);
 //   _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
   
-  _gsetup.set_volume_property(vol_name,"X0",X0Fe);
+  _gsetup.set_volume_property(vol_name,"X0",X0Eff);
   _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
 
   // _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
@@ -231,6 +231,7 @@ void MINDsetup::readParam(){
     IRON_z = _pstore.fetch_dstore("widthI") * cm;
     SCINT_z = _pstore.fetch_dstore("widthS") * cm;
     nScint = _pstore.fetch_istore("nplane");
+    rel_den = _pstore.fetch_dstore("rel_den");
 
     //--------------------------- VOLUMES ------------------------//
     
@@ -256,6 +257,11 @@ void MINDsetup::readParam(){
     
     X0Fe = _pstore.fetch_dstore("x0Fe") * mm;
     X0Sc = _pstore.fetch_dstore("x0Sc") * mm;
+
+    double wFe = IRON_z/(IRON_z + SCINT_z*nScint*rel_den);
+    double wSc = 1-wFe;
+    X0Eff = 1./(wFe/X0Fe + wSc/X0Sc);
+
     de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
     //X0 = 1e9 *mm;
 

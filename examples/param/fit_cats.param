@@ -27,6 +27,9 @@ RUN nplane I 1
 # radiation length (mm)
 RUN x0Sc D 413.1
 
+# relative density, Sc/Fe.
+RUN rel_den D 0.135
+
 ########
 
 # energy loss (MeV/cm)
@@ -99,8 +102,12 @@ ANA min_iso_prop D 0.8
 
 ###  data to read ###
 
-DATA idst_files SV 1
-/home/alaing/ntuples/ehit_3.gz
+DATA idst_files SV 4
+/home/alaing/tnd_cc_0.gz
+/home/alaing/tnd_cc_1.gz
+/home/alaing/tnd_cc_2.gz
+/home/alaing/tnd_cc_3.gz
+# /home/alaing/ntuples/ehit_3.gz
 # /home/alaing/ntuples/tndmu.gz
 # /home/alaing/ntuples/tndmu_10GeV_10k.gz
 # /home/alaing/ntuples/hadrons.gz
@@ -114,8 +121,12 @@ DATA idst_files SV 1
 
 ###  data to write ###
 
-DATA odst_files SV 1
-/home/alaing/ntuples/ehit_3.FITTED.gz
+DATA odst_files SV 4
+/home/alaing/tnd_cc_0.FITTED.gz
+/home/alaing/tnd_cc_1.FITTED.gz
+/home/alaing/tnd_cc_2.FITTED.gz
+/home/alaing/tnd_cc_3.FITTED.gz
+# /home/alaing/ntuples/ehit_3.FITTED.gz
 # /home/alaing/ntuples/tndmu.FITTED.gz
 # /home/alaing/ntuples/tndmu_10GeV_10k.FITTED.gz
 # /home/alaing/ntuples/hadrons.FITTED.gz

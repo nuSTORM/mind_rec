@@ -480,6 +480,15 @@ bool fitter::fitHadrons(){
 //*************************************************************
   
   size_t nhadhits = _hadmeas.size();
+
+  measurement_vector::iterator engIt;
+  const dict::Key Edep = "E_dep";
+
+  for (engIt = _hadmeas.begin();engIt != _hadmeas.end();engIt++)
+    _hadEng += bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
+
+  _hadEng = eng_scale(_hadEng);
+
   if (nhadhits<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
   const int nplanes = ( (int)_hadmeas[0]->surface().position()[2]
@@ -492,7 +501,6 @@ bool fitter::fitHadrons(){
   
   size_t hits_used = 0, imeas = 0;
   int ientry = nplanes-1;
-  const dict::Key Edep = "E_dep";
 
   //Assumming energy will be stored as MeV for now.
   do {  
@@ -507,7 +515,6 @@ bool fitter::fitHadrons(){
     hits_used++;
     count++;
     EngPlane += EngHit;
-    _hadEng += EngHit;
     
     for (size_t i=hits_used;i < nhadhits;i++){
       curZ = _hadmeas[i]->surface().position()[2];
@@ -519,7 +526,6 @@ bool fitter::fitHadrons(){
 	count++;
 	hits_used++;
 	EngPlane += EngHit;
-	_hadEng += EngHit;
 
       } else break;
     }
@@ -544,8 +550,6 @@ bool fitter::fitHadrons(){
   _hadunit[1] = fitfunc->GetParameter(1);
   
   _hadunit /= _hadunit.norm();
-
-  _hadEng = eng_scale(_hadEng);
 
   return true;
 }
@@ -574,7 +578,7 @@ bool fitter::checkQuality(){
     
     bool ok = true;
     
-    if (getChi2()>chi2fit_max) { cout << "Big Chi: "<<getChi2()<<endl; ok=false; }
+    if (getChi2()>chi2fit_max) ok=false;
        
     return ok;
 

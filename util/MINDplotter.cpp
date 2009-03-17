@@ -61,8 +61,12 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     
     State ste;
     ok = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
-    _leng = Fit.get_traj().length();
-    _rangP = (_leng-205.5)/641.8 * GeV;
+
+    if (_reFit) _leng = -Fit.get_traj().length();
+    else _leng = Fit.get_traj().length();
+
+    if (_leng !=0) _rangP = (_leng-205.5)/641.8 * GeV;
+    else _rangP = 0;
     
     if (ok) {
       max_local_chi2( Fit.get_traj() );
@@ -309,8 +313,9 @@ void MINDplotter::hadron_direction(fitter& fit) {
   normal = sqrt(pow(_hadP[0],2)+pow(_hadP[1],2)+pow(_hadP[2],2));
   //cout << "Plotter: "<<fit.get_had_eng()<<endl;
   if (fitunit[0]==0 && fitunit[1]==0) {_haddot = 99; _hadE[1] = -99;}
-  else {_haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);
-  _hadE[1] = fit.get_had_eng();}
+  else {_haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);}
+  
+  _hadE[1] = fit.get_had_eng();
 
 }
 

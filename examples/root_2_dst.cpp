@@ -19,7 +19,7 @@ using namespace std;
  *****************************************************************/
 
 int main(int argc, char* argv[]){
-  cout <<"???"<<endl;
+  
   if (argc<5){
     
     cout << "Execution requires 2 or 3 arguments." << endl;

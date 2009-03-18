@@ -561,9 +561,9 @@ double fitter::eng_scale(double visEng){
   if ( visEng==0 ) return -99;
   else if ( visEng > 0.03263 ) visEng = 0.03263;
 
-  factor1 = -0.0024 + sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484)
+  factor1 = (-0.0024 + sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
     /(2*-0.0000484);
-  factor1 = -0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484)
+  factor1 = (-0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
     /(2*-0.0000484);
 
   if ( factor1 < 0 )

@@ -102,11 +102,11 @@ ANA min_iso_prop D 0.8
 
 ###  data to read ###
 
-DATA idst_files SV 4
+DATA idst_files SV 1
 /home/alaing/tnd_cc_0.gz
-/home/alaing/tnd_cc_1.gz
-/home/alaing/tnd_cc_2.gz
-/home/alaing/tnd_cc_3.gz
+# /home/alaing/tnd_cc_1.gz
+# /home/alaing/tnd_cc_2.gz
+# /home/alaing/tnd_cc_3.gz
 # /home/alaing/ntuples/ehit_3.gz
 # /home/alaing/ntuples/tndmu.gz
 # /home/alaing/ntuples/tndmu_10GeV_10k.gz
@@ -121,11 +121,11 @@ DATA idst_files SV 4
 
 ###  data to write ###
 
-DATA odst_files SV 4
+DATA odst_files SV 1
 /home/alaing/tnd_cc_0.FITTED.gz
-/home/alaing/tnd_cc_1.FITTED.gz
-/home/alaing/tnd_cc_2.FITTED.gz
-/home/alaing/tnd_cc_3.FITTED.gz
+# /home/alaing/tnd_cc_1.FITTED.gz
+# /home/alaing/tnd_cc_2.FITTED.gz
+# /home/alaing/tnd_cc_3.FITTED.gz
 # /home/alaing/ntuples/ehit_3.FITTED.gz
 # /home/alaing/ntuples/tndmu.FITTED.gz
 # /home/alaing/ntuples/tndmu_10GeV_10k.FITTED.gz

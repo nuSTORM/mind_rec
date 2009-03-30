@@ -68,7 +68,7 @@ RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 
 # lowest and highest number of hits required for fit.
-RUN low_Pass_hits I 14
+RUN low_Pass_hits I 8
 RUN high_Pass_hits I 500
 
 # proportion of nodes which must be fir not to trigger backwards fit.
@@ -95,7 +95,7 @@ ANA patRec I 1
 # Min./Max. isolated hits for patRec seed.
 ANA min_seed_hits I 5
 ANA max_seed_hits I 20
-ANA min_check_nodes I 5
+ANA min_check_nodes I 3
 
 # Minumum proportion of isolated hits for central p seed.
 ANA min_iso_prop D 0.8

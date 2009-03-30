@@ -199,7 +199,7 @@ void MINDplotter::position_pulls() {
   m.message("++Calculating position pulls++",bhep::VERBOSE);
   
   //Reconstructed x,y position.
-  _X[1][0] = vert[0]; _X[1][1] = vert[2];
+  _X[1][0] = vert[0]; _X[1][1] = vert[1];
 
   //Corresponding Error.
   if (vertMat[0][0]>0)
@@ -319,7 +319,7 @@ void MINDplotter::hadron_direction(fitter& fit) {
   else {_haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);}
   
   _hadE[1] = fit.get_had_eng();
-
+  
 }
 
 //*************************************************************************************
@@ -369,7 +369,7 @@ void MINDplotter::patternStats(fitter& Fit) {
 	_hitType[1]++;
 	if ( isMu ) _hitType[2]++;
 	
-	if ( Fit.get_traj().node(nNode).status("fitted") ){	
+	if ( Fit.get_traj().node(nNode).status("fitted") && _fail!=1 && _fail<4 ){	
 	  _node[iHits] = true; _hitType[3]++; }
 	else _node[iHits] = false;
 	if ( Fit.check_reseed() ) nNode--;

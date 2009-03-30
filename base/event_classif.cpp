@@ -241,7 +241,7 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
 
     if ( ok && (int)muontraj.nmeas() < min_seed_hits ) {
       ok = false;
-      _failType = 5;
+      _failType = 4;
     }
   
     if ( ok )

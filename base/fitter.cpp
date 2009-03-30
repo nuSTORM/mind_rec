@@ -155,14 +155,8 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
     if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
     
     else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
-    if (!fitted) {
-      
-      if (_traj.last_fitted_node() < (int)_meas.size()-1 && _failType!=3)
-	{  kink++;
-	_failType = 4; }
-      
+    if (!fitted)
       m.message("++Failed fit trajectory++",bhep::NORMAL);
-    }
   }
   else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
   
@@ -344,13 +338,8 @@ bool fitter::fitTrajectory(State seed) {
     if (get_classifier().get_int_type() != 2){
       if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
 	reseed_ok = reseed_traj();
-    } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut){
+    } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
       reseed_ok = reseed_traj();
-      if (!reseed_ok){
-	_failType = 8;
-	return false;
-      }
-    }
     
     if (ok && !reseed_ok) ok = checkQuality();
     else if ( reseed_ok ) ok = true;
@@ -563,15 +552,15 @@ double fitter::eng_scale(double visEng){
 
   factor1 = (-0.0024 + sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
     /(2*-0.0000484);
-  factor1 = (-0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
+  factor2 = (-0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
     /(2*-0.0000484);
-
+  
   if ( factor1 < 0 )
     scaledEng = factor2;
   else if ( factor2 < 0 )
     scaledEng = factor1;
   else scaledEng = TMath::Min(factor1, factor2);
-
+  
   return scaledEng * GeV;
 }
 
@@ -687,7 +676,7 @@ bool fitter::check_valid_traj() {
     _failType = 2; 
     return false; }
 
-  if ((int)_traj.nmeas() < lowPass ) { 
+  if ((int)_traj.nmeas() < lowPass && get_classifier().get_int_type() != 2) { 
       toofew++; 
       _failType = 1;
       return false;

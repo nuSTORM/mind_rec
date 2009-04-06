@@ -14,6 +14,8 @@
 
 #include <TGraph.h>
 #include <TF1.h>
+#include <TFile.h>
+#include <TTree.h>
 
 using namespace bhep;
 
@@ -26,7 +28,7 @@ public:
   virtual ~event_classif();
   
   //-------------- main functions --------------//
-  bool initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det); //needs to take store with all info for pat rec/more?
+  bool initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det, double wFe); //needs to take store with all info for pat rec/more?
   bool execute(measurement_vector& hits,
 	       Trajectory& muontraj, measurement_vector& hads); //more arguments needed?
   bool finalize();
@@ -57,6 +59,7 @@ protected:
 		       Trajectory& muontraj, measurement_vector& hads);
   bool get_patternRec_seed(State& seed, Trajectory& muontraj, measurement_vector& hits);
   void fit_parabola(EVector& vec, Trajectory& track);
+  void set_de_dx(double mom);
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, measurement_vector& hits,
 			       Trajectory& muontraj, measurement_vector& hads);
@@ -98,12 +101,26 @@ protected:
   string kfitter;
 
   double patRec_maxChi;
+  double FeWeight;
   int patRec_max_outliers;
   int max_consec_missed_planes;
   int min_seed_hits;
   int min_check;
 
   int vfit,vnav,vmod,vmat,vsim;
+
+  //Output Likilihood info?
+  bool _outLike;
+  TFile *_outFileEv;
+  TTree *_likeTree;
+
+  int _nhit;
+  int _Occ[500], _freeplanes;
+  double _EngP[500];
+
+  void set_branches();
+  void output_liklihood_info();
+  //
 
 };
 

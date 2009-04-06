@@ -19,9 +19,7 @@
 event_classif::event_classif() {
 //**********************************************************************
 
-  // _infoStore = pstore;
   
-//   m = bhep::messenger( vlevel );
 
 }
 
@@ -34,7 +32,7 @@ event_classif::~event_classif() {
 
 //***********************************************************************
 bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
-			       Setup& det) {
+			       Setup& det, double wFe) {
 //***********************************************************************
 
   m = bhep::messenger( vlevel );
@@ -42,6 +40,17 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
 
   _infoStore = pstore;
   readParam();
+
+  FeWeight = wFe;
+
+  if ( _outLike ){
+
+    _outFileEv = new TFile("LikeOut.root", "recreate");
+    _likeTree = new TTree("h1", "Possible Likelihood parameters");
+
+    set_branches();
+
+  }
 
   set_extract_properties( det );
 
@@ -62,9 +71,12 @@ bool event_classif::execute(measurement_vector& hits,
 
   //Occupancy.
   ok = get_plane_occupancy( hits );
+
+  if ( ok && _outLike)
+    output_liklihood_info();
   
   /* Code to discriminate between different event types */
-  //if identified as CC (should this be a switch?)
+  //if identified as CC
   if ( ok )
     ok = chargeCurrent_analysis(hits, muontraj, hads);
 
@@ -75,6 +87,11 @@ bool event_classif::execute(measurement_vector& hits,
 bool event_classif::finalize() {
 //***********************************************************************
 
+  if ( _outLike ){
+    _outFileEv->Write();
+    _outFileEv->Close();
+  }
+
   return true;
 }
 
@@ -83,31 +100,35 @@ void event_classif::readParam() {
 //***********************************************************************
  
   m.message("++++ readParam function of classifier ++++",bhep::VERBOSE);
-        
-    model="particle/helix"; 
-    
-    if (_infoStore.find_sstore("fitter"))
-      kfitter = _infoStore.fetch_sstore("kfitter");
-    else kfitter="kalman";
-    
-    patRec_maxChi = _infoStore.fetch_dstore("pat_rec_max_chi");
-    patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
-    max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
-    min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
-    min_check =  _infoStore.fetch_istore("min_check_nodes");
+  
+  model="particle/helix"; 
+  
+  if ( _infoStore.find_sstore("fitter") )
+    kfitter = _infoStore.fetch_sstore("kfitter");
+  else kfitter="kalman";
 
-    _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
-    
-    vfit = _infoStore.fetch_istore("vfit");
-    vnav = _infoStore.fetch_istore("vnav");
-    vmod = _infoStore.fetch_istore("vmod");
-
+  if ( _infoStore.find_istore("likeli") )
+    _outLike = _infoStore.fetch_istore("likeli");
+  else _outLike = false;
+  
+  patRec_maxChi = _infoStore.fetch_dstore("pat_rec_max_chi");
+  patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
+  max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
+  min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
+  min_check =  _infoStore.fetch_istore("min_check_nodes");
+  
+  _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
+  
+  vfit = _infoStore.fetch_istore("vfit");
+  vnav = _infoStore.fetch_istore("vnav");
+  vmod = _infoStore.fetch_istore("vmod");
+  
 }
 
 //***********************************************************************
 void event_classif::set_extract_properties(Setup& det) {
 //***********************************************************************
-
+  
   std::string info[4]={"MUTE","NORMAL","VERBOSE","VVERBOSE"};
   Messenger::Level l0 = Messenger::str(info[vfit]);
   Messenger::Level l1 = Messenger::str(info[vnav]);
@@ -324,10 +345,10 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
     - hits[_vertGuess]->surface().position()[2];
 
   double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
-  double de_dx = -(2.08 + 10.3*pow(pSeed/GeV, 0.116)) * MeV/cm;
+
+  set_de_dx( pSeed/GeV );
 
   V[5] = 1./pSeed;
-  man().geometry_svc().setup().set_volume_property_to_sons("mother","de_dx",de_dx);
 
   //Errors
   M[0][0] = M[1][1] = 15.*cm*cm;
@@ -375,19 +396,28 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   TGraph *gr1 = new TGraph((const int)nMeas, z, x);
   TGraph *gr2 = new TGraph((const int)nMeas, z, y);
 
-  //TF1 *fun = new TF1("parfit","[0]+[1]*x+[2]*pow(x,2)+[3]*pow(x,3)+[4]*pow(x,4)",-3,3);
   TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
   fun->SetParameters(0.,0.001);
   
   gr1->Fit("parfit", "QN");
-  vec[3] = fun->GetParameter(1);// + 2*fun->GetParameter(2)*vec[0];
-  //+ 3*fun->GetParameter(3)*pow(vec[0],2) + 4*fun->GetParameter(4)*pow(vec[0],3);
+  vec[3] = fun->GetParameter(1);
 
   fun->SetParameters(0.,0.001);
   gr2->Fit("parfit", "QN");
-  vec[4] = fun->GetParameter(1);// + 2*fun->GetParameter(2)*vec[1];
-  //+ 3*fun->GetParameter(3)*pow(vec[1],2) + 4*fun->GetParameter(4)*pow(vec[1],3);
+  vec[4] = fun->GetParameter(1);
   
+}
+
+//***********************************************************************
+void event_classif::set_de_dx(double mom){
+//***********************************************************************
+  
+  double de_dx = -( 12.37 * FeWeight * pow( mom, 0.099) 
+		    + (1 - FeWeight) * 2.16 * pow( mom, 0.075) );
+  de_dx *= MeV/cm;
+  
+  man().geometry_svc().setup().set_volume_property_to_sons("mother","de_dx",de_dx);
+
 }
 
 //***********************************************************************
@@ -466,4 +496,49 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
   }
 
   return true;
+}
+
+//***********************************************************************
+void event_classif::set_branches(){
+//***********************************************************************
+  
+  _likeTree->Branch("nhits", &_nhit, "nhits/I");
+  _likeTree->Branch("nplanes", &_nplanes, "nplanes/I");
+  _likeTree->Branch("meanOcc", &_meanOcc, "meanocc/D");
+  _likeTree->Branch("freePlanes", &_freeplanes, "freeplanes/I");
+  _likeTree->Branch("occupancy", &_Occ, "occ[nplanes]/I");
+  _likeTree->Branch("planeEnergy", &_EngP, "plEng[nplanes]/D");
+
+}
+//***********************************************************************
+void event_classif::output_liklihood_info(){
+//***********************************************************************
+  
+  bool multFound = false;
+
+  _nhit = 0;
+  _freeplanes = 0;
+
+  vector<int>::iterator itLike;
+  vector<double>::iterator itEngL = _energyPerPlane.end()-1;
+
+  int counter = _nplanes - 1;
+
+  for (itLike = _hitsPerPlane.end()-1;itLike >= _hitsPerPlane.begin();itLike--, itEngL--){
+
+    _Occ[counter] = (*itLike);
+    _EngP[counter] = (*itEngL);
+
+    _nhit += (*itLike);
+
+    if ( !multFound && (*itLike) == 1)
+      _freeplanes++;
+    else multFound = true;
+
+    counter--;
+
+  }
+  cout << "Stuff: "<<_nplanes<<","<<_nhit<<","<<_meanOcc<<","<<_freeplanes<<","<<_Occ[0]<<","<<_EngP[0]<<endl;
+  _likeTree->Fill();
+
 }

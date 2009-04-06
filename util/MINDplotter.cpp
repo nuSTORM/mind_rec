@@ -41,7 +41,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
 			  bool success, bool patRec) {
 //*************************************************************************************
   
-  bool ok;
+  bool ok1, ok2;
 
   _evNo = evt.event_number();
   _Fit = success;
@@ -55,22 +55,25 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
 
-  ok = extract_true_particle(evt, Fit, patRec);
+  ok1 = extract_true_particle(evt, Fit, patRec);
 
   if (success) {
     
     State ste;
-    ok = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
+    ok2 = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
 
     if (_reFit) _leng = -Fit.get_traj().length();
     else _leng = Fit.get_traj().length();
 
     if (_leng !=0) {
-      _rangP[0] = (_leng+56.9)/722.6 * GeV;
-      _rangP[1] = 0.04*pow( _rangP[0], 1.5);
+      // _rangP[0] = (_leng+56.9)/722.6 * GeV;
+//       _rangP[1] = 0.04*_rangP[0];
+      Fit.calculate_len_mom( _leng, _rangP );
+      cout << "RangMeas: "<< _rangP[0]<<","<<_rangP[1]<<endl;
+      cout << "Truth: "<<1/_qP[0]<<endl;
     } else { _rangP[0] = 0; _rangP[1] = -99; }
     
-    if (ok) {
+    if (ok2) {
       max_local_chi2( Fit.get_traj() );
       position_pulls();
       direction_pulls();
@@ -108,7 +111,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   //Fill tree event with the values.
   statTree->Fill();
 
-  return ok;
+  return ok1;
 }
 
 //*************************************************************************************
@@ -277,20 +280,6 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
     }
   }
   
-  if (count == 0) {
-    cout << "No particles of muon or antimuon type in file" << endl;
-    return false;
-  }
-  
-  //Set true values of muon mom. etc.
-  //True q/P.
-  _qP[0] = _Q[0]/_truPart->p();
-  //True direction.
-  _Th[0][0]= _truPart->px()/_truPart->pz();
-  _Th[0][1]= _truPart->py()/_truPart->pz();
-  //True x,y position.
-  _X[0][0] = evt.vertex().x(); _X[0][1] = evt.vertex().y();
-
   _nhits = Fit.get_nMeas();
 
   for (int iHits = 0;iHits < _nhits;iHits++){
@@ -303,6 +292,24 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
       if ( Fit.get_traj().node(iHits).status("fitted") )
 	_hitType[3]++;
   }
+
+  if (count == 0) {
+    cout << "No particles of muon or antimuon type in file" << endl;
+    _Q[0] = 0;
+    _qP[0] = 0;
+    _Th[0][0] = _Th[0][1]= 0;
+    _X[0][0] = _X[0][1] = 0;
+    return false;
+  }
+  
+  //Set true values of muon mom. etc.
+  //True q/P.
+  _qP[0] = _Q[0]/_truPart->p();
+  //True direction.
+  _Th[0][0]= _truPart->px()/_truPart->pz();
+  _Th[0][1]= _truPart->py()/_truPart->pz();
+  //True x,y position.
+  _X[0][0] = evt.vertex().x(); _X[0][1] = evt.vertex().y();
   
   return true;
 }
@@ -312,13 +319,19 @@ void MINDplotter::hadron_direction(fitter& fit) {
 //*************************************************************************************
   
   double normal;
-  EVector fitunit = fit.get_had_unit();
+  EVector fitunit;
   normal = sqrt(pow(_hadP[0],2)+pow(_hadP[1],2)+pow(_hadP[2],2));
-  //cout << "Plotter: "<<fit.get_had_eng()<<endl;
-  if (fitunit[0]==0 && fitunit[1]==0) {_haddot = 99; _hadE[1] = -99;}
-  else {_haddot = fitunit[0]*(_hadP[0]/normal)+fitunit[1]*(_hadP[1]/normal)+fitunit[2]*(_hadP[2]/normal);}
   
-  _hadE[1] = fit.get_had_eng();
+  if ( _nhits >= 2 ){
+    fitunit = fit.get_had_unit();
+
+    _haddot = fitunit[0]*(_hadP[0]/normal)
+      +fitunit[1]*(_hadP[1]/normal)
+      +fitunit[2]*(_hadP[2]/normal);
+
+  } else _haddot = 99;
+
+    _hadE[1] = fit.get_had_eng();
   
 }
 

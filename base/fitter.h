@@ -55,6 +55,9 @@ public:
   Measurement* getMeasurement(bhep::hit& hit);
   
   int getQ();
+
+  //calculate momentum from range.
+  void calculate_len_mom(double len, double *mom);
  
   //recpack manager
   
@@ -89,6 +92,7 @@ protected:
   void setSeed(EVector v, int firsthit=0);
   void find_directSeed(EVector& R, int sense);
   void mom_from_parabola(int nplanes, int firsthit, EVector& V);
+  void set_de_dx(double mom);
 
   //seed error
   EMatrix setSeedCov(EVector,double factor=1.);

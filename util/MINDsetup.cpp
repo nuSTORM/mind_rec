@@ -258,9 +258,9 @@ void MINDsetup::readParam(){
     X0Fe = _pstore.fetch_dstore("x0Fe") * mm;
     X0Sc = _pstore.fetch_dstore("x0Sc") * mm;
 
-    double wFe = IRON_z/(IRON_z + SCINT_z*nScint*rel_den);
-    double wSc = 1-wFe;
-    X0Eff = 1./(wFe/X0Fe + wSc/X0Sc);
+    _wFe = IRON_z/(IRON_z + SCINT_z*nScint*rel_den);
+    double wSc = 1-_wFe;
+    X0Eff = 1./(_wFe/X0Fe + wSc/X0Sc);
 
     de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
     //X0 = 1e9 *mm;

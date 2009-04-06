@@ -36,7 +36,7 @@ public:
   int getMeasDim(){return meas_dim;} 
   EVector getResolution(){return resolution;} 
   EMatrix getCov(){return cov;};
-  
+  double get_Fe_prop(){return _wFe;}
   double& getDeDx(){return de_dx;}
   void setDeDx(double d){de_dx = d;}
 
@@ -86,6 +86,7 @@ protected:
   //------------------- PROPERTIES OF MATERIALS -----------------//
     
   double X0Fe, X0Sc, X0Eff;
+  double _wFe;
   double de_dx;
   
   //-------------------------------------------------------------//

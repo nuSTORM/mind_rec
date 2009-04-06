@@ -84,7 +84,7 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   setVerbosity(vfit,vnav,vmod);
   
   // 
-  get_classifier().initialize( store, level, geom.setup() );
+  get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
@@ -277,6 +277,22 @@ void fitter::addFitInfo(bhep::particle& part,bool fitted) {
 }
 
 //*************************************************************
+void fitter::calculate_len_mom(double len, double *mom){
+//*************************************************************
+
+  double weight = geom.get_Fe_prop();
+
+  //parameters form fit to range data for Scint and Fe.
+
+  mom[0] = exp( ( log( len ) - 8.35 + 1.72 * weight ) / ( 0.981 - 0.023 * weight ) );
+  mom[0] *= GeV;
+  //All considered?? 5% from range fit and 1cm error on length?
+  mom[1] = sqrt( pow( 0.05, 2) + pow( 10.0/len, 2) ) /( len * ( 0.981 - 0.023 * weight ) );
+  mom[1] *= mom[0]; 
+  
+}
+
+//*************************************************************
 bool fitter::fitTrajectory(State seed) {
 //*************************************************************
     
@@ -299,8 +315,10 @@ bool fitter::fitTrajectory(State seed) {
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
 	  
-	  double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
-	  geom.setDeDx(de_dx);
+	  // double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
+// 	  geom.setDeDx(de_dx);
+	  
+	  set_de_dx( fabs(1./v[5])/GeV );
 
 	  EMatrix C = setSeedCov(C0,facRef);
 	  
@@ -442,8 +460,10 @@ bool fitter::reseed_traj(){
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
       
-      double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
-      geom.setDeDx(de_dx);
+      // double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
+//       geom.setDeDx(de_dx);
+
+      set_de_dx( fabs(1./v[5])/GeV );
       
       EMatrix C = setSeedCov(C0,facRef);
 	  
@@ -676,7 +696,7 @@ bool fitter::check_valid_traj() {
     _failType = 2; 
     return false; }
 
-  if ((int)_traj.nmeas() < lowPass && get_classifier().get_int_type() != 2) { 
+  if ((int)_traj.nmeas() < lowPass) { 
       toofew++; 
       _failType = 1;
       return false;
@@ -843,7 +863,10 @@ double fitter::trackLength(const Trajectory& t) {
 //*************************************************************
 bool fitter::finalize() {
 //*************************************************************
-  
+   
+  bool ok;
+  ok = get_classifier().finalize();
+
   ofstream fitstats;
   fitstats.open("MindFitStats.txt");
 
@@ -902,8 +925,11 @@ void fitter::setSeed(EVector r, int firsthit){
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   if (v[5] == 0) { pSeed = (double)(0.060*_traj.nmeas())*GeV;
   v[5] = 1.0/pSeed; }
-  double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
-  geom.setDeDx(de_dx);
+  // double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
+//   geom.setDeDx(de_dx);
+  
+  set_de_dx( fabs(1./v[5])/GeV );
+
   m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   // But use a larger covariance matrix
@@ -1074,6 +1100,20 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     delete trajFitYZ;
   }
   
+}
+
+//*****************************************************************************
+void fitter::set_de_dx(double mom){
+//*****************************************************************************
+
+  double weight = geom.get_Fe_prop();
+  
+  double de_dx = -( 12.37 * weight * pow( mom, 0.099)
+		    + (1 - weight) * 2.16 * pow( mom, 0.075) );
+  de_dx *= MeV/cm;
+  
+  geom.setDeDx(de_dx);
+
 }
 
 //*****************************************************************************

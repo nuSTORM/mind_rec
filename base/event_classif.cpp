@@ -538,7 +538,7 @@ void event_classif::output_liklihood_info(){
     counter--;
 
   }
-  cout << "Stuff: "<<_nplanes<<","<<_nhit<<","<<_meanOcc<<","<<_freeplanes<<","<<_Occ[0]<<","<<_EngP[0]<<endl;
+  
   _likeTree->Fill();
 
 }

@@ -101,7 +101,7 @@ ANA min_check_nodes I 3
 ANA min_iso_prop D 0.8
 
 # Bit to tell if require output of likelihood info.
-RUN likeli I 1
+RUN likeli I 0
 
 ###  data to read ###
 

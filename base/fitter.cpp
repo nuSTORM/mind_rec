@@ -287,7 +287,7 @@ void fitter::calculate_len_mom(double len, double *mom){
   mom[0] = exp( ( log( len ) - 8.35 + 1.72 * weight ) / ( 0.981 - 0.023 * weight ) );
   mom[0] *= GeV;
   //All considered?? 5% from range fit and 1cm error on length?
-  mom[1] = sqrt( pow( 0.05, 2) + pow( 10.0/len, 2) ) /( len * ( 0.981 - 0.023 * weight ) );
+  mom[1] = sqrt( pow( 0.05, 2) + pow( 10.0/len, 2) ) / ( 0.981 - 0.023 * weight );
   mom[1] *= mom[0]; 
   
 }

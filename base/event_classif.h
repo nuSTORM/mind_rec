@@ -9,6 +9,7 @@
 #include <recpack/RayTool.h>
 #include <recpack/KalmanFitter.h>
 #include <recpack/ParticleState.h>
+#include <recpack/CellularAutomaton.h>
 
 #include <bhep/gstore.h>
 
@@ -63,6 +64,16 @@ protected:
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, measurement_vector& hits,
 			       Trajectory& muontraj, measurement_vector& hads);
+  //specific functions using cellular automaton.
+  bool invoke_cell_auto(measurement_vector& hits,
+			Trajectory& muontraj, measurement_vector& hads);
+  void sort_hits(measurement_vector& hits, Trajectory& muontraj, measurement_vector& hads);
+  bool sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs);
+  bool reject_small(vector<Trajectory*>& trajs, vector<Trajectory*>& trajs2);
+  bool reject_high(vector<Trajectory*>& trajs, vector<Trajectory*>& trajs2);
+  bool reject_final(vector<Trajectory*>& trajs, Trajectory& muontraj);
+  double compare_nodes(vector<Node*>& n1, vector<Node*>& n2);
+  void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
   
   RecpackManager& man(){return _man;}
@@ -81,6 +92,8 @@ protected:
   vector<int> _hitsPerPlane;
   vector<double> _energyPerPlane;
   double _tolerance; //required 'closeness' to be considered in plane.
+  double _max_sep; //maximum transverse separation for cell auto neighbour.
+  int _max_traj; //maximum no. of trajectories from cell auto.
   
   //integer for type candidate (NC etc.)
   int _intType;
@@ -106,6 +119,9 @@ protected:
   int max_consec_missed_planes;
   int min_seed_hits;
   int min_check;
+  int min_hits;
+  double chi2_max;
+  double max_coincedence;
 
   int vfit,vnav,vmod,vmat,vsim;
 
@@ -113,6 +129,7 @@ protected:
   bool _outLike;
   TFile *_outFileEv;
   TTree *_likeTree;
+  //
 
   int _nhit;
   int _Occ[500], _freeplanes;
@@ -122,6 +139,14 @@ protected:
   void output_liklihood_info();
   //
 
+};
+
+class chiSorter{
+public:
+  bool operator()(const Trajectory* T1, const Trajectory* T2){
+    if ( T2->quality() > T1->quality() ) return true;
+    return false;
+  }
 };
 
 #endif

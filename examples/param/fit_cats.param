@@ -67,6 +67,12 @@ RUN pat_rec_max_chi D 100
 RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 
+# cuts on cellular automaton trajectories. separation in cm.
+RUN max_sep D 3
+RUN max_traj I 50
+RUN accept_chi D 20
+RUN max_coincidence D 0.5
+
 # lowest and highest number of hits required for fit.
 RUN low_Pass_hits I 10
 RUN high_Pass_hits I 500

@@ -90,12 +90,10 @@ protected:
   //seed for fit
   void computeSeed(int firsthit=0);
   void setSeed(EVector v, int firsthit=0);
-  void find_directSeed(EVector& R, int sense);
   void mom_from_parabola(int nplanes, int firsthit, EVector& V);
   void set_de_dx(double mom);
 
   //seed error
-  EMatrix setSeedCov(EVector,double factor=1.);
   EMatrix setSeedCov(EMatrix C0, double factor);
  
   //fit trajectory

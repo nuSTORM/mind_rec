@@ -42,7 +42,15 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
   readParam();
 
   FeWeight = wFe;
-
+  
+  //define parameters for cellular automaton.
+  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+    .set_max_distance( _max_sep );
+  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+    .set_plane_tolerance( _tolerance );
+  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+    .set_max_trajs( _max_traj );
+  //
   if ( _outLike ){
 
     _outFileEv = new TFile("LikeOut.root", "recreate");
@@ -116,12 +124,18 @@ void event_classif::readParam() {
   max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
   min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
   min_check =  _infoStore.fetch_istore("min_check_nodes");
+  min_hits = _infoStore.fetch_istore("low_Pass_hits");
   
   _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
+  _max_sep = _infoStore.fetch_dstore("max_sep") * cm;
+  _max_traj = _infoStore.fetch_istore("max_traj");
+  chi2_max = _infoStore.fetch_dstore("accept_chi");
+  max_coincedence = _infoStore.fetch_dstore("max_coincidence");
   
   vfit = _infoStore.fetch_istore("vfit");
   vnav = _infoStore.fetch_istore("vnav");
   vmod = _infoStore.fetch_istore("vmod");
+  vmat = _infoStore.fetch_istore("vmat");
   
 }
 
@@ -133,6 +147,7 @@ void event_classif::set_extract_properties(Setup& det) {
   Messenger::Level l0 = Messenger::str(info[vfit]);
   Messenger::Level l1 = Messenger::str(info[vnav]);
   Messenger::Level l2 = Messenger::str(info[vmod]);
+  Messenger::Level l3 = Messenger::str(info[vmat]);
 
   man().fitting_svc().fitter(model).set_verbosity(l0);
   man().fitting_svc().select_fitter(kfitter);
@@ -158,6 +173,10 @@ void event_classif::set_extract_properties(Setup& det) {
 
   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
     set_number_allowed_outliers(patRec_max_outliers);
+
+  //Cell auto verbosity.
+  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+    .set_verbosity(l3);
 
 }
 
@@ -223,7 +242,7 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
 
   if ( _nplanes == 0 ) return false;
   _meanOcc /= (double)_nplanes;
-
+  
   return ok;
 }
 
@@ -254,18 +273,21 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   _lastIso = (int)muontraj.nmeas();
 
   if ( _meanOcc == 1 ){
+
     _intType = 2;
     if ( muontraj.size() !=0 )
       ok = muon_extraction( hits, muontraj, hads);
     else ok = false;
+
   } else {
 
-    if ( ok && (int)muontraj.nmeas() < min_seed_hits ) {
-      ok = false;
-      _failType = 4;
-    }
-  
-    if ( ok )
+    if ( (int)muontraj.nmeas() < min_seed_hits ) {
+      
+      ok = invoke_cell_auto( hits, muontraj, hads);
+      if ( !ok ) _failType = 4;
+      _intType = 5;
+
+    } else
       ok = muon_extraction( hits, muontraj, hads);
 
   }
@@ -332,6 +354,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 
   EVector V(6,0); EVector V2(1,0);
   EMatrix M(6,6,0); EMatrix M2(1,1,0);
+  double Xtent;
 
   V[0] = muontraj.nodes()[0]->measurement().vector()[0];
   V[1] = muontraj.nodes()[0]->measurement().vector()[1];
@@ -341,8 +364,17 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   fit_parabola( V, muontraj);
   
   //Momentum. Estimate from empirical extent function.
-  double Xtent = hits[hits.size()-1]->surface().position()[2]
-    - hits[_vertGuess]->surface().position()[2];
+  if ( hits.size() != 0 ){
+
+    Xtent = hits[hits.size()-1]->surface().position()[2]
+      - hits[_vertGuess]->surface().position()[2];
+
+  } else {
+    
+    Xtent = muontraj.nodes()[(int)muontraj.nmeas()-1]->measurement().surface().position()[2]
+      - muontraj.nodes()[0]->measurement().surface().position()[2];
+
+  }
 
   double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
 
@@ -499,6 +531,294 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
 }
 
 //***********************************************************************
+bool event_classif::invoke_cell_auto(measurement_vector& hits,
+				     Trajectory& muontraj, measurement_vector& hads){
+//***********************************************************************
+//uses cellular automaton to try and retrieve more complicated events.
+  cout << "Entering cell auto: "<< hits.size() <<endl;
+  bool ok;
+  std::vector<Trajectory*> trajs;
+  
+  ok = man().matching_svc().find_trajectories( hits, trajs);
+  cout << "Poss. trajs got: "<< trajs.size()<<endl;
+  if ( !ok || trajs.size() == 0) return false;
+
+  if ( trajs.size() == 1 ) {
+  
+    muontraj.reset();
+
+    muontraj = *trajs[0];
+
+    sort_hits( hits, muontraj, hads);
+
+    ok = true;
+
+  } else {
+
+    ok = sort_trajs( muontraj, trajs);
+
+    if ( ok )
+      sort_hits( hits, muontraj, hads);
+
+  }
+  cout << "End cell auto: "<<ok<<endl;
+  return ok;
+}
+
+//***********************************************************************
+void event_classif::sort_hits(measurement_vector& hits,
+			      Trajectory& muontraj, measurement_vector& hads){
+//***********************************************************************
+  cout<<"sorting hits"<<endl;
+  bool inTraj;
+  vector<Node*>::iterator inTrIt;
+  inTrIt = muontraj.nodes().begin();
+
+  const dict::Key candHit = "inMu";
+  const dict::Key not_in = "False";
+
+  for (_hitIt = hits.begin();_hitIt!=hits.end();_hitIt++){
+
+    inTraj = false;
+    if ( (*_hitIt)->names().has_key(candHit) )
+      (*_hitIt)->set_name(candHit, not_in);
+
+    for (inTrIt = muontraj.nodes().begin();inTrIt != muontraj.nodes().end();inTrIt++){
+
+      if ( (*_hitIt)->vector() == (*inTrIt)->measurement().vector() ) {
+
+	const dict::Key hit_in = "True";
+	(*_hitIt)->set_name(candHit, hit_in);
+
+	inTraj = true;
+      }
+
+    }
+
+    if ( !inTraj )
+      hads.push_back( (*_hitIt) );
+
+  }
+
+}
+
+//***********************************************************************
+bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs){
+//***********************************************************************
+//Reject possible trajectories based on number of hits, chi2, hits in common.
+  cout<<"sorting trajectories"<<endl;
+  bool ok;
+  std::vector<Trajectory*> trajs2;
+
+  ok = reject_small( trajs, trajs2);
+  cout << "small rejected: "<<trajs2.size()<<endl;
+  trajs.clear();
+
+  if ( ok ){
+    if ( trajs2.size() == 1 ){
+  
+      muontraj.reset();
+      
+      muontraj = *trajs2[0];
+      
+      return ok;
+
+    } else {
+
+      std::vector<Trajectory*> trajs3;
+      std::vector<double> Chis;
+
+      ok = reject_high( trajs2, trajs3);
+      cout << "rejected high: "<<trajs3.size()<<endl;
+      trajs2.clear();
+
+      if ( ok ){
+	if ( trajs2.size() == 1 ){
+  
+	  muontraj.reset();
+      
+	  muontraj = *trajs2[0];
+      
+	  return ok;
+
+	} else {
+
+	  ok = reject_final( trajs3, muontraj);
+
+	}
+
+      }
+
+    }
+
+  }
+
+  return ok;
+}
+
+//***********************************************************************
+bool event_classif::reject_small(vector<Trajectory*>& trajs,
+				 vector<Trajectory*>& trajs2){
+//***********************************************************************
+  cout << "rejecting small"<<endl;
+  vector<Trajectory*>::iterator it1;
+
+  for (it1 = trajs.begin();it1 != trajs.end();it1++){
+
+    if ( (int)(*it1)->nmeas() >= min_hits )
+      trajs2.push_back( (*it1) );
+
+  }
+
+  if ( trajs2.size() == 0 ) return false;
+
+  return true;
+}
+
+//***********************************************************************
+bool event_classif::reject_high(vector<Trajectory*>& trajs,
+				vector<Trajectory*>& trajs2){
+//***********************************************************************
+  cout << "rejecting high"<<endl;
+  bool ok1, ok2 = false;
+
+  vector<Trajectory*>::iterator it1;
+  State temp_seed;
+  measurement_vector dummy_hits;
+  double momErr;
+
+  for (it1 = trajs.begin();it1 != trajs.end();it1++){
+
+    Trajectory& temp_traj = *(*it1);
+
+    temp_traj.sort_nodes( -1 );
+
+    ok1 = get_patternRec_seed( temp_seed, temp_traj, dummy_hits);
+
+    if ( ok1 && temp_traj.quality() < chi2_max ){
+
+      (*it1)->set_quality( temp_traj.quality() );
+
+      const dict::Key relErr = "relErr";
+      momErr = temp_seed.matrix()[6][6] / temp_seed.vector()[6];
+      (*it1)->set_quality( relErr, momErr);
+
+      trajs2.push_back( (*it1) );
+
+      ok2 = true;
+    }
+
+  }
+
+  sort( trajs2.begin(), trajs2.end(), chiSorter() );
+
+  return ok2;
+}
+
+//***********************************************************************
+bool event_classif::reject_final(vector<Trajectory*>& trajs,
+				 Trajectory& muontraj){
+//***********************************************************************
+//Accept lowest local chi and then any others with few coincidences
+//with this trajectory then choose the longest/lowest error track.
+  cout << "reject final"<<endl;
+  std::vector<Trajectory*> temp_trajs;
+  temp_trajs.push_back( trajs[0] );
+
+  vector<Trajectory*>::iterator it1, it2;
+
+  double coincidence;
+
+  for (it1 = trajs.begin()+1;it1 != trajs.end();it1++){
+    
+    vector<Node*>& node2 = (*it1)->nodes();
+    it2 = temp_trajs.begin();
+
+    while ( it2 != temp_trajs.end() && coincidence < max_coincedence ){
+
+      vector<Node*>& node1 = (*it2)->nodes();
+
+      coincidence = compare_nodes( node1, node2);
+
+      it2++;
+    }
+    
+    if ( coincidence < max_coincedence )
+      temp_trajs.push_back( (*it1) );
+
+  }
+  cout << "coincidences considered: "<< temp_trajs.size()<<endl;;
+  if ( temp_trajs.size() == 1 ) {
+    cout << "trajectory hits: "<<temp_trajs[0]->nmeas()<<endl;
+    muontraj.reset();
+
+    muontraj = *temp_trajs[0];
+
+  } else {
+
+    select_trajectory( temp_trajs, muontraj);
+
+  }
+
+  return true;
+}
+
+//***********************************************************************
+double event_classif::compare_nodes(vector<Node*>& n1, vector<Node*>& n2){
+//***********************************************************************
+
+  std::vector<Node*>::iterator nIt1, nIt2;
+  double counter = 0;
+
+  for (nIt1 = n1.begin();nIt1 != n1.end();nIt1++){
+    for (nIt2 = n2.begin();nIt2 != n2.end();nIt2++){
+
+      if ( (*nIt1)->measurement().vector() == (*nIt2)->measurement().vector() 
+	   && (*nIt1)->measurement().position()[2]
+	   == (*nIt2)->measurement().position()[2])
+	counter++;
+
+    }
+  }
+
+  return counter / (double)n2.size();
+}
+
+//***********************************************************************
+void event_classif::select_trajectory(vector<Trajectory*>& trajs,
+				      Trajectory& muontraj){
+//***********************************************************************
+  cout<<"selecting trajectory"<<endl;
+  int length[(const int)trajs.size()];
+  double Err[(const int)trajs.size()];
+  
+  muontraj.reset();
+
+  const dict::Key relErr = "relErr";
+  
+  for (int it1 = 0;it1 < (int)trajs.size();it1++){
+
+    length[it1] = (int)trajs[it1]->nmeas();
+    Err[it1] = trajs[it1]->quality( relErr );
+    cout << "traj "<<it1<<": "<<length[it1]<<" hits, "<<Err[it1]<<" error"<<endl;
+  }
+
+  int longest = (int)TMath::LocMax( (int)trajs.size(), length);
+  int safest = (int)TMath::LocMin( (int)trajs.size(), Err);
+
+  if ( longest == safest )
+    muontraj = *trajs[longest];
+  else {
+
+    if ( length[longest] - length[safest] > 5)
+      muontraj = *trajs[longest];
+    else muontraj = *trajs[safest];
+
+  }
+
+}
+
+//***********************************************************************
 void event_classif::set_branches(){
 //***********************************************************************
   
@@ -510,6 +830,7 @@ void event_classif::set_branches(){
   _likeTree->Branch("planeEnergy", &_EngP, "plEng[nplanes]/D");
 
 }
+
 //***********************************************************************
 void event_classif::output_liklihood_info(){
 //***********************************************************************

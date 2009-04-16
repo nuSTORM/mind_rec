@@ -66,11 +66,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     else _leng = Fit.get_traj().length();
 
     if (_leng !=0) {
-      // _rangP[0] = (_leng+56.9)/722.6 * GeV;
-//       _rangP[1] = 0.04*_rangP[0];
       Fit.calculate_len_mom( _leng, _rangP );
-      cout << "RangMeas: "<< _rangP[0]<<","<<_rangP[1]<<endl;
-      cout << "Truth: "<<1/_qP[0]<<endl;
     } else { _rangP[0] = 0; _rangP[1] = -99; }
     
     if (ok2) {

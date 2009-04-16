@@ -315,9 +315,6 @@ bool fitter::fitTrajectory(State seed) {
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
 	  
-	  // double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
-// 	  geom.setDeDx(de_dx);
-	  
 	  set_de_dx( fabs(1./v[5])/GeV );
 
 	  EMatrix C = setSeedCov(C0,facRef);
@@ -334,13 +331,6 @@ bool fitter::fitTrajectory(State seed) {
 	
     }
 
-    //_fitTracker.push_back( ok );
-
-    // if ( (float)(_traj.last_fitted_node()+1)/(float)_traj.nmeas() < 0.2 ){
-//       reSeed = reseed_traj(); 
-//       if ( !reSeed ) reseed_ok = 0;
-//       else return reSeed;
-//     }
     int fitCheck = 0;
     vector<Node*>::iterator nDIt;
     for (nDIt = _traj.nodes().begin();nDIt!=_traj.nodes().end();nDIt++)
@@ -352,13 +342,14 @@ bool fitter::fitTrajectory(State seed) {
       low_fit_cut = store.fetch_dstore("low_fit_cut2");
     else
       low_fit_cut = store.fetch_dstore("low_fit_cut0");
-      
-    if (get_classifier().get_int_type() != 2){
-      if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+    //disallow backfit on cell auto tracks for now.
+    if (get_classifier().get_int_type() != 5){
+      if (get_classifier().get_int_type() != 2){
+	if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+	  reseed_ok = reseed_traj();
+      } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
 	reseed_ok = reseed_traj();
-    } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
-      reseed_ok = reseed_traj();
-    
+    }
     if (ok && !reseed_ok) ok = checkQuality();
     else if ( reseed_ok ) ok = true;
     
@@ -366,78 +357,11 @@ bool fitter::fitTrajectory(State seed) {
 
 }
 
-// //*************************************************************
-// bool fitter::reseed_traj(){
-// //*************************************************************
-//   cout << "Low fit. Reseeding."<<endl;
-//   bool reSeed;
-//   int starthit;
-//   _fitTracker.push_back( 1 );
-//   //start excluding the first 5% of the hits.
-//   if ( (int)_traj.nmeas() < 10 ) return false;
-//   else if ( (int)_traj.nmeas() > 30 ) starthit = 3;  
-//   else starthit = (int)_traj.nmeas()/10;
-//   int remCount = 0;
-//   reseed_ok = 1;
-//   computeSeed( starthit );
-
-//   for (int ipoint = starthit;ipoint < (int)_traj.nmeas();ipoint++)
-//     _traj2.add_measurement( _traj.nodes()[ipoint]->measurement() );
-  
-//   reSeed = man().fitting_svc().fit(seedstate,_traj2);
-  
-//   if (reSeed && refit){
-    
-//     reSeed = checkQuality(); if (!reSeed) return reSeed;
-    
-//     m.message("Going to refit...",bhep::VERBOSE);
-    
-//     //--------- refit using a new seed --------//	
-//     State newstate = _traj2.state(_traj2.first_fitted_node());
-//     man().model_svc().model(RP::particle_helix).representation()
-//       .convert(newstate, RP::slopes_z);
-    
-//     EVector v = newstate.vector();
-//     EMatrix C0 = newstate.matrix();
-    
-//     EMatrix C = setSeedCov(C0,facRef);
-    
-//     man().model_svc().model(RP::particle_helix).representation()
-//       .convert(seedstate, RP::slopes_z);
-//     seedstate.set_hv(HyperVector(v,C)); 
-    
-//     man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
-//       .convert(seedstate,RP::default_rep);
-//     //seedstate.keepDiagonalMatrix();
-    
-//     reSeed = man().fitting_svc().fit(seedstate,_traj2);
-
-//   }
-  
-//   if (reSeed) reSeed = checkQuality();
-
-//   if ( reSeed ){
-//     _fitTracker.push_back( 1 );
-//     const dict::Key candHit = "inMu";
-//     const dict::Key hit_in = "False";
-//     int irem = (int)_meas.size() - 1;
-    
-//     while ( remCount != starthit ) {
-//       if ( _meas[irem]->names().has_key(candHit) ){
-// 	_meas[irem]->set_name(candHit, hit_in);
-// 	remCount++; }
-//       irem--;
-//     }
-//   } else _fitTracker.push_back( 0 );
-  
-//   return reSeed;
-// }
-
 //*************************************************************
 bool fitter::reseed_traj(){
 //*************************************************************
   bool ok;
-  //std::cout << "Entering backwards fit" << std::endl;  
+    
   State backSeed = get_classifier().get_patRec_seed();
 
   vector<Node*>::iterator nIt;
@@ -460,9 +384,6 @@ bool fitter::reseed_traj(){
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
       
-      // double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
-//       geom.setDeDx(de_dx);
-
       set_de_dx( fabs(1./v[5])/GeV );
       
       EMatrix C = setSeedCov(C0,facRef);
@@ -776,12 +697,17 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     EVector hit_pos(2,0);
     hit_pos[0]=bhit_pos[0];
     hit_pos[1]=bhit_pos[1];
+
+    EVector meas_pos(3,0);
+    meas_pos[0] = hit_pos[0];
+    meas_pos[1] = hit_pos[1];
+    meas_pos[2] = geom.setup().surface(surf_name).position()[2];
     
     Measurement* me = new Measurement();
     me->set_name(meastype);
     me->set_hv(HyperVector(hit_pos,cov));
     me->set_surface(geom.setup().surface(surf_name));
-    me->set_position(geom.setup().surface(surf_name).position());
+    me->set_position( meas_pos );
     //Add the hit energy deposit as a key to the Measurement.
     const dict::Key Edep = "E_dep";
     const dict::Key EdepVal = hit.data("E_dep");
@@ -925,8 +851,6 @@ void fitter::setSeed(EVector r, int firsthit){
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
   if (v[5] == 0) { pSeed = (double)(0.060*_traj.nmeas())*GeV;
   v[5] = 1.0/pSeed; }
-  // double de_dx = -(2.08 + 10.3*pow(fabs(1./v[5])/GeV, 0.116)) * MeV/cm;
-//   geom.setDeDx(de_dx);
   
   set_de_dx( fabs(1./v[5])/GeV );
 
@@ -951,33 +875,6 @@ void fitter::setSeed(EVector r, int firsthit){
 }
 
 //*************************************************************
-EMatrix fitter::setSeedCov(EVector v, double factor){
-//*************************************************************
-    
-    //--- a large diagonal covariance matrix ---//
-    
-    EMatrix c(dim,dim,0);
-
-    double p=5*GeV; // ????
-  
-    if (model.compare("particle/helix")==0){ 
-
-      c[0][0] = c[1][1] = pow(100*100*mm*mm,2)/factor; // ???? 
-      
-      c[2][2] = EGeo::zero_cov()/2;//no error in z    
-   
-      c[3][3] = c[4][4] = 3/factor;     
-        
-      c[6][6] = pow(1/p,2)*100/factor;   
-      
-    }
-    
-
-    return c;
-}
-
-
-//*************************************************************
 EMatrix fitter::setSeedCov(EMatrix C0, double factor){
 //*************************************************************
     
@@ -987,41 +884,6 @@ EMatrix fitter::setSeedCov(EMatrix C0, double factor){
 
 
     return c;
-}
-
-//*************************************************************
-void fitter::find_directSeed(EVector& R, int sense){
-//*************************************************************
-
-  int farPos;
-
-  if (sense==1){
-    if (_traj.nmeas()>10) farPos = 9;
-    else farPos = 4;
-    R[0] = (_traj.nodes()[farPos]->measurement().vector()[0]
-	    - _traj.nodes()[0]->measurement().vector()[0]);
-    R[1] = (_traj.nodes()[farPos]->measurement().vector()[1]
-	    - _traj.nodes()[0]->measurement().vector()[1]);
-    R[2] = (_traj.nodes()[farPos]->measurement().surface().position()[2]
-	    - _traj.nodes()[0]->measurement().surface().position()[2]);
-  }
-  if (sense==-1){
-    R[0] = _meas[0]->vector()[0] - _meas[2]->vector()[0];
-    R[1] = _meas[0]->vector()[1] - _meas[2]->vector()[1];
-    R[2] = _meas[0]->surface().position()[2] 
-      - _meas[2]->surface().position()[2];
-  }
-  if (sense==2){
-    R[0] = (_traj.nodes()[2]->measurement().vector()[0]
-	    - _traj.nodes()[0]->measurement().vector()[0]);
-    R[1] = (_traj.nodes()[2]->measurement().vector()[1]
-	    - _traj.nodes()[0]->measurement().vector()[1]);
-    R[2] = (_traj.nodes()[2]->measurement().surface().position()[2]
-	    - _traj.nodes()[0]->measurement().surface().position()[2]);
-  }
-
-  R /= R.norm();
-  
 }
 
 //*****************************************************************************

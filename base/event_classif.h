@@ -68,19 +68,20 @@ protected:
   bool invoke_cell_auto(measurement_vector& hits,
 			Trajectory& muontraj, measurement_vector& hads);
   void sort_hits(measurement_vector& hits, Trajectory& muontraj, measurement_vector& hads);
+  void delete_bad_trajs(const Trajectory& muontraj, vector<Trajectory*>& trajs);
   bool sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs);
   bool reject_small(vector<Trajectory*>& trajs, vector<Trajectory*>& trajs2);
   bool reject_high(vector<Trajectory*>& trajs, vector<Trajectory*>& trajs2);
   bool reject_final(vector<Trajectory*>& trajs, Trajectory& muontraj);
-  double compare_nodes(vector<Node*>& n1, vector<Node*>& n2);
+  double compare_nodes(const vector<Node*>& n1, const vector<Node*>& n2);
   void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
+  void set_cell_branches();
+  void output_results_tree(const measurement_vector& hits, const std::vector<Trajectory*>& trajs);
   
   RecpackManager& man(){return _man;}
   
   bhep::gstore _infoStore;
-  
-  //bhep::prlevel level;
   
   bhep::messenger m;
   
@@ -91,6 +92,7 @@ protected:
   double _meanOcc;
   vector<int> _hitsPerPlane;
   vector<double> _energyPerPlane;
+  vector<double> _planeZ;
   double _tolerance; //required 'closeness' to be considered in plane.
   double _max_sep; //maximum transverse separation for cell auto neighbour.
   int _max_traj; //maximum no. of trajectories from cell auto.
@@ -130,14 +132,31 @@ protected:
   TFile *_outFileEv;
   TTree *_likeTree;
   //
+  //Cell auto results info.
+  TFile *_outFileCell;
+  TTree *_cellTree;
+  //
 
-  int _nhit;
-  int _Occ[500], _freeplanes;
-  double _EngP[500];
+  int _nhit, _trajhit;
+  int _freeplanes;
+  double _visEng;
+  double _trajpur, _trajEng;
+  double _trajEngPlan[500];
 
   void set_branches();
-  void output_liklihood_info();
+  void output_liklihood_info(const measurement_vector& hits);
   //
+  //
+  double _XPos[150];
+  double _YPos[150];
+  double _ZPos[150];
+  int _ntraj;
+  double _trInfo[50];
+  double _trhigh[50];
+  double _trInd[50];
+  bool _trajHit[50][150];
+  //
+
 
 };
 

@@ -150,7 +150,7 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
 
     addFitInfo(part,fitted);
     
-    if (tklen) addTrackLength(part,_traj);
+    // if (tklen) addTrackLength(part,_traj);
     
     if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
     
@@ -187,7 +187,7 @@ void fitter::reset() {
 
   //reset virtual planes
   
-  resetVirtualPlanes();
+  //resetVirtualPlanes();
   
   
 }
@@ -299,7 +299,7 @@ bool fitter::fitTrajectory(State seed) {
     m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
     
     bool ok = man().fitting_svc().fit(seed,_traj);
-
+    
     if (ok && refit){
         
         ok = checkQuality(); 
@@ -330,7 +330,7 @@ bool fitter::fitTrajectory(State seed) {
 	}
 	
     }
-
+    
     int fitCheck = 0;
     vector<Node*>::iterator nDIt;
     for (nDIt = _traj.nodes().begin();nDIt!=_traj.nodes().end();nDIt++)
@@ -419,8 +419,8 @@ bool fitter::fitHadrons(){
 
   if (nhadhits<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
-  const int nplanes = ( (int)_hadmeas[0]->surface().position()[2]
-			- (int)_hadmeas[nhadhits-1]->surface().position()[2] + 50 )/50;
+  const int nplanes = ( (int)_hadmeas[0]->position()[2]
+			- (int)_hadmeas[nhadhits-1]->position()[2] + 50 )/50;
   
   if (nplanes<2) {
     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
@@ -430,7 +430,6 @@ bool fitter::fitHadrons(){
   size_t hits_used = 0, imeas = 0;
   int ientry = nplanes-1;
 
-  //Assumming energy will be stored as MeV for now.
   do {  
     
     int count = 0;
@@ -438,14 +437,14 @@ bool fitter::fitHadrons(){
     EngHit = bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
     x[ientry] = _hadmeas[imeas]->vector()[0] * EngHit;
     y[ientry] = _hadmeas[imeas]->vector()[1] * EngHit;
-    z[ientry] = _hadmeas[imeas]->surface().position()[2];
+    z[ientry] = _hadmeas[imeas]->position()[2];
     testZ = z[ientry];
     hits_used++;
     count++;
     EngPlane += EngHit;
     
     for (size_t i=hits_used;i < nhadhits;i++){
-      curZ = _hadmeas[i]->surface().position()[2];
+      curZ = _hadmeas[i]->position()[2];
       if (curZ >= testZ-_tolerance){
 	EngHit = bhep::double_from_string( _hadmeas[i]->name( Edep ) )*GeV;
 	x[ientry] += _hadmeas[i]->vector()[0] * EngHit;
@@ -478,6 +477,10 @@ bool fitter::fitHadrons(){
   _hadunit[1] = fitfunc->GetParameter(1);
   
   _hadunit /= _hadunit.norm();
+
+  delete gr1;
+  delete gr2;
+  delete fitfunc;
 
   return true;
 }
@@ -533,7 +536,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
   if (patternRec && ok){
     
     ok = get_classifier().execute( _meas, _traj, _hadmeas);
-
+    
     _traj.sort_nodes(1);
     sort( _hadmeas.begin(), _hadmeas.end(), reverseSorter() );
     
@@ -542,14 +545,14 @@ bool fitter::readTrajectory(const bhep::particle& part){
       patFail++;
     }
   }
-
+  
   // Check that the 'muon' can be fitted.
   // Is the lowest z hit in fiducial volume?
   // Are there enough hits? Are there too many?
 
   if (ok)
     ok = check_valid_traj();
-
+  
   return ok;
 }
 
@@ -583,7 +586,6 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       
     }//end of loop over hits
     
-    
     //--------- add measurements to trajectory --------//
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
@@ -596,7 +598,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
 
       m.message("Trajectory created:",_traj,bhep::VVERBOSE);
     }
-
+    
     return true;
 }
 
@@ -624,7 +626,7 @@ bool fitter::check_valid_traj() {
     }
   
   //---- Reject if initial meas outside fid. Vol ----//
-  if (_traj.nodes()[0]->measurement().surface().position()[2] > geom.getPlaneZ()/2-zCut*cm
+  if (_traj.nodes()[0]->measurement().position()[2] > geom.getPlaneZ()/2-zCut*cm
       || fabs(_traj.nodes()[0]->measurement().vector()[0]) > geom.getPlaneX()/2-xCut*cm
       || fabs(_traj.nodes()[0]->measurement().vector()[1]) > geom.getPlaneY()/2-yCut*cm)
     { nonFid++; 
@@ -672,25 +674,25 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     //---- generate a virtual plane to hold the hit ----//
     
     bhep::Point3D bhit_pos = hit.x(); 
-    EVector pos(3,0); pos[2] = bhit_pos[2];
+    //EVector pos(3,0); pos[2] = bhit_pos[2];
     
-    EVector zaxis = geom.getZaxis();
-    EVector xaxis = geom.getXaxis();
-    double height = geom.getPlaneX();
-    double width  = geom.getPlaneY();
+    //EVector zaxis = geom.getZaxis();
+    //EVector xaxis = geom.getXaxis();
+    //double height = geom.getPlaneX();
+    //double width  = geom.getPlaneY();
     string meastype = geom.getMeasType();
     EMatrix cov = geom.getCov();
     
-    const dict::Key surf_name = "VPLANE_"+bhep::to_string(pnumber);
+    //const dict::Key surf_name = "VPLANE_"+bhep::to_string(pnumber);
     // const dict::Key meas_vol = "SCINT_plane"+bhep::to_string(pos[2]+5);
-    Surface* surf = new Rectangle(pos,zaxis,xaxis,height/2,width/2);
-    geom.setup().add_surface("Detector",surf_name,surf);
-    geom.setup().set_surface_property(surf_name,"measurement_type",meastype);
-    geom.setup().set_surface_property(surf_name,"resolution",cov);
-    m.message("++ Adding virtual plane: ",surf_name,bhep::VERBOSE);
+    // Surface* surf = new Rectangle(pos,zaxis,xaxis,height/2,width/2);
+//     geom.setup().add_surface("Detector",surf_name,surf);
+//     geom.setup().set_surface_property(surf_name,"measurement_type",meastype);
+//     geom.setup().set_surface_property(surf_name,"resolution",cov);
+    //m.message("++ Adding virtual plane: ",surf_name,bhep::VERBOSE);
     pnumber++;
     
-    virtual_planes.push_back(surf);
+    // virtual_planes.push_back(surf);
 
     //----- generate repack hit from bhep one ----//
     
@@ -701,12 +703,12 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     EVector meas_pos(3,0);
     meas_pos[0] = hit_pos[0];
     meas_pos[1] = hit_pos[1];
-    meas_pos[2] = geom.setup().surface(surf_name).position()[2];
+    meas_pos[2] = bhit_pos[2];//geom.setup().surface(surf_name).position()[2];
     
     Measurement* me = new Measurement();
     me->set_name(meastype);
     me->set_hv(HyperVector(hit_pos,cov));
-    me->set_surface(geom.setup().surface(surf_name));
+    //me->set_surface(geom.setup().surface(surf_name));
     me->set_position( meas_pos );
     //Add the hit energy deposit as a key to the Measurement.
     const dict::Key Edep = "E_dep";
@@ -719,71 +721,71 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
       me->set_name(motherP, mothName);
     }
     
-      
+    
     return me;
 
 }
 
-//*************************************************************
-void fitter::addTrackLength(bhep::particle& p,const Trajectory& t){
-//*************************************************************
+// //*************************************************************
+// void fitter::addTrackLength(bhep::particle& p,const Trajectory& t){
+// //*************************************************************
    
-  m.message("+++ addTrackLength function +++",bhep::VERBOSE);
+//   m.message("+++ addTrackLength function +++",bhep::VERBOSE);
    
-  if (p.find_property("length")){ 
+//   if (p.find_property("length")){ 
     
-    p.change_property("length",bhep::to_string(trackLength(t)));  
-  }
-  else p.add_property("length",bhep::to_string(trackLength(t)));  
+//     p.change_property("length",bhep::to_string(trackLength(t)));  
+//   }
+//   else p.add_property("length",bhep::to_string(trackLength(t)));  
   
   
-}
+// }
 
-//*************************************************************
-double fitter::trackLength() {
-//************************************************************
+// //*************************************************************
+// double fitter::trackLength() {
+// //************************************************************
   
-  return trackLength(_traj);
+//   return trackLength(_traj);
   
-}
+// }
 
-//*************************************************************
-double fitter::trackLength(const Trajectory& t) {
-//************************************************************
+// //*************************************************************
+// double fitter::trackLength(const Trajectory& t) {
+// //************************************************************
   
-  m.message("+++ trackLength function +++",bhep::VERBOSE);
+//   m.message("+++ trackLength function +++",bhep::VERBOSE);
   
-  double tot_length=0;
-  double length=0;
+//   double tot_length=0;
+//   double length=0;
   
-  vector<Node*> nodes = t.nodes();
+//   vector<Node*> nodes = t.nodes();
   
-  if (!nodes.size()) return length;
+//   if (!nodes.size()) return length;
   
-  size_t current = t.first_fitted_node();
-  size_t last = t.last_fitted_node();
+//   size_t current = t.first_fitted_node();
+//   size_t last = t.last_fitted_node();
   
-  if (current==last) return length;
+//   if (current==last) return length;
 
-  size_t next = current + 1;
-  State cState = State(nodes[current]->state());
+//   size_t next = current + 1;
+//   State cState = State(nodes[current]->state());
   
-  for (size_t in = next; in<=last; in++){ 
-    if (!nodes[in]->status("fitted")) continue; 
+//   for (size_t in = next; in<=last; in++){ 
+//     if (!nodes[in]->status("fitted")) continue; 
     
-    Measurement me = nodes[in]->measurement(); 
+//     Measurement me = nodes[in]->measurement(); 
     
-    State tempState = State(cState); 
-    man().navigation_svc().propagate(me.surface(),tempState,length);
+//     State tempState = State(cState); 
+//     man().navigation_svc().propagate(me.surface(),tempState,length);
    
-    cState = State(nodes[in]->state());
+//     cState = State(nodes[in]->state());
     
-    tot_length += length;  
-  }
+//     tot_length += length;  
+//   }
     
-  return abs(tot_length);
+//   return abs(tot_length);
 
-}
+// }
 
 
 //*************************************************************
@@ -824,7 +826,7 @@ void fitter::computeSeed(int firsthit) {
 
     v[0] = _traj.nodes()[firsthit]->measurement().vector()[0];
     v[1] = _traj.nodes()[firsthit]->measurement().vector()[1];
-    v[2] = _traj.nodes()[firsthit]->measurement().surface().position()[2];   
+    v[2] = _traj.nodes()[firsthit]->measurement().position()[2];   
 
     setSeed(v, firsthit);
     
@@ -911,8 +913,8 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     
     xpos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[0];
     ypos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[1];
-    zpos[ipoint-firsthit] = _traj.measurement(ipoint).surface().position()[2]
-      - _traj.measurement(firsthit).surface().position()[2];
+    zpos[ipoint-firsthit] = _traj.measurement(ipoint).position()[2]
+      - _traj.measurement(firsthit).position()[2];
 
   }
   if (fitpoints <= 15) { nfit = 1; fitRange[0] = fitpoints;}

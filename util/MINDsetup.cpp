@@ -183,11 +183,15 @@ void MINDsetup::addProperties(){
   BField = EVector(3,0);
   BField[1] = B_int;
 
+  _zaxis = EVector(3,0);
+  _zaxis[2]=1;
+
   // _gsetup.set_volume_property("mother","BField",BField);
 //   _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
 
   _gsetup.set_volume_property_to_sons("mother","BField",BField);
   _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
+  _gsetup.set_volume_property_to_sons("mother",RP::SurfNormal,_zaxis);
     
   const dict::Key vol_name = "Detector";
 //   _gsetup.set_volume_property(vol_name,"BField",BField);

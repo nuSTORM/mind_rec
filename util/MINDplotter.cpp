@@ -117,7 +117,7 @@ bool MINDplotter::finalize() {
   bool ok = true;
 
   m.message("++Finalizing Output++",bhep::VERBOSE);
-
+  
   outFile->Write();
   outFile->Close();
 
@@ -173,10 +173,10 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
   double R2 = 0;
   double l;
 
-  Surface* surf = new Ring(pos, axis, R1, R2);
+  Ring surf(pos, axis, R1, R2);
 
-  fitObj.man().geometry_svc().setup().add_surface("Detector","vertex",surf);
-  bool ok = fitObj.man().navigation_svc().propagate(*surf,ste,l);
+  fitObj.man().geometry_svc().setup().add_surface("Detector","vertex",&surf);
+  bool ok = fitObj.man().navigation_svc().propagate(surf,ste,l);
   fitObj.man().geometry_svc().setup().remove_surface("vertex");
 
   //Convert to slopes representation.
@@ -282,7 +282,7 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
 
     _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
-    _ZPos[iHits] = Fit.get_meas(iHits)->surface().position()[2];
+    _ZPos[iHits] = Fit.get_meas(iHits)->position()[2];
 
     if (!patRec)
       if ( Fit.get_traj().node(iHits).status("fitted") )
@@ -401,52 +401,3 @@ void MINDplotter::patternStats(fitter& Fit) {
   }
 
 }
-
-// //****************************************************************************************
-// void MINDplotter::patternStats(fitter& Fit) {
-// //****************************************************************************************
-// //Original version. No event classifier.
-//   _nhits = Fit.get_nMeas();
-//   const dict::Key candHit = "inMu";
-//   int nNode;
-//   if (_fail != 7) nNode = (int)Fit.get_traj().size()-1;
-//   bool isMu;
-  
-//   for (int iHits = 0;iHits < _nhits;iHits++){
-    
-//     if (Fit.get_meas(iHits)->name("MotherParticle").compare("mu+")==0
-// 	|| Fit.get_meas(iHits)->name("MotherParticle").compare("mu-")==0){
-//       isMu = true;
-//       _mus[iHits] = true;
-//       _hitType[0]++;
-//     }
-//     else {_mus[iHits] = false; isMu = false;}
-    
-//     if ( _fail != 7 && Fit.get_meas(iHits)->names().has_key(candHit) ){
-//       if ( Fit.get_meas(iHits)->name(candHit).compare("True")==0 ){//has_key(candHit) ){
-// 	_cand[iHits] = true;
-// 	_hitType[1]++;
-// 	if ( isMu ) _hitType[2]++;
-	
-// 	if ( Fit.get_traj().node(nNode).status("fitted") ){	
-// 	  _node[iHits] = true; _hitType[3]++; }
-// 	else _node[iHits] = false;
-// 	nNode--;
-//       }
-//       else { _node[iHits] = false; _cand[iHits] = false; }
-//     } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
-
-//   }
-  
-//   if (_fail != 7){
-//     _pChi[0] = Fit.get_PatRec_Chis()[0];
-//     _pChi[1] = Fit.get_PatRec_Chis()[1];
-//     _pChi[2] = Fit.get_PatRec_Chis()[2];
-//   }
-  
-//   for (int iclear = _nhits;iclear<300;iclear++){
-//     _mus[iclear] = false; _cand[iclear] = false;
-//     _node[iclear] = false;
-//   }
-
-// }

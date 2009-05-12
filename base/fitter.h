@@ -66,9 +66,9 @@ public:
   
   //get tracklength
   
-  double trackLength();
-  double trackLength(const Trajectory&);
-  void addTrackLength(bhep::particle&,const Trajectory&);
+  // double trackLength();
+//   double trackLength(const Trajectory&);
+//   void addTrackLength(bhep::particle&,const Trajectory&);
   
   //fit twice
 
@@ -203,7 +203,7 @@ protected:
 class reverseSorter{
 public:
   bool operator()(const Measurement* p1, const Measurement* p2){
-    if (p2->surface().position()[2] < p1->surface().position()[2]) return true;
+    if (p2->position()[2] < p1->position()[2]) return true;
     return false;
   }
 
@@ -212,7 +212,7 @@ public:
 class forwardSorter{
 public:
   bool operator()(const Measurement* p1, const Measurement* p2){
-    if (p2->surface().position()[2] > p1->surface().position()[2]) return true;
+    if (p2->position()[2] > p1->position()[2]) return true;
     return false;
   }
 

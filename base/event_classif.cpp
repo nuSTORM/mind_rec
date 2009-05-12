@@ -13,6 +13,7 @@
 
 
 #include <event_classif.h>
+#include <recpack/stc_tools.h>
 #include <TMath.h>
 
 //**********************************************************************
@@ -59,7 +60,11 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
     set_branches();
 
   }
-
+  //Temp functions to understand cell auto.
+  _outFileCell = new TFile("CellOut.root", "recreate" );
+  _cellTree = new TTree("h2", "Cellular automaton results");
+  set_cell_branches();
+  //
   set_extract_properties( det );
 
   return true;
@@ -76,18 +81,18 @@ bool event_classif::execute(measurement_vector& hits,
   _intType = 0;
   //reset.
   reset();
-
+  
   //Occupancy.
   ok = get_plane_occupancy( hits );
-
+  
   if ( ok && _outLike)
-    output_liklihood_info();
+    output_liklihood_info( hits );
   
   /* Code to discriminate between different event types */
   //if identified as CC
   if ( ok )
     ok = chargeCurrent_analysis(hits, muontraj, hads);
-
+  
   return ok;
 }
 
@@ -99,6 +104,9 @@ bool event_classif::finalize() {
     _outFileEv->Write();
     _outFileEv->Close();
   }
+
+  _outFileCell->Write();
+  _outFileCell->Close();
 
   return true;
 }
@@ -189,6 +197,7 @@ void event_classif::reset(){
   _meanOcc = 0;
   _hitsPerPlane.clear();
   _energyPerPlane.clear();
+  _planeZ.clear();
 
 }
 
@@ -210,18 +219,18 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
   
   do {
     
-    EngPlane += bhep::double_from_string( hits[imeas]->name( Edep ) ) * GeV;
-    testZ = hits[imeas]->surface().position()[2];
+    EngPlane = bhep::double_from_string( hits[imeas]->name( Edep ) ) * GeV;
+    testZ = hits[imeas]->position()[2];
     count++;
     hits_used++;
 
     for (size_t i = hits_used;i < nHits;i++) {
-      curZ = hits[i]->surface().position()[2];
+      curZ = hits[i]->position()[2];
 
       if (curZ <= testZ + _tolerance) {
 
 	EngPlane += bhep::double_from_string( hits[i]->name( Edep ) ) * GeV;
-	testZ = hits[i]->surface().position()[2];
+	testZ = hits[i]->position()[2];
 	count++;
 	hits_used++;
 	
@@ -230,6 +239,7 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
 
     _hitsPerPlane.push_back( count );
     _energyPerPlane.push_back( EngPlane );
+    _planeZ.push_back( testZ );
 
     imeas += count;
     _meanOcc += (double)count;
@@ -269,29 +279,29 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
       (*_hitIt)->set_name(candHit, hit_in);
     } else break;
   }
- 
+  
   _lastIso = (int)muontraj.nmeas();
 
   if ( _meanOcc == 1 ){
-
+    
     _intType = 2;
     if ( muontraj.size() !=0 )
       ok = muon_extraction( hits, muontraj, hads);
     else ok = false;
-
+    
   } else {
-
+    
     if ( (int)muontraj.nmeas() < min_seed_hits ) {
       
       ok = invoke_cell_auto( hits, muontraj, hads);
       if ( !ok ) _failType = 4;
       _intType = 5;
-
+      
     } else
       ok = muon_extraction( hits, muontraj, hads);
 
   }
-
+  cout << "here3?"<<endl;
   return ok;
 }
 
@@ -335,9 +345,9 @@ bool event_classif::muon_extraction(measurement_vector& hits,
       hads.push_back( hits[i] );
 
   State patternSeed;
-
+  
   ok = get_patternRec_seed( patternSeed, muontraj, hits);
-
+  
   if ( ok )
     ok = perform_muon_extraction( patternSeed, hits, muontraj, hads);
   
@@ -358,7 +368,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 
   V[0] = muontraj.nodes()[0]->measurement().vector()[0];
   V[1] = muontraj.nodes()[0]->measurement().vector()[1];
-  V[2] = muontraj.nodes()[0]->measurement().surface().position()[2];
+  V[2] = muontraj.nodes()[0]->measurement().position()[2];
   
   //direction
   fit_parabola( V, muontraj);
@@ -366,16 +376,16 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   //Momentum. Estimate from empirical extent function.
   if ( hits.size() != 0 ){
 
-    Xtent = hits[hits.size()-1]->surface().position()[2]
-      - hits[_vertGuess]->surface().position()[2];
+    Xtent = hits[hits.size()-1]->position()[2]
+      - hits[_vertGuess]->position()[2];
 
   } else {
     
-    Xtent = muontraj.nodes()[(int)muontraj.nmeas()-1]->measurement().surface().position()[2]
-      - muontraj.nodes()[0]->measurement().surface().position()[2];
+    Xtent = muontraj.nodes()[(int)muontraj.nmeas()-1]->measurement().position()[2]
+      - muontraj.nodes()[0]->measurement().position()[2];
 
   }
-
+  
   double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
 
   set_de_dx( pSeed/GeV );
@@ -390,7 +400,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 
   //Sense
   V2[0] = 1;
-
+  
   //Seedstate fit properties
   seed.set_name(RP::particle_helix);
   seed.set_name(RP::representation,RP::slopes_z); 
@@ -399,11 +409,11 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seed,RP::default_rep);
-  
+  cout << "here5?"<<endl;
   bool ok = perform_kalman_fit( seed, muontraj);
   if ( !ok )
     _failType = 5;
-
+  cout << "here9q?"<<endl;
   return ok;
 }
 
@@ -421,7 +431,7 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
     x[iMeas] = track.nodes()[iMeas]->measurement().vector()[0];
     y[iMeas] = track.nodes()[iMeas]->measurement().vector()[1];
-    z[iMeas] = track.nodes()[iMeas]->measurement().surface().position()[2];
+    z[iMeas] = track.nodes()[iMeas]->measurement().position()[2];
 
   }
   
@@ -438,6 +448,10 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   gr2->Fit("parfit", "QN");
   vec[4] = fun->GetParameter(1);
   
+  delete gr1;
+  delete gr2;
+  delete fun;
+
 }
 
 //***********************************************************************
@@ -455,12 +469,12 @@ void event_classif::set_de_dx(double mom){
 //***********************************************************************
 bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 //***********************************************************************
-
+  cout << "here6?"<<endl;
   bool ok = man().fitting_svc().fit(seed, track);
-  
+  cout << "here7?"<<endl;
   if (ok)
     seed = track.state(track.first_fitted_node());
-
+  cout << "here8?"<<endl;
   return ok;
 
 }
@@ -535,14 +549,19 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
 				     Trajectory& muontraj, measurement_vector& hads){
 //***********************************************************************
 //uses cellular automaton to try and retrieve more complicated events.
-  cout << "Entering cell auto: "<< hits.size() <<endl;
+  std::cout << "Performing Cellular Automaton analysis " <<_nplanes<< std::endl;
   bool ok;
+
+  if ( _nplanes < min_hits ) return false;
+
   std::vector<Trajectory*> trajs;
   
   ok = man().matching_svc().find_trajectories( hits, trajs);
-  cout << "Poss. trajs got: "<< trajs.size()<<endl;
+  
   if ( !ok || trajs.size() == 0) return false;
-
+   
+  output_results_tree( hits, trajs );
+  
   if ( trajs.size() == 1 ) {
   
     muontraj.reset();
@@ -561,7 +580,12 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
       sort_hits( hits, muontraj, hads);
 
   }
-  cout << "End cell auto: "<<ok<<endl;
+
+  if ( ok )
+    delete_bad_trajs( muontraj, trajs );
+  else stc_tools::destroy( trajs );
+
+  std::cout << "End of Cellular automaton" << std::endl;
   return ok;
 }
 
@@ -569,13 +593,14 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
 void event_classif::sort_hits(measurement_vector& hits,
 			      Trajectory& muontraj, measurement_vector& hads){
 //***********************************************************************
-  cout<<"sorting hits"<<endl;
+  
   bool inTraj;
   vector<Node*>::iterator inTrIt;
   inTrIt = muontraj.nodes().begin();
 
   const dict::Key candHit = "inMu";
   const dict::Key not_in = "False";
+  const dict::Key hit_in = "True";
 
   for (_hitIt = hits.begin();_hitIt!=hits.end();_hitIt++){
 
@@ -585,9 +610,8 @@ void event_classif::sort_hits(measurement_vector& hits,
 
     for (inTrIt = muontraj.nodes().begin();inTrIt != muontraj.nodes().end();inTrIt++){
 
-      if ( (*_hitIt)->vector() == (*inTrIt)->measurement().vector() ) {
+      if ( (*_hitIt)->position() == (*inTrIt)->measurement().position() ) {
 
-	const dict::Key hit_in = "True";
 	(*_hitIt)->set_name(candHit, hit_in);
 
 	inTraj = true;
@@ -603,20 +627,39 @@ void event_classif::sort_hits(measurement_vector& hits,
 }
 
 //***********************************************************************
+void event_classif::delete_bad_trajs(const Trajectory& muontraj,
+				     vector<Trajectory*>& trajs){
+//***********************************************************************
+
+  vector<Trajectory*>::iterator dIt = trajs.begin();
+  bool found = false;
+  const dict::Key traj_index = "traj_no";
+
+  while ( !found && dIt != trajs.end() ){
+    if ( muontraj.quality( traj_index ) == (*dIt)->quality( traj_index ) ){
+      found = true;
+
+      trajs.erase( dIt );
+    }
+    dIt++;
+  }
+  stc_tools::destroy( trajs );  
+
+}
+
+//***********************************************************************
 bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs){
 //***********************************************************************
 //Reject possible trajectories based on number of hits, chi2, hits in common.
-  cout<<"sorting trajectories"<<endl;
+  
   bool ok;
   std::vector<Trajectory*> trajs2;
-
+  
   ok = reject_small( trajs, trajs2);
-  cout << "small rejected: "<<trajs2.size()<<endl;
-  trajs.clear();
 
   if ( ok ){
     if ( trajs2.size() == 1 ){
-  
+      
       muontraj.reset();
       
       muontraj = *trajs2[0];
@@ -629,7 +672,7 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
       std::vector<double> Chis;
 
       ok = reject_high( trajs2, trajs3);
-      cout << "rejected high: "<<trajs3.size()<<endl;
+
       trajs2.clear();
 
       if ( ok ){
@@ -660,7 +703,7 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
 bool event_classif::reject_small(vector<Trajectory*>& trajs,
 				 vector<Trajectory*>& trajs2){
 //***********************************************************************
-  cout << "rejecting small"<<endl;
+  
   vector<Trajectory*>::iterator it1;
 
   for (it1 = trajs.begin();it1 != trajs.end();it1++){
@@ -679,26 +722,30 @@ bool event_classif::reject_small(vector<Trajectory*>& trajs,
 bool event_classif::reject_high(vector<Trajectory*>& trajs,
 				vector<Trajectory*>& trajs2){
 //***********************************************************************
-  cout << "rejecting high"<<endl;
+  
   bool ok1, ok2 = false;
+  double traj_no;
+  const dict::Key traj_index = "traj_no";
 
   vector<Trajectory*>::iterator it1;
   State temp_seed;
   measurement_vector dummy_hits;
   double momErr;
-
+  
   for (it1 = trajs.begin();it1 != trajs.end();it1++){
-
+    
     Trajectory& temp_traj = *(*it1);
-
+    traj_no = temp_traj.quality( traj_index );
+    
     temp_traj.sort_nodes( -1 );
-
+    
     ok1 = get_patternRec_seed( temp_seed, temp_traj, dummy_hits);
-
+    temp_traj.set_quality( traj_index, traj_no );
+    
     if ( ok1 && temp_traj.quality() < chi2_max ){
 
       (*it1)->set_quality( temp_traj.quality() );
-
+      
       const dict::Key relErr = "relErr";
       momErr = temp_seed.matrix()[6][6] / temp_seed.vector()[6];
       (*it1)->set_quality( relErr, momErr);
@@ -707,7 +754,7 @@ bool event_classif::reject_high(vector<Trajectory*>& trajs,
 
       ok2 = true;
     }
-
+    
   }
 
   sort( trajs2.begin(), trajs2.end(), chiSorter() );
@@ -721,7 +768,7 @@ bool event_classif::reject_final(vector<Trajectory*>& trajs,
 //***********************************************************************
 //Accept lowest local chi and then any others with few coincidences
 //with this trajectory then choose the longest/lowest error track.
-  cout << "reject final"<<endl;
+  
   std::vector<Trajectory*> temp_trajs;
   temp_trajs.push_back( trajs[0] );
 
@@ -747,9 +794,10 @@ bool event_classif::reject_final(vector<Trajectory*>& trajs,
       temp_trajs.push_back( (*it1) );
 
   }
-  cout << "coincidences considered: "<< temp_trajs.size()<<endl;;
+  trajs.clear();
+
   if ( temp_trajs.size() == 1 ) {
-    cout << "trajectory hits: "<<temp_trajs[0]->nmeas()<<endl;
+    
     muontraj.reset();
 
     muontraj = *temp_trajs[0];
@@ -759,23 +807,23 @@ bool event_classif::reject_final(vector<Trajectory*>& trajs,
     select_trajectory( temp_trajs, muontraj);
 
   }
+  temp_trajs.clear();
 
   return true;
 }
 
 //***********************************************************************
-double event_classif::compare_nodes(vector<Node*>& n1, vector<Node*>& n2){
+double event_classif::compare_nodes(const vector<Node*>& n1,
+				    const vector<Node*>& n2){
 //***********************************************************************
-
-  std::vector<Node*>::iterator nIt1, nIt2;
+  
+  std::vector<Node*>::const_iterator nIt1, nIt2;
   double counter = 0;
 
   for (nIt1 = n1.begin();nIt1 != n1.end();nIt1++){
     for (nIt2 = n2.begin();nIt2 != n2.end();nIt2++){
 
-      if ( (*nIt1)->measurement().vector() == (*nIt2)->measurement().vector() 
-	   && (*nIt1)->measurement().position()[2]
-	   == (*nIt2)->measurement().position()[2])
+      if ( (*nIt1)->measurement().position() == (*nIt2)->measurement().position() )
 	counter++;
 
     }
@@ -788,7 +836,7 @@ double event_classif::compare_nodes(vector<Node*>& n1, vector<Node*>& n2){
 void event_classif::select_trajectory(vector<Trajectory*>& trajs,
 				      Trajectory& muontraj){
 //***********************************************************************
-  cout<<"selecting trajectory"<<endl;
+  
   int length[(const int)trajs.size()];
   double Err[(const int)trajs.size()];
   
@@ -800,7 +848,7 @@ void event_classif::select_trajectory(vector<Trajectory*>& trajs,
 
     length[it1] = (int)trajs[it1]->nmeas();
     Err[it1] = trajs[it1]->quality( relErr );
-    cout << "traj "<<it1<<": "<<length[it1]<<" hits, "<<Err[it1]<<" error"<<endl;
+    
   }
 
   int longest = (int)TMath::LocMax( (int)trajs.size(), length);
@@ -823,34 +871,44 @@ void event_classif::set_branches(){
 //***********************************************************************
   
   _likeTree->Branch("nhits", &_nhit, "nhits/I");
+  _likeTree->Branch("VisEng", &_visEng, "visEng/D");
   _likeTree->Branch("nplanes", &_nplanes, "nplanes/I");
-  _likeTree->Branch("meanOcc", &_meanOcc, "meanocc/D");
   _likeTree->Branch("freePlanes", &_freeplanes, "freeplanes/I");
-  _likeTree->Branch("occupancy", &_Occ, "occ[nplanes]/I");
-  _likeTree->Branch("planeEnergy", &_EngP, "plEng[nplanes]/D");
+  _likeTree->Branch("occupancy", &_hitsPerPlane, "occ[nplanes]/I");
+  _likeTree->Branch("planeEnergy", &_energyPerPlane, "plEng[nplanes]/D");
+  _likeTree->Branch("planeZ", &_planeZ, "planeZ[nplanes]/D");
+  _likeTree->Branch("nhitTraj", &_trajhit, "nhitTraj/I");
+  _likeTree->Branch("TrajPur", &_trajpur, "trajpur/D");
+  _likeTree->Branch("EngTraj", &_trajEng, "engTraj/D");
+  _likeTree->Branch("EngTrajPlane", &_trajEngPlan, "engTrajPlane[nplanes]/D");
 
 }
 
 //***********************************************************************
-void event_classif::output_liklihood_info(){
+void event_classif::output_liklihood_info(const measurement_vector& hits){
 //***********************************************************************
   
   bool multFound = false;
+  const dict::Key Edep = "E_dep";
+  const dict::Key candHit = "inMu";
 
   _nhit = 0;
   _freeplanes = 0;
+  _visEng = 0;
+  _trajhit = 0;
+  _trajpur = 0;
+  _trajEng = 0;
 
   vector<int>::iterator itLike;
   vector<double>::iterator itEngL = _energyPerPlane.end()-1;
+  measurement_vector::const_iterator hitIt3;
 
   int counter = _nplanes - 1;
 
   for (itLike = _hitsPerPlane.end()-1;itLike >= _hitsPerPlane.begin();itLike--, itEngL--){
 
-    _Occ[counter] = (*itLike);
-    _EngP[counter] = (*itEngL);
-
     _nhit += (*itLike);
+    _visEng += (*itEngL);
 
     if ( !multFound && (*itLike) == 1)
       _freeplanes++;
@@ -859,7 +917,88 @@ void event_classif::output_liklihood_info(){
     counter--;
 
   }
+  //????
+  for (hitIt3 = hits.begin();hitIt3 != hits.end();hitIt3++){
+    if ( (*hitIt3)->names().has_key( candHit ) ){
+      if ( (*hitIt3)->name( candHit ).compare("True") == 0 ){
+	_trajhit++;
+	_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * GeV;
+	if ( (*hitIt3)->name("MotherParticle").compare("mu+") == 0
+	     || (*hitIt3)->name("MotherParticle").compare("mu-") == 0 )
+	  _trajpur++;
+      }
+    }
+  }
+  _trajpur /= _trajhit;
   
   _likeTree->Fill();
+
+}
+//***********************************************************************
+void event_classif::set_cell_branches(){
+//***********************************************************************
+
+  _cellTree->Branch("Nhits",&_nhit, "nhits/I");
+  _cellTree->Branch("XPositions", &_XPos, "X[nhits]/D");
+  _cellTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
+  _cellTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
+  _cellTree->Branch("Ntraj", &_ntraj,"ntraj/I");
+  _cellTree->Branch("TrajInfo", &_trInfo,"ntrajhit[ntraj]/D");
+  _cellTree->Branch("TrajInfo2", &_trhigh,"highneigh[ntraj]/D");
+  _cellTree->Branch("TrajInfo3", &_trInd,"highindex[ntraj]/D");
+  _cellTree->Branch("trajHits",&_trajHit,"hitintraj[ntraj][nhit]/I");
+
+}
+
+//***********************************************************************
+void event_classif::output_results_tree(const measurement_vector& hits,
+					const std::vector<Trajectory*>& trajs){
+//***********************************************************************
+//Temporary functions to study cellular automaton.
+  
+  _nhit = (int)hits.size();
+  _ntraj = (int)trajs.size();
+
+  const dict::Key max_neigh_index = "max_neigh_pos";
+  const dict::Key max_neigh_val = "max_neigh";
+  
+  measurement_vector::const_iterator hitIt2;
+  std::vector<Trajectory*>::const_iterator trIt;
+  std::vector<Node*>::iterator noIt;
+  
+  int hitcount = 0, trajCount = 0;
+  
+  for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
+
+    _XPos[hitcount] = (*hitIt2)->vector()[0];
+    _YPos[hitcount] = (*hitIt2)->vector()[1];
+    _ZPos[hitcount] = (*hitIt2)->position()[2];
+    
+    hitcount++;
+  }
+
+  for (trIt = trajs.begin();trIt != trajs.end();trIt++){
+    
+    _trInfo[trajCount] = (*trIt)->nmeas();
+    _trhigh[trajCount] = (*trIt)->quality( max_neigh_val );
+    _trInd[trajCount] = (*trIt)->quality( max_neigh_index );
+
+    vector<Node*> nodesV = (*trIt)->nodes();
+    hitcount = 0;
+    
+    for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
+      for (noIt = nodesV.begin();noIt != nodesV.end();noIt++){
+	if ( (*hitIt2)->position() == (*noIt)->measurement().position() ){
+	  _trajHit[trajCount][hitcount] = 1;
+	} else {
+	  _trajHit[trajCount][hitcount] = 0;
+	}
+      }
+      hitcount++;
+    }
+    trajCount++;
+  }
+
+  _cellTree->Fill();
 
 }

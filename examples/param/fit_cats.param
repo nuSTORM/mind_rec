@@ -49,11 +49,11 @@ RUN out_file S /home/alaing/ntuples/MINDpulls.root
 RUN kfitter S kalman
 
 # verbosities for recpack services
-ANA vfit I 0
-ANA vmat I 0
-ANA vnav I 0
-ANA vmod I 0
-ANA vsim I 0
+ANA vfit I 3
+ANA vmat I 3
+ANA vnav I 3
+ANA vmod I 3
+ANA vsim I 3
 
 # maximum chi2 for tracks
 RUN chi2fit_max D 50
@@ -68,8 +68,8 @@ RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 
 # cuts on cellular automaton trajectories. separation in cm.
-RUN max_sep D 3
-RUN max_traj I 50
+RUN max_sep D 7
+RUN max_traj I 20
 RUN accept_chi D 20
 RUN max_coincidence D 0.5
 
@@ -112,7 +112,7 @@ RUN likeli I 0
 ###  data to read ###
 
 DATA idst_files SV 1
-/home/alaing/tnd_cc_0.gz
+/home/alaing/temp_ntup/tnd_cc_10GeV_0.gz
 # /home/alaing/tnd_cc_1.gz
 # /home/alaing/tnd_cc_2.gz
 # /home/alaing/tnd_cc_3.gz
@@ -131,7 +131,7 @@ DATA idst_files SV 1
 ###  data to write ###
 
 DATA odst_files SV 1
-/home/alaing/tnd_cc_0.FITTED.gz
+/home/alaing/temp_ntup/tnd_cc_10GeV_0.FITTED.gz
 # /home/alaing/tnd_cc_1.FITTED.gz
 # /home/alaing/tnd_cc_2.FITTED.gz
 # /home/alaing/tnd_cc_3.FITTED.gz

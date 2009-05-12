@@ -57,7 +57,7 @@ int main(int argc, char* argv[]){
   
   EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
   
-  fitter* fit = new fitter(ana_store,bhep::MUTE);
+  fitter* fit = new fitter(ana_store,bhep::VERBOSE);
   
   MINDplotter* plot = new MINDplotter();
   
@@ -115,8 +115,6 @@ int main(int argc, char* argv[]){
   eman->finalize();
 
   plot->finalize();
-
-  //outPut->Write();
   
   return 0;
   

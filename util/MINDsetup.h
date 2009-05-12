@@ -88,6 +88,7 @@ protected:
   double X0Fe, X0Sc, X0Eff;
   double _wFe;
   double de_dx;
+  EVector _zaxis;
   
   //-------------------------------------------------------------//
   

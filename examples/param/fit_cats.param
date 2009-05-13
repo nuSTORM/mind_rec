@@ -49,11 +49,11 @@ RUN out_file S /home/alaing/ntuples/MINDpulls.root
 RUN kfitter S kalman
 
 # verbosities for recpack services
-ANA vfit I 3
-ANA vmat I 3
-ANA vnav I 3
-ANA vmod I 3
-ANA vsim I 3
+ANA vfit I 0
+ANA vmat I 0
+ANA vnav I 0
+ANA vmod I 0
+ANA vsim I 0
 
 # maximum chi2 for tracks
 RUN chi2fit_max D 50

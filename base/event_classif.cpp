@@ -301,7 +301,7 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
       ok = muon_extraction( hits, muontraj, hads);
 
   }
-  cout << "here3?"<<endl;
+  
   return ok;
 }
 
@@ -409,11 +409,11 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   
   man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
     .convert(seed,RP::default_rep);
-  cout << "here5?"<<endl;
+  
   bool ok = perform_kalman_fit( seed, muontraj);
   if ( !ok )
     _failType = 5;
-  cout << "here9q?"<<endl;
+  
   return ok;
 }
 
@@ -469,12 +469,12 @@ void event_classif::set_de_dx(double mom){
 //***********************************************************************
 bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 //***********************************************************************
-  cout << "here6?"<<endl;
+  
   bool ok = man().fitting_svc().fit(seed, track);
-  cout << "here7?"<<endl;
+  
   if (ok)
     seed = track.state(track.first_fitted_node());
-  cout << "here8?"<<endl;
+  
   return ok;
 
 }
@@ -488,17 +488,18 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
   bool ok;
   long ChiMin;
   int nConsecHole = 0;
-
+  
   while (_hitIt >= hits.begin() + _vertGuess) {
 
     double Chi2[(const int)(*_planeIt)];
 
     for (int iMat = (*_planeIt)-1;iMat >= 0;iMat--, _hitIt--){
       ok = man().matching_svc().match_trajectory_measurement(muontraj, (*(*_hitIt)), Chi2[iMat]);
+      
       if ( !ok )
 	Chi2[iMat] = 999999999;
     }
-
+    
     ChiMin = TMath::LocMin( (const int)(*_planeIt), Chi2);
 
     for (int iFil = 0;iFil < (*_planeIt);iFil++){
@@ -506,7 +507,7 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
       if ( iFil == (int)ChiMin) {
 
 	ok = man().fitting_svc().filter(*(*(_hitIt+iFil+1)), seed, muontraj);
-
+	
 	if ( ok ) {
 	  const dict::Key candHit = "inMu";
 	  const dict::Key hit_in = "True";
@@ -540,7 +541,7 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
     }
 
   }
-
+  
   return true;
 }
 

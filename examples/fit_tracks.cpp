@@ -57,7 +57,7 @@ int main(int argc, char* argv[]){
   
   EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
   
-  fitter* fit = new fitter(ana_store,bhep::VERBOSE);
+  fitter* fit = new fitter(ana_store,bhep::MUTE);
   
   MINDplotter* plot = new MINDplotter();
   

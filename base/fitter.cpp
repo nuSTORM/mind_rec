@@ -708,6 +708,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     Measurement* me = new Measurement();
     me->set_name(meastype);
     me->set_hv(HyperVector(hit_pos,cov));
+    me->set_name("volume", "Detector");
     //me->set_surface(geom.setup().surface(surf_name));
     me->set_position( meas_pos );
     //Add the hit energy deposit as a key to the Measurement.

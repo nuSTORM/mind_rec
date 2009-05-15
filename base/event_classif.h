@@ -141,10 +141,11 @@ protected:
   int _freeplanes;
   double _visEng;
   double _trajpur, _trajEng;
-  double _trajEngPlan[500];
+  vector<double> _trajEngPlan;
 
   void set_branches();
-  void output_liklihood_info(const measurement_vector& hits);
+  void output_liklihood_info(const measurement_vector& hits,
+			     const Trajectory& muontraj);
   //
   //
   double _XPos[150];

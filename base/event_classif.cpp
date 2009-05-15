@@ -86,7 +86,7 @@ bool event_classif::execute(measurement_vector& hits,
   ok = get_plane_occupancy( hits );
   
   if ( ok && _outLike)
-    output_liklihood_info( hits );
+    output_liklihood_info( hits, muontraj );
   
   /* Code to discriminate between different event types */
   //if identified as CC
@@ -198,6 +198,7 @@ void event_classif::reset(){
   _hitsPerPlane.clear();
   _energyPerPlane.clear();
   _planeZ.clear();
+  if ( _outLike ) _trajEngPlan.clear();
 
 }
 
@@ -886,7 +887,8 @@ void event_classif::set_branches(){
 }
 
 //***********************************************************************
-void event_classif::output_liklihood_info(const measurement_vector& hits){
+void event_classif::output_liklihood_info(const measurement_vector& hits,
+					  const Trajectory& muontraj){
 //***********************************************************************
   
   bool multFound = false;
@@ -899,10 +901,12 @@ void event_classif::output_liklihood_info(const measurement_vector& hits){
   _trajhit = 0;
   _trajpur = 0;
   _trajEng = 0;
+  _trajEngPlan = vector<double> (nplanes, 0);
 
   vector<int>::iterator itLike;
   vector<double>::iterator itEngL = _energyPerPlane.end()-1;
   measurement_vector::const_iterator hitIt3;
+  vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
 
   int counter = _nplanes - 1;
 
@@ -914,6 +918,13 @@ void event_classif::output_liklihood_info(const measurement_vector& hits){
     if ( !multFound && (*itLike) == 1)
       _freeplanes++;
     else multFound = true;
+
+    if ( fabs(_planeZ[counter] - (*trIt1)->measurement().position()[2]) < _tolerance){
+
+      _trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->name( Edep ) ) * GeV;
+      trIt1++;
+
+    }
 
     counter--;
 

@@ -85,13 +85,13 @@ bool event_classif::execute(measurement_vector& hits,
   //Occupancy.
   ok = get_plane_occupancy( hits );
   
-  if ( ok && _outLike)
-    output_liklihood_info( hits, muontraj );
-  
   /* Code to discriminate between different event types */
   //if identified as CC
   if ( ok )
     ok = chargeCurrent_analysis(hits, muontraj, hads);
+  
+  if ( ok && _outLike)
+    output_liklihood_info( hits, muontraj );
   
   return ok;
 }
@@ -551,7 +551,8 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
 				     Trajectory& muontraj, measurement_vector& hads){
 //***********************************************************************
 //uses cellular automaton to try and retrieve more complicated events.
-  std::cout << "Performing Cellular Automaton analysis " <<_nplanes<< std::endl;
+  m.message("+++ Performing Cellular Automaton analysis +++",bhep::VERBOSE);
+  
   bool ok;
 
   if ( _nplanes < min_hits ) return false;
@@ -587,7 +588,8 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
     delete_bad_trajs( muontraj, trajs );
   else stc_tools::destroy( trajs );
 
-  std::cout << "End of Cellular automaton" << std::endl;
+  m.message("+++ End of Cellular automaton +++",bhep::VERBOSE);
+  
   return ok;
 }
 
@@ -901,34 +903,36 @@ void event_classif::output_liklihood_info(const measurement_vector& hits,
   _trajhit = 0;
   _trajpur = 0;
   _trajEng = 0;
-  _trajEngPlan = vector<double> (nplanes, 0);
+  _trajEngPlan = vector<double> (_nplanes, 0);
 
   vector<int>::iterator itLike;
   vector<double>::iterator itEngL = _energyPerPlane.end()-1;
   measurement_vector::const_iterator hitIt3;
   vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
-
+  
   int counter = _nplanes - 1;
 
   for (itLike = _hitsPerPlane.end()-1;itLike >= _hitsPerPlane.begin();itLike--, itEngL--){
 
     _nhit += (*itLike);
     _visEng += (*itEngL);
-
+    
     if ( !multFound && (*itLike) == 1)
       _freeplanes++;
     else multFound = true;
+    
+    if ( fabs(_planeZ[counter] - (*trIt1)->measurement().position()[2]) < _tolerance
+	 && trIt1 != muontraj.nodes().end() ){
 
-    if ( fabs(_planeZ[counter] - (*trIt1)->measurement().position()[2]) < _tolerance){
-
-      _trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->name( Edep ) ) * GeV;
+      _trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * GeV;
       trIt1++;
 
     }
-
+    
     counter--;
 
   }
+  
   //????
   for (hitIt3 = hits.begin();hitIt3 != hits.end();hitIt3++){
     if ( (*hitIt3)->names().has_key( candHit ) ){

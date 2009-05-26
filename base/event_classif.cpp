@@ -84,6 +84,9 @@ bool event_classif::execute(measurement_vector& hits,
   
   //Occupancy.
   ok = get_plane_occupancy( hits );
+
+  if ( _outLike )
+    output_liklihood_info( hits );
   
   /* Code to discriminate between different event types */
   //if identified as CC
@@ -91,7 +94,9 @@ bool event_classif::execute(measurement_vector& hits,
     ok = chargeCurrent_analysis(hits, muontraj, hads);
   
   if ( ok && _outLike)
-    output_liklihood_info( hits, muontraj );
+    traj_like( hits, muontraj );
+
+  if ( _outLike ) out_like();
   
   return ok;
 }
@@ -198,7 +203,6 @@ void event_classif::reset(){
   _hitsPerPlane.clear();
   _energyPerPlane.clear();
   _planeZ.clear();
-  if ( _outLike ) _trajEngPlan.clear();
 
 }
 
@@ -404,11 +408,11 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   
   //Seedstate fit properties
   seed.set_name(RP::particle_helix);
-  seed.set_name(RP::representation,RP::slopes_z); 
+  seed.set_name(RP::representation,RP::slopes_curv_z); 
   seed.set_hv(RP::sense,HyperVector(V2,M2));
   seed.set_hv(HyperVector(V,M));
   
-  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
     .convert(seed,RP::default_rep);
   
   bool ok = perform_kalman_fit( seed, muontraj);
@@ -878,9 +882,9 @@ void event_classif::set_branches(){
   _likeTree->Branch("VisEng", &_visEng, "visEng/D");
   _likeTree->Branch("nplanes", &_nplanes, "nplanes/I");
   _likeTree->Branch("freePlanes", &_freeplanes, "freeplanes/I");
-  _likeTree->Branch("occupancy", &_hitsPerPlane, "occ[nplanes]/I");
-  _likeTree->Branch("planeEnergy", &_energyPerPlane, "plEng[nplanes]/D");
-  _likeTree->Branch("planeZ", &_planeZ, "planeZ[nplanes]/D");
+  _likeTree->Branch("occupancy", &_occ, "occ[nplanes]/I");
+  _likeTree->Branch("planeEnergy", &_plEng, "plEng[nplanes]/D");
+  _likeTree->Branch("planeZ", &_plZ, "planeZ[nplanes]/D");
   _likeTree->Branch("nhitTraj", &_trajhit, "nhitTraj/I");
   _likeTree->Branch("TrajPur", &_trajpur, "trajpur/D");
   _likeTree->Branch("EngTraj", &_trajEng, "engTraj/D");
@@ -889,13 +893,10 @@ void event_classif::set_branches(){
 }
 
 //***********************************************************************
-void event_classif::output_liklihood_info(const measurement_vector& hits,
-					  const Trajectory& muontraj){
+void event_classif::output_liklihood_info(const measurement_vector& hits){
 //***********************************************************************
   
   bool multFound = false;
-  const dict::Key Edep = "E_dep";
-  const dict::Key candHit = "inMu";
 
   _nhit = 0;
   _freeplanes = 0;
@@ -903,12 +904,11 @@ void event_classif::output_liklihood_info(const measurement_vector& hits,
   _trajhit = 0;
   _trajpur = 0;
   _trajEng = 0;
-  _trajEngPlan = vector<double> (_nplanes, 0);
+  for (int ipl = 0;ipl<_nplanes;ipl++)
+    _trajEngPlan[ipl] = 0;
 
   vector<int>::iterator itLike;
   vector<double>::iterator itEngL = _energyPerPlane.end()-1;
-  measurement_vector::const_iterator hitIt3;
-  vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
   
   int counter = _nplanes - 1;
 
@@ -916,24 +916,33 @@ void event_classif::output_liklihood_info(const measurement_vector& hits,
 
     _nhit += (*itLike);
     _visEng += (*itEngL);
+
+    _occ[counter] = (*itLike);
+    _plEng[counter] = (*itEngL);
+    _plZ[counter] = _planeZ[counter];
     
     if ( !multFound && (*itLike) == 1)
       _freeplanes++;
     else multFound = true;
     
-    if ( fabs(_planeZ[counter] - (*trIt1)->measurement().position()[2]) < _tolerance
-	 && trIt1 != muontraj.nodes().end() ){
-
-      _trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * GeV;
-      trIt1++;
-
-    }
-    
     counter--;
-
+    
   }
+
+}
+
+//***********************************************************************
+void event_classif::traj_like(const measurement_vector& hits, const Trajectory& muontraj){
+//***********************************************************************
+
+  const dict::Key Edep = "E_dep";
+  const dict::Key candHit = "inMu";
+  measurement_vector::const_iterator hitIt3;
+  vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
+  vector<double>::iterator planIt;
+
+  int counter = _nplanes - 1;
   
-  //????
   for (hitIt3 = hits.begin();hitIt3 != hits.end();hitIt3++){
     if ( (*hitIt3)->names().has_key( candHit ) ){
       if ( (*hitIt3)->name( candHit ).compare("True") == 0 ){
@@ -946,14 +955,34 @@ void event_classif::output_liklihood_info(const measurement_vector& hits,
     }
   }
   _trajpur /= _trajhit;
+
+  for (planIt = _planeZ.end()-1;planIt >= _planeZ.begin();planIt--){
+    if ( trIt1 != muontraj.nodes().end() )
+      if ( fabs( (*planIt) - (*trIt1)->measurement().position()[2]) < _tolerance ){
+	
+	_trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * GeV;
+	trIt1++;
+	
+      }
+    counter--;
+  }
+    
+}
+
+//***********************************************************************
+void event_classif::out_like(){
+//***********************************************************************
   
   _likeTree->Fill();
 
 }
+
 //***********************************************************************
 void event_classif::set_cell_branches(){
 //***********************************************************************
 
+  _cellTree->Branch("Event", &_evtN, "evNo/I");
+  _cellTree->Branch("NuEng", &_nuE, "nuE/D");
   _cellTree->Branch("Nhits",&_nhit, "nhits/I");
   _cellTree->Branch("XPositions", &_XPos, "X[nhits]/D");
   _cellTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
@@ -966,6 +995,14 @@ void event_classif::set_cell_branches(){
 
 }
 
+//**********************************************************************
+void event_classif::set_evtNo_eng(int evN, double NuEng){
+//**********************************************************************
+
+  _evtN = evN;
+  _nuE = NuEng * GeV;
+
+}
 //***********************************************************************
 void event_classif::output_results_tree(const measurement_vector& hits,
 					const std::vector<Trajectory*>& trajs){

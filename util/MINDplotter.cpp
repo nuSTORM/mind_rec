@@ -181,7 +181,7 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
 
   //Convert to slopes representation.
   fitObj.man().model_svc().model(RP::particle_helix)
-	  .representation().convert(ste, RP::slopes_z);
+    .representation().convert(ste, RP::slopes_curv_z);
 
   //Grab fitted vertex information.
   vert = ste.hv().vector();

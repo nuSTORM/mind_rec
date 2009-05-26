@@ -310,7 +310,7 @@ bool fitter::fitTrajectory(State seed) {
 	  //--------- refit using a new seed --------//	
 	  State newstate = _traj.state(_traj.first_fitted_node());
 	  man().model_svc().model(RP::particle_helix).representation()
-	    .convert(newstate, RP::slopes_z);
+	    .convert(newstate, RP::slopes_curv_z);
 	  
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
@@ -320,10 +320,10 @@ bool fitter::fitTrajectory(State seed) {
 	  EMatrix C = setSeedCov(C0,facRef);
 	  
 	  man().model_svc().model(RP::particle_helix).representation()
-	    .convert(seedstate, RP::slopes_z);
+	    .convert(seedstate, RP::slopes_curv_z);
 	  seedstate.set_hv(HyperVector(v,C)); 
 	  
-	  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+	  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
 	    .convert(seedstate,RP::default_rep);
 	  
 	  ok = man().fitting_svc().fit(seedstate,_traj);
@@ -379,7 +379,7 @@ bool fitter::reseed_traj(){
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
       man().model_svc().model(RP::particle_helix).representation()
-	.convert(newstate, RP::slopes_z);
+	.convert(newstate, RP::slopes_curv_z);
       
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
@@ -389,10 +389,10 @@ bool fitter::reseed_traj(){
       EMatrix C = setSeedCov(C0,facRef);
 	  
       man().model_svc().model(RP::particle_helix).representation()
-	.convert(seedstate, RP::slopes_z);
+	.convert(seedstate, RP::slopes_curv_z);
       seedstate.set_hv(HyperVector(v,C)); 
       
-      man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+      man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
 	.convert(seedstate,RP::default_rep);
       
       ok = man().fitting_svc().fit(seedstate,_traj2);
@@ -867,13 +867,13 @@ void fitter::setSeed(EVector r, int firsthit){
   C[5][5] = pow(v[5],2)*3;
   
   seedstate.set_name(RP::particle_helix);
-  seedstate.set_name(RP::representation,RP::slopes_z);
+  seedstate.set_name(RP::representation,RP::slopes_curv_z);
   
   v2[0] = 1;
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
   
-  man().model_svc().model(RP::particle_helix).representation(RP::slopes_z)
+  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
     .convert(seedstate,RP::default_rep);
 }
 

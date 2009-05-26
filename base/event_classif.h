@@ -42,6 +42,8 @@ public:
   EVector& get_PatRec_Chis(){ return _recChi; }
   State& get_patRec_seed(){ return _seedState; }
   int get_last_iso(){ return _lastIso; }
+  // For cell auto monitor.
+  void set_evtNo_eng(int evN, double NuEng);
   //
   
 protected:
@@ -138,16 +140,19 @@ protected:
   //
 
   int _nhit, _trajhit;
-  int _freeplanes;
+  int _freeplanes, _occ[500];
   double _visEng;
   double _trajpur, _trajEng;
-  vector<double> _trajEngPlan;
+  double _plEng[500], _plZ[500], _trajEngPlan[500];
 
   void set_branches();
-  void output_liklihood_info(const measurement_vector& hits,
-			     const Trajectory& muontraj);
+  void output_liklihood_info(const measurement_vector& hits);
+  void traj_like(const measurement_vector& hits, const Trajectory& muontraj);
+  void out_like();
   //
   //
+  int _evtN;
+  double _nuE;
   double _XPos[150];
   double _YPos[150];
   double _ZPos[150];

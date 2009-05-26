@@ -68,7 +68,7 @@ RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 
 # cuts on cellular automaton trajectories. separation in cm.
-RUN max_sep D 7
+RUN max_sep D 5
 RUN max_traj I 20
 RUN accept_chi D 20
 RUN max_coincidence D 0.5
@@ -107,7 +107,7 @@ ANA min_check_nodes I 3
 ANA min_iso_prop D 0.8
 
 # Bit to tell if require output of likelihood info.
-RUN likeli I 1
+RUN likeli I 0
 
 ###  data to read ###
 

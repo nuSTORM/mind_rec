@@ -42,17 +42,20 @@ public:
   EVector& get_PatRec_Chis(){ return _recChi; }
   State& get_patRec_seed(){ return _seedState; }
   int get_last_iso(){ return _lastIso; }
-  // For cell auto monitor.
-  void set_evtNo_eng(int evN, double NuEng);
+  double get_vis_eng(){ return _visEng; }
+  void get_planes(int* planes){
+    planes[0] = _nplanes;
+    planes[1] = _freeplanes;
+  }
   //
+  
+  bool get_plane_occupancy(measurement_vector& hits);
   
 protected:
   
   void readParam();
   void set_extract_properties(Setup& det);
   void reset();
-  
-  bool get_plane_occupancy(measurement_vector& hits);
   
   //Functions to be performed on CC mu candidates.  
   bool chargeCurrent_analysis(measurement_vector& hits,
@@ -78,8 +81,8 @@ protected:
   double compare_nodes(const vector<Node*>& n1, const vector<Node*>& n2);
   void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
-  void set_cell_branches();
-  void output_results_tree(const measurement_vector& hits, const std::vector<Trajectory*>& trajs);
+  // void set_cell_branches();
+//   void output_results_tree(const measurement_vector& hits, const std::vector<Trajectory*>& trajs);
   
   RecpackManager& man(){return _man;}
   
@@ -135,32 +138,30 @@ protected:
   TTree *_likeTree;
   //
   //Cell auto results info.
-  TFile *_outFileCell;
-  TTree *_cellTree;
+  // TFile *_outFileCell;
+//   TTree *_cellTree;
   //
 
   int _nhit, _trajhit;
   int _freeplanes, _occ[500];
   double _visEng;
   double _trajpur, _trajEng;
-  double _plEng[500], _plZ[500], _trajEngPlan[500];
+  double _plEng[500], _trajEngPlan[500];
 
   void set_branches();
   void output_liklihood_info(const measurement_vector& hits);
   void traj_like(const measurement_vector& hits, const Trajectory& muontraj);
   void out_like();
   //
-  //
-  int _evtN;
-  double _nuE;
-  double _XPos[150];
-  double _YPos[150];
-  double _ZPos[150];
-  int _ntraj;
-  double _trInfo[50];
-  double _trhigh[50];
-  double _trInd[50];
-  bool _trajHit[50][150];
+  
+  // double _XPos[150];
+//   double _YPos[150];
+//   double _ZPos[150];
+//   int _ntraj;
+//   double _trInfo[50];
+//   double _trhigh[50];
+//   double _trInd[50];
+//   bool _trajHit[50][150];
   //
 
 

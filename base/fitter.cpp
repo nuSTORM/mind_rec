@@ -62,6 +62,9 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   if (X0 == 0){
     man().model_svc().enable_noiser(model, RP::ms, false);
   }
+
+  man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
+  man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
   
   // set maximum local chi2
   
@@ -545,6 +548,9 @@ bool fitter::readTrajectory(const bhep::particle& part){
       patFail++;
     }
   }
+  // // ******HARDWIRE FAIL******** only interested in likelihood info at the mo
+//   ok = false;
+//   _failType = 5;
   
   // Check that the 'muon' can be fitted.
   // Is the lowest z hit in fiducial volume?
@@ -963,6 +969,9 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     
     delete trajFitXZ;
     delete trajFitYZ;
+  
+    delete func;
+    delete func2;
   }
   
 }

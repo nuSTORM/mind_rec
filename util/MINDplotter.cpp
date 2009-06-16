@@ -47,6 +47,10 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _Fit = success;
   _fail = Fit.get_fail_type();
   _reFit = Fit.check_reseed();
+  if ( _fail != 7 ){
+    _visEng = Fit.get_classifier().get_vis_eng();
+    Fit.get_classifier().get_planes( _plns );
+  } else { _visEng = 0; _plns[0] = 0; _plns[1] = -1; }
 
   if (_fail != 7)
     _intType = Fit.get_classifier().get_int_type();
@@ -54,6 +58,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
+  _engTraj = 0;
 
   ok1 = extract_true_particle(evt, Fit, patRec);
 
@@ -79,7 +84,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     hadron_direction(Fit);
 
   }
-
+  
   //If fit not successful set rec values to zero.
   if (!success){
     _X[1][0] = 0; _X[1][1] = 0;
@@ -106,7 +111,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   
   //Fill tree event with the values.
   statTree->Fill();
-
+  
   return ok1;
 }
 
@@ -134,6 +139,9 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("interaction",&_intType,"Inter/I");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
+  statTree->Branch("visibleEng", &_visEng, "visEng/D");
+  statTree->Branch("visEngTraj",&_engTraj, "engTraj/D");
+  statTree->Branch("trajEngVar",&_engvar,"engVar/D");
   statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
@@ -144,6 +152,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
   statTree->Branch("hadEng", &_hadE, "truE/D:recE/D");
   statTree->Branch("hadDir", &_haddot, "dotProd/D");
+  statTree->Branch("NoPlanes", &_plns, "nplanes/I:freeplanes/I");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
   statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I");
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
@@ -181,7 +190,7 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
 
   //Convert to slopes representation.
   fitObj.man().model_svc().model(RP::particle_helix)
-    .representation().convert(ste, RP::slopes_curv_z);
+	  .representation().convert(ste, RP::slopes_curv_z);
 
   //Grab fitted vertex information.
   vert = ste.hv().vector();
@@ -320,14 +329,14 @@ void MINDplotter::hadron_direction(fitter& fit) {
   
   if ( _nhits >= 2 ){
     fitunit = fit.get_had_unit();
-
+    
     _haddot = fitunit[0]*(_hadP[0]/normal)
       +fitunit[1]*(_hadP[1]/normal)
       +fitunit[2]*(_hadP[2]/normal);
-
+    
   } else _haddot = 99;
-
-    _hadE[1] = fit.get_had_eng();
+  
+  _hadE[1] = fit.get_had_eng();
   
 }
 
@@ -357,7 +366,8 @@ void MINDplotter::patternStats(fitter& Fit) {
 //****************************************************************************************
   //Event classifier version.
   _nhits = Fit.get_nMeas();
-  const dict::Key candHit = "inMu"; 
+  const dict::Key candHit = "inMu";
+  const dict::Key engDep = "E_dep";
   int nNode = 0;
   if ( Fit.check_reseed() ) nNode = (int)Fit.get_traj().size()-1;
   bool isMu;
@@ -376,6 +386,7 @@ void MINDplotter::patternStats(fitter& Fit) {
       if ( Fit.get_meas(iHits)->name(candHit).compare("True")==0 ){//has_key(candHit) ){
 	_cand[iHits] = true;
 	_hitType[1]++;
+	_engTraj += bhep::double_from_string( Fit.get_meas(iHits)->name(engDep) ) * GeV;
 	if ( isMu ) _hitType[2]++;
 	
 	if ( Fit.get_traj().node(nNode).status("fitted") && _fail!=1 && _fail<4 ){	
@@ -393,7 +404,12 @@ void MINDplotter::patternStats(fitter& Fit) {
     _pChi[0] = Fit.get_classifier().get_PatRec_Chis()[0];
     _pChi[1] = Fit.get_classifier().get_PatRec_Chis()[1];
     _pChi[2] = Fit.get_classifier().get_PatRec_Chis()[2];
-  }
+
+    _engvar = 0;
+    for(int ii=0;ii<_hitType[1];ii++)
+      _engvar += pow( bhep::double_from_string( Fit.get_traj().node(ii).measurement().name(engDep) ) * GeV - _engTraj/_hitType[1], 2);
+    _engvar /= (_hitType[1]-1);
+  } else _engvar = -1;
   
   for (int iclear = _nhits;iclear<300;iclear++){
     _mus[iclear] = false; _cand[iclear] = false;

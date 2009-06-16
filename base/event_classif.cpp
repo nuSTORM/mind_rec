@@ -53,18 +53,18 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
     .set_max_trajs( _max_traj );
   //
   if ( _outLike ){
-
-    _outFileEv = new TFile("LikeOut.root", "recreate");
+    string likeFile = pstore.fetch_sstore("like_file");
+    _outFileEv = new TFile(likeFile.c_str(), "recreate");
     _likeTree = new TTree("h1", "Possible Likelihood parameters");
 
     set_branches();
 
   }
-  //Temp functions to understand cell auto.
-  _outFileCell = new TFile("CellOut.root", "recreate" );
-  _cellTree = new TTree("h2", "Cellular automaton results");
-  set_cell_branches();
-  //
+  // //Temp functions to understand cell auto.
+//   _outFileCell = new TFile("CellOut.root", "recreate" );
+//   _cellTree = new TTree("h2", "Cellular automaton results");
+//   set_cell_branches();
+//   //
   set_extract_properties( det );
 
   return true;
@@ -110,8 +110,8 @@ bool event_classif::finalize() {
     _outFileEv->Close();
   }
 
-  _outFileCell->Write();
-  _outFileCell->Close();
+  // _outFileCell->Write();
+//   _outFileCell->Close();
 
   return true;
 }
@@ -180,6 +180,9 @@ void event_classif::set_extract_properties(Setup& det) {
   man().geometry_svc().select_setup("main");
   
   man().navigation_svc().navigator(model).set_unique_surface(true);
+
+  man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
+  man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
   
   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
     set_max_local_chi2ndf(patRec_maxChi);
@@ -221,6 +224,7 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
   double EngPlane = 0, testZ, curZ;
   size_t hits_used = 0, imeas = 0;
   const dict::Key Edep = "E_dep";
+  if ( !_outLike ) _visEng = 0;
   
   do {
     
@@ -245,6 +249,7 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
     _hitsPerPlane.push_back( count );
     _energyPerPlane.push_back( EngPlane );
     _planeZ.push_back( testZ );
+    if ( !_outLike ) _visEng += EngPlane;
 
     imeas += count;
     _meanOcc += (double)count;
@@ -287,6 +292,8 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   
   _lastIso = (int)muontraj.nmeas();
 
+  if ( !_outLike ) _freeplanes = (int)muontraj.nmeas();
+
   if ( _meanOcc == 1 ){
     
     _intType = 2;
@@ -304,7 +311,7 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
       
     } else
       ok = muon_extraction( hits, muontraj, hads);
-
+    
   }
   
   return ok;
@@ -348,7 +355,7 @@ bool event_classif::muon_extraction(measurement_vector& hits,
   if (_vertGuess != 0)
     for (int i = 0;i < _vertGuess;i++)
       hads.push_back( hits[i] );
-
+  
   State patternSeed;
   
   ok = get_patternRec_seed( patternSeed, muontraj, hits);
@@ -416,6 +423,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
     .convert(seed,RP::default_rep);
   
   bool ok = perform_kalman_fit( seed, muontraj);
+  
   if ( !ok )
     _failType = 5;
   
@@ -567,7 +575,7 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
   
   if ( !ok || trajs.size() == 0) return false;
    
-  output_results_tree( hits, trajs );
+  // output_results_tree( hits, trajs );
   
   if ( trajs.size() == 1 ) {
   
@@ -884,7 +892,6 @@ void event_classif::set_branches(){
   _likeTree->Branch("freePlanes", &_freeplanes, "freeplanes/I");
   _likeTree->Branch("occupancy", &_occ, "occ[nplanes]/I");
   _likeTree->Branch("planeEnergy", &_plEng, "plEng[nplanes]/D");
-  _likeTree->Branch("planeZ", &_plZ, "planeZ[nplanes]/D");
   _likeTree->Branch("nhitTraj", &_trajhit, "nhitTraj/I");
   _likeTree->Branch("TrajPur", &_trajpur, "trajpur/D");
   _likeTree->Branch("EngTraj", &_trajEng, "engTraj/D");
@@ -906,7 +913,7 @@ void event_classif::output_liklihood_info(const measurement_vector& hits){
   _trajEng = 0;
   for (int ipl = 0;ipl<_nplanes;ipl++)
     _trajEngPlan[ipl] = 0;
-
+  
   vector<int>::iterator itLike;
   vector<double>::iterator itEngL = _energyPerPlane.end()-1;
   
@@ -919,22 +926,21 @@ void event_classif::output_liklihood_info(const measurement_vector& hits){
 
     _occ[counter] = (*itLike);
     _plEng[counter] = (*itEngL);
-    _plZ[counter] = _planeZ[counter];
     
-    if ( !multFound && (*itLike) == 1)
+    if ( !multFound && (*itLike) == 1 )
       _freeplanes++;
     else multFound = true;
     
     counter--;
-    
-  }
 
+  }
+  
 }
 
 //***********************************************************************
 void event_classif::traj_like(const measurement_vector& hits, const Trajectory& muontraj){
 //***********************************************************************
-
+  
   const dict::Key Edep = "E_dep";
   const dict::Key candHit = "inMu";
   measurement_vector::const_iterator hitIt3;
@@ -955,7 +961,7 @@ void event_classif::traj_like(const measurement_vector& hits, const Trajectory& 
     }
   }
   _trajpur /= _trajhit;
-
+  
   for (planIt = _planeZ.end()-1;planIt >= _planeZ.begin();planIt--){
     if ( trIt1 != muontraj.nodes().end() )
       if ( fabs( (*planIt) - (*trIt1)->measurement().position()[2]) < _tolerance ){
@@ -966,7 +972,7 @@ void event_classif::traj_like(const measurement_vector& hits, const Trajectory& 
       }
     counter--;
   }
-    
+  
 }
 
 //***********************************************************************
@@ -974,84 +980,74 @@ void event_classif::out_like(){
 //***********************************************************************
   
   _likeTree->Fill();
-
+  
 }
 
-//***********************************************************************
-void event_classif::set_cell_branches(){
-//***********************************************************************
+// //***********************************************************************
+// void event_classif::set_cell_branches(){
+// //***********************************************************************
 
-  _cellTree->Branch("Event", &_evtN, "evNo/I");
-  _cellTree->Branch("NuEng", &_nuE, "nuE/D");
-  _cellTree->Branch("Nhits",&_nhit, "nhits/I");
-  _cellTree->Branch("XPositions", &_XPos, "X[nhits]/D");
-  _cellTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
-  _cellTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
-  _cellTree->Branch("Ntraj", &_ntraj,"ntraj/I");
-  _cellTree->Branch("TrajInfo", &_trInfo,"ntrajhit[ntraj]/D");
-  _cellTree->Branch("TrajInfo2", &_trhigh,"highneigh[ntraj]/D");
-  _cellTree->Branch("TrajInfo3", &_trInd,"highindex[ntraj]/D");
-  _cellTree->Branch("trajHits",&_trajHit,"hitintraj[ntraj][nhit]/I");
+//   _cellTree->Branch("Nhits",&_nhit, "nhits/I");
+//   _cellTree->Branch("XPositions", &_XPos, "X[nhits]/D");
+//   _cellTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
+//   _cellTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
+//   _cellTree->Branch("Ntraj", &_ntraj,"ntraj/I");
+//   _cellTree->Branch("TrajInfo", &_trInfo,"ntrajhit[ntraj]/D");
+//   _cellTree->Branch("TrajInfo2", &_trhigh,"highneigh[ntraj]/D");
+//   _cellTree->Branch("TrajInfo3", &_trInd,"highindex[ntraj]/D");
+//   _cellTree->Branch("trajHits",&_trajHit,"hitintraj[ntraj][nhit]/I");
 
-}
+// }
 
-//**********************************************************************
-void event_classif::set_evtNo_eng(int evN, double NuEng){
-//**********************************************************************
-
-  _evtN = evN;
-  _nuE = NuEng * GeV;
-
-}
-//***********************************************************************
-void event_classif::output_results_tree(const measurement_vector& hits,
-					const std::vector<Trajectory*>& trajs){
-//***********************************************************************
-//Temporary functions to study cellular automaton.
+// //***********************************************************************
+// void event_classif::output_results_tree(const measurement_vector& hits,
+// 					const std::vector<Trajectory*>& trajs){
+// //***********************************************************************
+// //Temporary functions to study cellular automaton.
   
-  _nhit = (int)hits.size();
-  _ntraj = (int)trajs.size();
+//   _nhit = (int)hits.size();
+//   _ntraj = (int)trajs.size();
 
-  const dict::Key max_neigh_index = "max_neigh_pos";
-  const dict::Key max_neigh_val = "max_neigh";
+//   const dict::Key max_neigh_index = "max_neigh_pos";
+//   const dict::Key max_neigh_val = "max_neigh";
   
-  measurement_vector::const_iterator hitIt2;
-  std::vector<Trajectory*>::const_iterator trIt;
-  std::vector<Node*>::iterator noIt;
+//   measurement_vector::const_iterator hitIt2;
+//   std::vector<Trajectory*>::const_iterator trIt;
+//   std::vector<Node*>::iterator noIt;
   
-  int hitcount = 0, trajCount = 0;
+//   int hitcount = 0, trajCount = 0;
   
-  for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
+//   for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
 
-    _XPos[hitcount] = (*hitIt2)->vector()[0];
-    _YPos[hitcount] = (*hitIt2)->vector()[1];
-    _ZPos[hitcount] = (*hitIt2)->position()[2];
+//     _XPos[hitcount] = (*hitIt2)->vector()[0];
+//     _YPos[hitcount] = (*hitIt2)->vector()[1];
+//     _ZPos[hitcount] = (*hitIt2)->position()[2];
     
-    hitcount++;
-  }
+//     hitcount++;
+//   }
 
-  for (trIt = trajs.begin();trIt != trajs.end();trIt++){
+//   for (trIt = trajs.begin();trIt != trajs.end();trIt++){
     
-    _trInfo[trajCount] = (*trIt)->nmeas();
-    _trhigh[trajCount] = (*trIt)->quality( max_neigh_val );
-    _trInd[trajCount] = (*trIt)->quality( max_neigh_index );
+//     _trInfo[trajCount] = (*trIt)->nmeas();
+//     _trhigh[trajCount] = (*trIt)->quality( max_neigh_val );
+//     _trInd[trajCount] = (*trIt)->quality( max_neigh_index );
 
-    vector<Node*> nodesV = (*trIt)->nodes();
-    hitcount = 0;
+//     vector<Node*> nodesV = (*trIt)->nodes();
+//     hitcount = 0;
     
-    for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
-      for (noIt = nodesV.begin();noIt != nodesV.end();noIt++){
-	if ( (*hitIt2)->position() == (*noIt)->measurement().position() ){
-	  _trajHit[trajCount][hitcount] = 1;
-	} else {
-	  _trajHit[trajCount][hitcount] = 0;
-	}
-      }
-      hitcount++;
-    }
-    trajCount++;
-  }
+//     for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
+//       for (noIt = nodesV.begin();noIt != nodesV.end();noIt++){
+// 	if ( (*hitIt2)->position() == (*noIt)->measurement().position() ){
+// 	  _trajHit[trajCount][hitcount] = 1;
+// 	} else {
+// 	  _trajHit[trajCount][hitcount] = 0;
+// 	}
+//       }
+//       hitcount++;
+//     }
+//     trajCount++;
+//   }
 
-  _cellTree->Fill();
+//   _cellTree->Fill();
 
-}
+// }

@@ -78,6 +78,9 @@ private:
   int _fail;
   int _intType;
   double _nuEng;
+  double _visEng;
+  double _engTraj;
+  double _engvar;
   double _hadP[3];
   double _hadE[2];
   double _haddot;
@@ -88,6 +91,7 @@ private:
   double _rangP[2];
   int _Q[3];
   double _Chi[2];
+  int _plns[2];
   int _nhits;
   int _hitType[4];
   double _XPos[400];

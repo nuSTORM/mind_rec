@@ -63,6 +63,7 @@ bool fitter::initialize(const bhep::sstore& run_store) {
     man().model_svc().enable_noiser(model, RP::ms, false);
   }
 
+
   man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
   man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
   
@@ -312,8 +313,8 @@ bool fitter::fitTrajectory(State seed) {
 	  
 	  //--------- refit using a new seed --------//	
 	  State newstate = _traj.state(_traj.first_fitted_node());
-	  man().model_svc().model(RP::particle_helix).representation()
-	    .convert(newstate, RP::slopes_curv_z);
+	  // man().model_svc().model(RP::particle_helix).representation()
+// 	    .convert(newstate, RP::slopes_curv_z);
 	  
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
@@ -322,12 +323,12 @@ bool fitter::fitTrajectory(State seed) {
 
 	  EMatrix C = setSeedCov(C0,facRef);
 	  
-	  man().model_svc().model(RP::particle_helix).representation()
-	    .convert(seedstate, RP::slopes_curv_z);
+	  // man().model_svc().model(RP::particle_helix).representation()
+// 	    .convert(seedstate, RP::slopes_curv_z);
 	  seedstate.set_hv(HyperVector(v,C)); 
 	  
-	  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-	    .convert(seedstate,RP::default_rep);
+	  // man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
+// 	    .convert(seedstate,RP::default_rep);
 	  
 	  ok = man().fitting_svc().fit(seedstate,_traj);
 	}
@@ -381,8 +382,8 @@ bool fitter::reseed_traj(){
       
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
-      man().model_svc().model(RP::particle_helix).representation()
-	.convert(newstate, RP::slopes_curv_z);
+      // man().model_svc().model(RP::particle_helix).representation()
+// 	.convert(newstate, RP::slopes_curv_z);
       
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
@@ -391,12 +392,12 @@ bool fitter::reseed_traj(){
       
       EMatrix C = setSeedCov(C0,facRef);
 	  
-      man().model_svc().model(RP::particle_helix).representation()
-	.convert(seedstate, RP::slopes_curv_z);
+      // man().model_svc().model(RP::particle_helix).representation()
+// 	.convert(seedstate, RP::slopes_curv_z);
       seedstate.set_hv(HyperVector(v,C)); 
       
-      man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-	.convert(seedstate,RP::default_rep);
+      // man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
+// 	.convert(seedstate,RP::default_rep);
       
       ok = man().fitting_svc().fit(seedstate,_traj2);
     }
@@ -879,8 +880,8 @@ void fitter::setSeed(EVector r, int firsthit){
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
   
-  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-    .convert(seedstate,RP::default_rep);
+  // man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
+//     .convert(seedstate,RP::default_rep);
 }
 
 //*************************************************************
@@ -973,7 +974,6 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     delete func;
     delete func2;
   }
-  
 }
 
 //*****************************************************************************

@@ -3,8 +3,10 @@
 #include <bhep/EventManager2.h>
 #include <bhep/gstore.h>
 #include <bhep/sreader.h>
+
 #include <recpack/Measurement.h>
 #include <recpack/Ring.h>
+#include <recpack/stc_tools.h>
 
 using namespace std;
 
@@ -20,7 +22,7 @@ int main(int argc, char* argv[]){
   string param_file="param/fit_cats.param";
   
   int nevents=1;
-  bool fitOk;
+  bool fitOk, catchOk;
   if (argc==2) param_file = argv[1];
   
   else if(argc==3) {param_file = argv[1];nevents = atoi(argv[2]);}
@@ -61,17 +63,17 @@ int main(int argc, char* argv[]){
   
   MINDplotter* plot = new MINDplotter();
   
-  eman->initialize();
+  catchOk = eman->initialize();
   
-  fit->initialize(eman->get_dst_properties());
+  catchOk = fit->initialize(eman->get_dst_properties());
 
-  plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
+  catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
   
   //add run properties to output dst header
   
-  eman->add_run_property("MINDfit","1");
+  catchOk = eman->add_run_property("MINDfit","1");
   
-  eman->add_run_properties(run_store);
+  catchOk = eman->add_run_properties(run_store);
   
   bool patR = ana_store.fetch_istore("patRec");
   
@@ -86,31 +88,32 @@ int main(int argc, char* argv[]){
     bhep::event& e = eman->read(); 
     
     // loop over particles
-    
     vector<bhep::particle*> parts = e.digi_particles(); 
+    
     cout <<"There are " << parts.size() << " digis in event " << e.event_number() <<endl;
     if (parts.size() != 0) {
       for (size_t part=0; part<parts.size();part++){
 	
-	bhep::particle& p = *parts[part];
+	if (parts[part]->name()=="void") continue;
 	
-	if (p.name()=="void") continue;
-	
-	fitOk = fit->execute(p,e.event_number());
-	
-	plot->execute(*fit, e, fitOk, patR);
+	fitOk = fit->execute(*parts[part],e.event_number());
+	cout << "exitted shite"<<endl;
+	catchOk = plot->execute(*fit, e, fitOk, patR);
       }
     }
-      //save event containing fit info 
-      eman->write(e);
-      
+    
+    //save event containing fit info 
+    //eman->write(e);
+    
+    parts.clear();
+    e.clear();
   }
   
-  fit->finalize();
+  catchOk = fit->finalize();
   
-  eman->finalize();
+  catchOk = eman->finalize();
 
-  plot->finalize();
+  catchOk = plot->finalize();
   
   return 0;
   

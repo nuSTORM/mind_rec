@@ -419,8 +419,8 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   seed.set_hv(RP::sense,HyperVector(V2,M2));
   seed.set_hv(HyperVector(V,M));
   
-  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-    .convert(seed,RP::default_rep);
+ //  man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
+//     .convert(seed,RP::default_rep);
   
   bool ok = perform_kalman_fit( seed, muontraj);
   
@@ -434,6 +434,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 //***********************************************************************
 
+  int fitcatcher;
   size_t nMeas = track.nmeas();
 
   if (nMeas > 3) nMeas = 3;
@@ -454,11 +455,11 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
   fun->SetParameters(0.,0.001);
   
-  gr1->Fit("parfit", "QN");
+  fitcatcher = gr1->Fit("parfit", "QN");
   vec[3] = fun->GetParameter(1);
 
   fun->SetParameters(0.,0.001);
-  gr2->Fit("parfit", "QN");
+  fitcatcher = gr2->Fit("parfit", "QN");
   vec[4] = fun->GetParameter(1);
   
   delete gr1;
@@ -979,7 +980,7 @@ void event_classif::traj_like(const measurement_vector& hits, const Trajectory& 
 void event_classif::out_like(){
 //***********************************************************************
   
-  _likeTree->Fill();
+  int fillcatch = _likeTree->Fill();
   
 }
 

@@ -43,10 +43,8 @@ public:
   State& get_patRec_seed(){ return _seedState; }
   int get_last_iso(){ return _lastIso; }
   double get_vis_eng(){ return _visEng; }
-  void get_planes(int* planes){
-    planes[0] = _nplanes;
-    planes[1] = _freeplanes;
-  }
+  int get_planes(){ return _nplanes; }
+  int get_free_planes(){ return _freeplanes; }
   //
   
   bool get_plane_occupancy(measurement_vector& hits);

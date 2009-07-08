@@ -63,7 +63,6 @@ bool fitter::initialize(const bhep::sstore& run_store) {
     man().model_svc().enable_noiser(model, RP::ms, false);
   }
 
-
   man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
   man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
   
@@ -88,7 +87,7 @@ bool fitter::initialize(const bhep::sstore& run_store) {
   setVerbosity(vfit,vnav,vmod);
   
   // 
-  get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
+  bool ok = get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
@@ -139,19 +138,19 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
   totFitAttempts++;
   _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
-  
+  cout << "Traj read"<<endl;
   reseed_ok = false;
 
   if (!userseed && ok) computeSeed();
-  
+  cout << "seed computed" << endl;
   if (ok) {
     
     fitted = fitTrajectory(seedstate);
-    
+    cout << "traj fitted" << endl;
     if ( fitted )
       checker = fitHadrons();
     if (!checker) std::cout << "Had fit fail" << std::endl;
-
+    
     addFitInfo(part,fitted);
     
     // if (tklen) addTrackLength(part,_traj);
@@ -308,7 +307,7 @@ bool fitter::fitTrajectory(State seed) {
         
         ok = checkQuality(); 
 	if (ok) {
-
+	  
 	  m.message("Going to refit...",bhep::VERBOSE);
 	  
 	  //--------- refit using a new seed --------//	
@@ -347,6 +346,7 @@ bool fitter::fitTrajectory(State seed) {
     else
       low_fit_cut = store.fetch_dstore("low_fit_cut0");
     //disallow backfit on cell auto tracks for now.
+    
     if (get_classifier().get_int_type() != 5){
       if (get_classifier().get_int_type() != 2){
 	if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
@@ -354,6 +354,7 @@ bool fitter::fitTrajectory(State seed) {
       } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
 	reseed_ok = reseed_traj();
     }
+    
     if (ok && !reseed_ok) ok = checkQuality();
     else if ( reseed_ok ) ok = true;
     
@@ -367,11 +368,11 @@ bool fitter::reseed_traj(){
   bool ok;
     
   State backSeed = get_classifier().get_patRec_seed();
-
+  
   vector<Node*>::iterator nIt;
   for (nIt = _traj.nodes().end()-1;nIt >= _traj.nodes().begin();nIt--)
     _traj2.add_measurement( (*nIt)->measurement() );
-
+  
   ok = man().fitting_svc().fit(backSeed,_traj2);
   
   if (ok && refit){
@@ -392,7 +393,7 @@ bool fitter::reseed_traj(){
       
       EMatrix C = setSeedCov(C0,facRef);
 	  
-      // man().model_svc().model(RP::particle_helix).representation()
+     //  man().model_svc().model(RP::particle_helix).representation()
 // 	.convert(seedstate, RP::slopes_curv_z);
       seedstate.set_hv(HyperVector(v,C)); 
       
@@ -403,7 +404,7 @@ bool fitter::reseed_traj(){
     }
     
   }
-
+  
   return ok;
 }
 
@@ -540,7 +541,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
   if (patternRec && ok){
     
     ok = get_classifier().execute( _meas, _traj, _hadmeas);
-    
+     
     _traj.sort_nodes(1);
     sort( _hadmeas.begin(), _hadmeas.end(), reverseSorter() );
     
@@ -559,7 +560,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
 
   if (ok)
     ok = check_valid_traj();
-  
+   
   return ok;
 }
 
@@ -573,17 +574,17 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     reset();
     //--------- take hits from particle -------//
     
-    const vector<bhep::hit*>& hits = p.hits("MIND");  
+    const vector<bhep::hit*> hits = p.hits("MIND");  
     
     //------------- loop over hits ------------//
  
     for(size_t j=0; j< hits.size(); j++){
 
-      bhep::hit& hit = *hits[j];
+      //bhep::hit& hit = *hits[j];
         	        
       //---------- create measurament ---------------//
       
-      Measurement* mnt = getMeasurement(hit);
+      Measurement* mnt = getMeasurement(*hits[j]);
       
       //---------end of create measurement-----------//
       
@@ -592,7 +593,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       m.message("Measurement added:",*mnt,bhep::VVERBOSE);
       
     }//end of loop over hits
-    
+
     //--------- add measurements to trajectory --------//
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
@@ -911,6 +912,9 @@ double fitf2(Double_t *x,Double_t *par) {
 void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
 //*****************************************************************************
 
+//Some catchers for pointless returns.
+  int fitcatch;
+  //
   int nfit, sign;
   int fitRange[3];
   const int fitpoints = nplanes - firsthit;
@@ -946,8 +950,8 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     func2->SetParameters(0.,0.,0.001,0.0001,0.0001);
     func2->SetParNames("f", "g", "h", "i", "j");
 
-    trajFitXZ->Fit("fit", "QN");
-    trajFitYZ->Fit("fit2", "QN");
+    fitcatch = trajFitXZ->Fit("fit", "QN");
+    fitcatch = trajFitYZ->Fit("fit2", "QN");
     double b = func->GetParameter(1);
     double c = func->GetParameter(2);  
 
@@ -974,6 +978,7 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     delete func;
     delete func2;
   }
+  
 }
 
 //*****************************************************************************

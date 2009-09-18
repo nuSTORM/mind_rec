@@ -1,8 +1,9 @@
 #include <mind/fitter.h>
 #include <mind/MINDplotter.h>
-#include <bhep/EventManager2.h>
+//#include <bhep/EventManager2.h>
 #include <bhep/gstore.h>
 #include <bhep/sreader.h>
+#include <bhep/reader_root.h>
 
 #include <recpack/Measurement.h>
 #include <recpack/Ring.h>
@@ -36,7 +37,7 @@ int main(int argc, char* argv[]){
   
   // read analysis parameters 
   bhep::sreader reader(ana_store);
-  reader.file(param_file); 
+  reader.file(param_file);
   reader.group("ANA");reader.read();
   bhep::sreader reader2(ana_store);
   reader2.file(param_file); 
@@ -57,35 +58,39 @@ int main(int argc, char* argv[]){
   data_reader.read();
   //
   
-  EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
-  
+  //EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
+  bhep::reader_root inDst;
+  inDst.open( data_store.fetch_sstore("idst_file") );
+
   fitter* fit = new fitter(ana_store,bhep::MUTE);
   
   MINDplotter* plot = new MINDplotter();
   
-  catchOk = eman->initialize();
+  //catchOk = eman->initialize();
   
-  catchOk = fit->initialize(eman->get_dst_properties());
+  catchOk = fit->initialize();//eman->get_dst_properties());
 
   catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
   
   //add run properties to output dst header
   
-  catchOk = eman->add_run_property("MINDfit","1");
+  //will something be missing without these steps??
+  //catchOk = eman->add_run_property("MINDfit","1");
   
-  catchOk = eman->add_run_properties(run_store);
+  //catchOk = eman->add_run_properties(run_store);
   
   bool patR = ana_store.fetch_istore("patRec");
   
   for(int i=0; i < nevents; i++) {
     
-    bool ok = eman->status();
+    //bool ok = eman->status();
     
-    if (!ok) break; // checks eof
+    //if (!ok) break; // checks eof
     
     if (i%100==0) cout<< "Number of events read "<<i<<endl;
     
-    bhep::event& e = eman->read(); 
+    //bhep::event& e = eman->read(); 
+    bhep::event& e = inDst.read_event( i );
     
     // loop over particles
     vector<bhep::particle*> parts = e.digi_particles(); 
@@ -97,7 +102,7 @@ int main(int argc, char* argv[]){
 	if (parts[part]->name()=="void") continue;
 	
 	fitOk = fit->execute(*parts[part],e.event_number());
-	cout << "exitted shite"<<endl;
+	
 	catchOk = plot->execute(*fit, e, fitOk, patR);
       }
     }
@@ -111,7 +116,8 @@ int main(int argc, char* argv[]){
   
   catchOk = fit->finalize();
   
-  catchOk = eman->finalize();
+  //catchOk = eman->finalize();
+  inDst.close();
 
   catchOk = plot->finalize();
   

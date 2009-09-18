@@ -52,38 +52,38 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     _plns[0] = Fit.get_classifier().get_planes();
     _plns[1] = Fit.get_classifier().get_free_planes();
   } else { _visEng = 0; _plns[0] = 0; _plns[1] = -1; }
-  cout << "here"<<endl;
+  
   if (_fail != 7)
     _intType = Fit.get_classifier().get_int_type();
   else _intType = 7;
-  cout << "here2"<<endl;
+  
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
   _engTraj = 0;
-  cout << "here3"<<endl;
+  
   ok1 = extract_true_particle(evt, Fit, patRec);
-  cout << "here4"<<endl;
+  
   if (success) {
     
     State ste;
     ok2 = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
-    cout << "here5"<<endl;
+    
     if (_reFit) _leng = -Fit.get_traj().length();
     else _leng = Fit.get_traj().length();
-    cout << "here6"<<endl;
+    
     if (_leng !=0) {
       Fit.calculate_len_mom( _leng, _rangP );
     } else { _rangP[0] = 0; _rangP[1] = -99; }
-    cout << "here7"<<endl;
+    
     if (ok2) {
       max_local_chi2( Fit.get_traj() );
       position_pulls();
       direction_pulls();
       momentum_pulls();
     }
-    cout << "here8"<<endl;
+    
     hadron_direction(Fit);
-    cout << "here9"<<endl;
+    
   }
   
   //If fit not successful set rec values to zero.
@@ -106,13 +106,13 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     _haddot = 99;
     _hadE[1] = -99;
   }
-  cout << "here10"<<endl;
+  
   if (patRec)
     patternStats( Fit );
-  cout << "here11"<<endl;
+  
   //Fill tree event with the values.
   int fillcatch = statTree->Fill();
-  cout << "exit"<<endl;
+  
   return ok1;
 }
 
@@ -262,7 +262,8 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
 /* sets true particle momentum for calculation and returns a reference
    to the particle */
 
-  _nuEng = atof( evt.fetch_property("Enu").c_str() ) * GeV;
+  //_nuEng = atof( evt.fetch_property("Enu").c_str() ) * GeV;
+  _nuEng = evt.fetch_dproperty("nuEnergy") * MeV;
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
 
@@ -282,10 +283,11 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
       _hadP[0] = Pospart[iParts]->px();
       _hadP[1] = Pospart[iParts]->py();
       _hadP[2] = Pospart[iParts]->pz();
-      _hadE[0] = atof( Pospart[iParts]->fetch_property("HadE").c_str() ) * GeV;
+      //_hadE[0] = atof( Pospart[iParts]->fetch_property("HadE").c_str() ) * GeV;
+      _hadE[0] = Pospart[iParts]->fetch_dproperty("HadE") * GeV;
     }
   }
-  
+  //STUFF ABOVE FOR REDESIGN.!!!!!
   _nhits = Fit.get_nMeas();
 
   for (int iHits = 0;iHits < _nhits;iHits++){

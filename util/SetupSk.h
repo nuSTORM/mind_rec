@@ -23,7 +23,7 @@ protected:
   bhep::messenger _msetup;
     
   //store for geom params
-  bhep::sstore _store;
+  //bhep::sstore _store;
 
 };
 

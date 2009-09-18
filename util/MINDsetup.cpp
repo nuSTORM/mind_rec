@@ -17,15 +17,16 @@ MINDsetup::~MINDsetup() {
 
 
 //*************************************************************
-void MINDsetup::init(bhep::gstore pstore,bhep::sstore gstore,
-		       bhep::prlevel level) {
+// void MINDsetup::init(bhep::gstore pstore,bhep::sstore gstore,
+// 		       bhep::prlevel level) {
+void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
 //*************************************************************
     
     _msetup=bhep::messenger(level);
     
     _msetup.message("++MINDsetup Messenger generated++",bhep::VERBOSE);
 
-    _pstore=pstore; _store=gstore;
+    _pstore=pstore; //_store=gstore;
     
     readParam();
 

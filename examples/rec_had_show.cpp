@@ -10,10 +10,11 @@
 #include <mind/shower_rec.h>
 #include <mind/shower.h>
 
-#include <bhep/EventManager2.h>
+//#include <bhep/EventManager2.h>
 #include <bhep/gstore.h>
 #include <bhep/event.h>
 #include <bhep/sreader.h>
+#include <bhep/reader_root.h>
 
 #include <recpack/Measurement.h>
 #include <recpack/stc_tools.h>
@@ -49,9 +50,11 @@ int main(int argc, char *argv[]){
   reader2.file(param_file);
   reader2.group("ANA");reader2.read();
   
-  EventManager2 *eman = new EventManager2(data_store,bhep::MUTE);
+  //EventManager2 *eman = new EventManager2(data_store,bhep::MUTE);
 
-  eman->initialize();
+  //eman->initialize();
+  bhep::reader_root inDst;
+  inDst.open( data_store.fetch_sstore("idst_file") );
   
   shower_rec* recon = new shower_rec();
   
@@ -69,10 +72,11 @@ int main(int argc, char *argv[]){
   
   for (int i = 0;i < nEvent;i++){
     
-    succ = eman->status();
+    //succ = eman->status();
 
-    if ( !succ ) return -1;
-    bhep::event& e = eman->read();
+    //if ( !succ ) return -1;
+    //bhep::event& e = eman->read();
+    bhep::event& e = inDst.read_event( i );
     std::cout << "...got event " << i <<std::endl;
     get_event_data( e, meas, vert, truP );
     
@@ -99,7 +103,8 @@ int main(int argc, char *argv[]){
   
   recon->finalize();
   
-  eman->finalize();
+  //eman->finalize();
+  inDst.close();
   
   return 0;
 }

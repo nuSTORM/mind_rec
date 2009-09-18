@@ -43,10 +43,16 @@ RUN pos_res D 1.
 #############################################
 
 # monitor ntuple file
-RUN out_file S /home/alaing/ntuples/MINDpulls.root
+RUN out_file S /home/alaing/decNtup/bhep3Rectest.root
+
+#liklihood file.
+RUN like_file S /data3/andrew/mind/LikeOut_nc_3-5.root
 
 # type of fit
 RUN kfitter S kalman
+
+# fitter model
+RUN model S particle/helix
 
 # verbosities for recpack services
 ANA vfit I 0
@@ -68,13 +74,13 @@ RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 
 # cuts on cellular automaton trajectories. separation in cm.
-RUN max_sep D 5
+RUN max_sep D 7
 RUN max_traj I 20
 RUN accept_chi D 20
 RUN max_coincidence D 0.5
 
 # lowest and highest number of hits required for fit.
-RUN low_Pass_hits I 10
+RUN low_Pass_hits I 6
 RUN high_Pass_hits I 500
 
 # proportion of nodes which must be fir not to trigger backwards fit.
@@ -111,41 +117,16 @@ RUN likeli I 0
 
 ###  data to read ###
 
-DATA idst_files SV 1
-/home/alaing/temp_ntup/tnd_cc_10GeV_0.gz
-# /home/alaing/tnd_cc_1.gz
-# /home/alaing/tnd_cc_2.gz
-# /home/alaing/tnd_cc_3.gz
-# /home/alaing/ntuples/ehit_3.gz
-# /home/alaing/ntuples/tndmu.gz
-# /home/alaing/ntuples/tndmu_10GeV_10k.gz
-# /home/alaing/ntuples/hadrons.gz
-# /home/alaing/ntuples/tndmu_ms_eloss_10k.gz
-# /home/alaing/ntuples/tndmu_noeloss_10k.gz
-# /home/alaing/ntuples/tndmu_ms_eloss.gz
-# /home/alaing/ntuples/tndmu_noeloss.gz
-# /home/alaing/ntuples/tndmu_noms_noeloss.gz
-# /home/alaing/ntuples/numucc_real_3000_50K.gz
-
+DATA idst_file S /home/alaing/decNtup/wsdecays_1.dst.root
+# /home/alaing/varVert/variable_vert_0.gz
+# /home/alaing/varVert/variable_vert_1.gz
+# /home/alaing/decNtup/wsdecays_1.gz
+# /home/alaing/ntupElec/tnd_e_2.gz
+# /data3/andrew/tnd_nc_3.gz
+# /data3/andrew/tnd_nc_4.gz
+# /data3/andrew/tnd_nc_5.gz
 
 ###  data to write ###
-
-DATA odst_files SV 1
-/home/alaing/temp_ntup/tnd_cc_10GeV_0.FITTED.gz
-# /home/alaing/tnd_cc_1.FITTED.gz
-# /home/alaing/tnd_cc_2.FITTED.gz
-# /home/alaing/tnd_cc_3.FITTED.gz
-# /home/alaing/ntuples/ehit_3.FITTED.gz
-# /home/alaing/ntuples/tndmu.FITTED.gz
-# /home/alaing/ntuples/tndmu_10GeV_10k.FITTED.gz
-# /home/alaing/ntuples/hadrons.FITTED.gz
-# /home/alaing/ntuples/tndmu_ms_eloss_10k.FITTED.gz
-# /home/alaing/ntuples/tndmu_noeloss_10k.FITTED.gz
-# /home/alaing/ntuples/tndmu_ms_eloss.FITTED.gz
-# /home/alaing/ntuples/tndmu_noeloss.FITTED.gz
-# /home/alaing/ntuples/tndmu_noms_noeloss.FITTED.gz
-# /home/alaing/ntuples/numucc_real_3000_50K.FITTED.gz
-
-
-
-
+#
+# DATA odst_files SV 1
+# /home/alaing/ntupElec/tnd_e.FITTED.gz

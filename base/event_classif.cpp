@@ -45,12 +45,12 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
   FeWeight = wFe;
   
   //define parameters for cellular automaton.
-  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-    .set_max_distance( _max_sep );
-  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-    .set_plane_tolerance( _tolerance );
-  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-    .set_max_trajs( _max_traj );
+  // man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+//     .set_max_distance( _max_sep );
+//   man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+//     .set_plane_tolerance( _tolerance );
+//   man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+//     .set_max_trajs( _max_traj );
   //
   if ( _outLike ){
     string likeFile = pstore.fetch_sstore("like_file");
@@ -60,12 +60,8 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
     set_branches();
 
   }
-  // //Temp functions to understand cell auto.
-//   _outFileCell = new TFile("CellOut.root", "recreate" );
-//   _cellTree = new TTree("h2", "Cellular automaton results");
-//   set_cell_branches();
-//   //
-  set_extract_properties( det );
+  
+  //set_extract_properties( det );
 
   return true;
 }
@@ -110,9 +106,6 @@ bool event_classif::finalize() {
     _outFileEv->Close();
   }
 
-  // _outFileCell->Write();
-//   _outFileCell->Close();
-
   return true;
 }
 
@@ -122,79 +115,79 @@ void event_classif::readParam() {
  
   m.message("++++ readParam function of classifier ++++",bhep::VERBOSE);
   
-  model="particle/helix"; 
+  //model="particle/helix"; 
   
-  if ( _infoStore.find_sstore("fitter") )
-    kfitter = _infoStore.fetch_sstore("kfitter");
-  else kfitter="kalman";
+  // if ( _infoStore.find_sstore("fitter") )
+//     kfitter = _infoStore.fetch_sstore("kfitter");
+//   else kfitter="kalman";
 
   if ( _infoStore.find_istore("likeli") )
     _outLike = _infoStore.fetch_istore("likeli");
   else _outLike = false;
   
-  patRec_maxChi = _infoStore.fetch_dstore("pat_rec_max_chi");
-  patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
+  //patRec_maxChi = _infoStore.fetch_dstore("pat_rec_max_chi");
+  //patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
   max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
   min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
   min_check =  _infoStore.fetch_istore("min_check_nodes");
   min_hits = _infoStore.fetch_istore("low_Pass_hits");
   
   _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
-  _max_sep = _infoStore.fetch_dstore("max_sep") * cm;
-  _max_traj = _infoStore.fetch_istore("max_traj");
+  //_max_sep = _infoStore.fetch_dstore("max_sep") * cm;
+  //_max_traj = _infoStore.fetch_istore("max_traj");
   chi2_max = _infoStore.fetch_dstore("accept_chi");
   max_coincedence = _infoStore.fetch_dstore("max_coincidence");
   
-  vfit = _infoStore.fetch_istore("vfit");
-  vnav = _infoStore.fetch_istore("vnav");
-  vmod = _infoStore.fetch_istore("vmod");
-  vmat = _infoStore.fetch_istore("vmat");
+  // vfit = _infoStore.fetch_istore("vfit");
+//   vnav = _infoStore.fetch_istore("vnav");
+//   vmod = _infoStore.fetch_istore("vmod");
+//   vmat = _infoStore.fetch_istore("vmat");
   
 }
 
-//***********************************************************************
-void event_classif::set_extract_properties(Setup& det) {
-//***********************************************************************
+// //***********************************************************************
+// void event_classif::set_extract_properties(Setup& det) {
+// //***********************************************************************
   
-  std::string info[4]={"MUTE","NORMAL","VERBOSE","VVERBOSE"};
-  Messenger::Level l0 = Messenger::str(info[vfit]);
-  Messenger::Level l1 = Messenger::str(info[vnav]);
-  Messenger::Level l2 = Messenger::str(info[vmod]);
-  Messenger::Level l3 = Messenger::str(info[vmat]);
+//   // std::string info[4]={"MUTE","NORMAL","VERBOSE","VVERBOSE"};
+// //   Messenger::Level l0 = Messenger::str(info[vfit]);
+// //   Messenger::Level l1 = Messenger::str(info[vnav]);
+// //   Messenger::Level l2 = Messenger::str(info[vmod]);
+// //   Messenger::Level l3 = Messenger::str(info[vmat]);
 
-  man().fitting_svc().fitter(model).set_verbosity(l0);
-  man().fitting_svc().select_fitter(kfitter);
+//   man().fitting_svc().fitter(model).set_verbosity(l0);
+//   man().fitting_svc().select_fitter(kfitter);
 
-  man().navigation_svc().set_verbosity(l1);
-  man().model_svc().model(model).equation().set_verbosity(l2);
-  man().model_svc().model(model).propagator().set_verbosity(l2);
-  man().model_svc().model(model).tool("noiser/ms").set_verbosity(l2);
+//   man().navigation_svc().set_verbosity(l1);
+//   man().model_svc().model(model).equation().set_verbosity(l2);
+//   man().model_svc().model(model).propagator().set_verbosity(l2);
+//   man().model_svc().model(model).tool("noiser/ms").set_verbosity(l2);
 
-  man().geometry_svc().set_zero_length(1e-5 * mm);
-  man().geometry_svc().set_infinite_length(1e12 * mm);
+//   man().geometry_svc().set_zero_length(1e-5 * mm);
+//   man().geometry_svc().set_infinite_length(1e12 * mm);
 
-  // add the setup to the geometry service
-  man().geometry_svc().add_setup("main", det);
+//   // add the setup to the geometry service
+//   man().geometry_svc().add_setup("main", det);
   
-  // select the setup to be used by the geometry service
-  man().geometry_svc().select_setup("main");
+//   // select the setup to be used by the geometry service
+//   man().geometry_svc().select_setup("main");
   
-  man().navigation_svc().navigator(model).set_unique_surface(true);
+//   man().navigation_svc().navigator(model).set_unique_surface(true);
 
-  man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
-  man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
+//   man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
+//   man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
   
-  man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-    set_max_local_chi2ndf(patRec_maxChi);
+//   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+//     set_max_local_chi2ndf(patRec_maxChi);
 
-  man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-    set_number_allowed_outliers(patRec_max_outliers);
+//   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
+//     set_number_allowed_outliers(patRec_max_outliers);
 
-  //Cell auto verbosity.
-  man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-    .set_verbosity(l3);
+//   //Cell auto verbosity.
+//   man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
+//     .set_verbosity(l3);
 
-}
+// }
 
 //***********************************************************************
 void event_classif::reset(){
@@ -297,8 +290,9 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   if ( _meanOcc == 1 ){
     
     _intType = 2;
-    if ( muontraj.size() !=0 )
-      ok = muon_extraction( hits, muontraj, hads);
+    if ( muontraj.size() !=0 ){
+      MINDfitman::instance().rec_mode();
+      ok = muon_extraction( hits, muontraj, hads);}
     else ok = false;
     
   } else {
@@ -309,8 +303,9 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
       if ( !ok ) _failType = 4;
       _intType = 5;
       
-    } else
-      ok = muon_extraction( hits, muontraj, hads);
+    } else {
+      MINDfitman::instance().rec_mode();
+      ok = muon_extraction( hits, muontraj, hads);}
     
   }
   
@@ -983,72 +978,3 @@ void event_classif::out_like(){
   int fillcatch = _likeTree->Fill();
   
 }
-
-// //***********************************************************************
-// void event_classif::set_cell_branches(){
-// //***********************************************************************
-
-//   _cellTree->Branch("Nhits",&_nhit, "nhits/I");
-//   _cellTree->Branch("XPositions", &_XPos, "X[nhits]/D");
-//   _cellTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
-//   _cellTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
-//   _cellTree->Branch("Ntraj", &_ntraj,"ntraj/I");
-//   _cellTree->Branch("TrajInfo", &_trInfo,"ntrajhit[ntraj]/D");
-//   _cellTree->Branch("TrajInfo2", &_trhigh,"highneigh[ntraj]/D");
-//   _cellTree->Branch("TrajInfo3", &_trInd,"highindex[ntraj]/D");
-//   _cellTree->Branch("trajHits",&_trajHit,"hitintraj[ntraj][nhit]/I");
-
-// }
-
-// //***********************************************************************
-// void event_classif::output_results_tree(const measurement_vector& hits,
-// 					const std::vector<Trajectory*>& trajs){
-// //***********************************************************************
-// //Temporary functions to study cellular automaton.
-  
-//   _nhit = (int)hits.size();
-//   _ntraj = (int)trajs.size();
-
-//   const dict::Key max_neigh_index = "max_neigh_pos";
-//   const dict::Key max_neigh_val = "max_neigh";
-  
-//   measurement_vector::const_iterator hitIt2;
-//   std::vector<Trajectory*>::const_iterator trIt;
-//   std::vector<Node*>::iterator noIt;
-  
-//   int hitcount = 0, trajCount = 0;
-  
-//   for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
-
-//     _XPos[hitcount] = (*hitIt2)->vector()[0];
-//     _YPos[hitcount] = (*hitIt2)->vector()[1];
-//     _ZPos[hitcount] = (*hitIt2)->position()[2];
-    
-//     hitcount++;
-//   }
-
-//   for (trIt = trajs.begin();trIt != trajs.end();trIt++){
-    
-//     _trInfo[trajCount] = (*trIt)->nmeas();
-//     _trhigh[trajCount] = (*trIt)->quality( max_neigh_val );
-//     _trInd[trajCount] = (*trIt)->quality( max_neigh_index );
-
-//     vector<Node*> nodesV = (*trIt)->nodes();
-//     hitcount = 0;
-    
-//     for (hitIt2 = hits.begin();hitIt2 != hits.end();hitIt2++){
-//       for (noIt = nodesV.begin();noIt != nodesV.end();noIt++){
-// 	if ( (*hitIt2)->position() == (*noIt)->measurement().position() ){
-// 	  _trajHit[trajCount][hitcount] = 1;
-// 	} else {
-// 	  _trajHit[trajCount][hitcount] = 0;
-// 	}
-//       }
-//       hitcount++;
-//     }
-//     trajCount++;
-//   }
-
-//   _cellTree->Fill();
-
-// }

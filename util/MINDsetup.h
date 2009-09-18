@@ -2,7 +2,7 @@
 #ifndef _mind_setup___
 #define _mind_setup___
 
-#include <recpack/RecpackManager.h>
+//#include <recpack/RecpackManager.h>
 
 #include <mind/SetupSk.h>
 
@@ -21,8 +21,9 @@ public:
     
   Setup& setup();
    
-  void init(bhep::gstore store,bhep::sstore,
-	    bhep::prlevel level=bhep::NORMAL);
+  // void init(bhep::gstore store,bhep::sstore,
+// 	    bhep::prlevel level=bhep::NORMAL);
+  void init(bhep::gstore store, bhep::prlevel level=bhep::NORMAL);
   
   //info to build virtual planes
   

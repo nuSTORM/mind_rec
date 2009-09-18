@@ -6,10 +6,10 @@
 #include <bhep/particle.h>
 
 #include <TFile.h>
-#include <TCanvas.h>
-#include <TH1F.h>
-#include <TGraph.h>
-#include <TProfile.h>
+//#include <TCanvas.h>
+//#include <TH1F.h>
+//#include <TGraph.h>
+//#include <TProfile.h>
 #include <TTree.h>
 
 #include <recpack/RecpackManager.h>
@@ -19,7 +19,7 @@
 
 using namespace std;
 using namespace Recpack;
-using namespace bhep;
+//using namespace bhep;
 
 /* A Class with functions to plot the results of fits to MIND data */
 

@@ -5,6 +5,7 @@
 #include <recpack/RecpackManager.h>
 #include <mind/MINDsetup.h>
 #include <mind/Utilities.h>
+#include <mind/MINDfitman.h>
 #include <bhep/event.h>
 #include <bhep/gstore.h>
 #include <recpack/RayTool.h>
@@ -31,7 +32,8 @@ public:
     
   //------------------ main functions ---------------// 
   //init
-  bool initialize(const bhep::sstore&) ;
+  //bool initialize(const bhep::sstore&) ;
+  bool initialize();
   //exe
   bool execute(bhep::particle& part,int evNo,bool tklen=false);
   bool execute(bhep::particle& part,State seed,bool tklen=false);
@@ -61,14 +63,10 @@ public:
  
   //recpack manager
   
-  RecpackManager& man(){return _man;}
+  RecpackManager& man(){
+    return MINDfitman::instance().manager();}
+
   event_classif& get_classifier(){ return _classify; }
-  
-  //get tracklength
-  
-  // double trackLength();
-//   double trackLength(const Trajectory&);
-//   void addTrackLength(bhep::particle&,const Trajectory&);
   
   //fit twice
 
@@ -79,10 +77,10 @@ protected:
   void resetVirtualPlanes(); 
 
   //generate Recpack Setup
-  void create_setup();
+  //void create_setup();
 
   //recpack verbosity levels
-  void setVerbosity(int v0,int v1,int v2);
+  // void setVerbosity(int v0,int v1,int v2);
 
   //read parameters from store
   void readParam();
@@ -113,7 +111,7 @@ protected:
   
   bool checkQuality();
    
-  void addFitInfo(bhep::particle&,bool);
+  //void addFitInfo(bhep::particle&,bool);
     
   void reset();
 
@@ -127,9 +125,9 @@ protected:
     
   MINDsetup geom;
   
-  RecpackManager _man;
+  //RecpackManager _man;
 
-  vector<Surface*> virtual_planes;
+  //vector<Surface*> virtual_planes;
   
   //counter for virtual planes
   size_t pnumber;
@@ -144,13 +142,13 @@ protected:
   double min_iso_prop;
 
   //Counters for fit fails and successes for various reasons.
-  int totFitAttempts;
-  int fitSucceed;
-  int toomany;
-  int toofew;
-  int kink;
-  int nonFid;
-  int patFail;
+  // int totFitAttempts;
+//   int fitSucceed;
+//   int toomany;
+//   int toofew;
+//   int kink;
+//   int nonFid;
+//   int patFail;
 
   //bit to tell if reseed perfromed
   bool reseed_ok;
@@ -167,10 +165,10 @@ protected:
   EVector qoverp;
 
   string model;  // fit model
-  string kfitter; // kind of fit
+  //string kfitter; // kind of fit
     
-  double chi2node_max;
-  int max_outliers;
+  //double chi2node_max;
+  //int max_outliers;
   double chi2fit_max;
   double facRef;
     

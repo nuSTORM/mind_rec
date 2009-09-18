@@ -4,6 +4,7 @@
 
 #include <mind/MINDsetup.h>
 #include <mind/SetupSk.h>
+#include <mind/MINDfitman.h>
 
 #include <recpack/RecpackManager.h>
 #include <recpack/RayTool.h>
@@ -18,7 +19,7 @@
 #include <TFile.h>
 #include <TTree.h>
 
-using namespace bhep;
+//using namespace bhep;
 
 class event_classif{
   
@@ -52,7 +53,7 @@ public:
 protected:
   
   void readParam();
-  void set_extract_properties(Setup& det);
+  //void set_extract_properties(Setup& det);
   void reset();
   
   //Functions to be performed on CC mu candidates.  
@@ -79,16 +80,15 @@ protected:
   double compare_nodes(const vector<Node*>& n1, const vector<Node*>& n2);
   void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
-  // void set_cell_branches();
-//   void output_results_tree(const measurement_vector& hits, const std::vector<Trajectory*>& trajs);
   
-  RecpackManager& man(){return _man;}
+  RecpackManager& man(){
+    return MINDfitman::instance().manager();}
   
   bhep::gstore _infoStore;
   
   bhep::messenger m;
   
-  RecpackManager _man;
+  //RecpackManager _man;
   
   //Members to store plane occupancy and mean energy.
   int _nplanes;
@@ -97,8 +97,8 @@ protected:
   vector<double> _energyPerPlane;
   vector<double> _planeZ;
   double _tolerance; //required 'closeness' to be considered in plane.
-  double _max_sep; //maximum transverse separation for cell auto neighbour.
-  int _max_traj; //maximum no. of trajectories from cell auto.
+  //double _max_sep; //maximum transverse separation for cell auto neighbour.
+  //int _max_traj; //maximum no. of trajectories from cell auto.
   
   //integer for type candidate (NC etc.)
   int _intType;
@@ -115,12 +115,12 @@ protected:
   State _seedState;
 
   //Properties for muon extraction
-  string model;
-  string kfitter;
+  //string model;
+  //string kfitter;
 
-  double patRec_maxChi;
+  //double patRec_maxChi;
   double FeWeight;
-  int patRec_max_outliers;
+  //int patRec_max_outliers;
   int max_consec_missed_planes;
   int min_seed_hits;
   int min_check;
@@ -128,16 +128,12 @@ protected:
   double chi2_max;
   double max_coincedence;
 
-  int vfit,vnav,vmod,vmat,vsim;
+  //int vfit,vnav,vmod,vmat,vsim;
 
   //Output Likilihood info?
   bool _outLike;
   TFile *_outFileEv;
   TTree *_likeTree;
-  //
-  //Cell auto results info.
-  // TFile *_outFileCell;
-//   TTree *_cellTree;
   //
 
   int _nhit, _trajhit;
@@ -150,16 +146,6 @@ protected:
   void output_liklihood_info(const measurement_vector& hits);
   void traj_like(const measurement_vector& hits, const Trajectory& muontraj);
   void out_like();
-  //
-  
-  // double _XPos[150];
-//   double _YPos[150];
-//   double _ZPos[150];
-//   int _ntraj;
-//   double _trInfo[50];
-//   double _trhigh[50];
-//   double _trInd[50];
-//   bool _trajHit[50][150];
   //
 
 

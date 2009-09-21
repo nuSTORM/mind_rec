@@ -58,66 +58,64 @@ int main(int argc, char* argv[]){
   data_reader.read();
   //
   
-  //EventManager2* eman = new EventManager2(data_store,bhep::MUTE);
   bhep::reader_root inDst;
-  inDst.open( data_store.fetch_sstore("idst_file") );
 
   fitter* fit = new fitter(ana_store,bhep::MUTE);
   
   MINDplotter* plot = new MINDplotter();
   
-  //catchOk = eman->initialize();
-  
-  catchOk = fit->initialize();//eman->get_dst_properties());
+  catchOk = fit->initialize();
 
   catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-  
-  //add run properties to output dst header
-  
-  //will something be missing without these steps??
-  //catchOk = eman->add_run_property("MINDfit","1");
-  
-  //catchOk = eman->add_run_properties(run_store);
+
+  vector<string> input_data = data_store.fetch_svstore("idst_files");
   
   bool patR = ana_store.fetch_istore("patRec");
+
+  //Counters for event loops;
+  int i;
+  int evt_read = 0;
+  //
+
+  for (unsigned int ifile = 0;ifile < input_data.size();ifile++){
+
+    inDst.open( input_data[ifile] );
+    i = 0;
   
-  for(int i=0; i < nevents; i++) {
-    
-    //bool ok = eman->status();
-    
-    //if (!ok) break; // checks eof
-    
-    if (i%100==0) cout<< "Number of events read "<<i<<endl;
-    
-    //bhep::event& e = eman->read(); 
-    bhep::event& e = inDst.read_event( i );
-    
-    // loop over particles
-    vector<bhep::particle*> parts = e.digi_particles(); 
-    
-    cout <<"There are " << parts.size() << " digis in event " << e.event_number() <<endl;
-    if (parts.size() != 0) {
-      for (size_t part=0; part<parts.size();part++){
-	
-	if (parts[part]->name()=="void") continue;
-	
-	fitOk = fit->execute(*parts[part],e.event_number());
-	
-	catchOk = plot->execute(*fit, e, fitOk, patR);
+    //for(int i=0; i < nevents; i++) {
+    while ( !inDst.eof(i) && evt_read < nevents ) {
+      
+      if (i%100==0) cout<< "Number of events read "<<evt_read<<endl;
+      
+      bhep::event& e = inDst.read_event( i );
+      
+      // loop over particles
+      vector<bhep::particle*> parts = e.digi_particles(); 
+      
+      cout <<"There are " << parts.size() << " digis in event " << e.event_number() <<endl;
+      if (parts.size() != 0) {
+	for (size_t part=0; part<parts.size();part++){
+	  
+	  if (parts[part]->name()=="void") continue;
+	  
+	  fitOk = fit->execute(*parts[part],e.event_number());
+	  
+	  catchOk = plot->execute(*fit, e, fitOk, patR);
+	}
       }
+      
+      parts.clear();
+      e.clear();
+
+      i++;
+      evt_read++;
     }
-    
-    //save event containing fit info 
-    //eman->write(e);
-    
-    parts.clear();
-    e.clear();
+
+    inDst.close();
+
   }
   
   catchOk = fit->finalize();
-  
-  //catchOk = eman->finalize();
-  inDst.close();
 
   catchOk = plot->finalize();
   

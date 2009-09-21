@@ -117,7 +117,9 @@ RUN likeli I 0
 
 ###  data to read ###
 
-DATA idst_file S /home/alaing/decNtup/wsdecays_1.dst.root
+DATA idst_files SV 2
+/home/alaing/decNtup/wsdecays_1.dst.root
+/home/alaing/decNtup/wsdecays_1.big.dst.root
 # /home/alaing/varVert/variable_vert_0.gz
 # /home/alaing/varVert/variable_vert_1.gz
 # /home/alaing/decNtup/wsdecays_1.gz

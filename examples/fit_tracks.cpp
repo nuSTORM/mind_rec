@@ -60,13 +60,17 @@ int main(int argc, char* argv[]){
   
   bhep::reader_root inDst;
 
-  fitter* fit = new fitter(ana_store,bhep::MUTE);
-  
-  MINDplotter* plot = new MINDplotter();
-  
-  catchOk = fit->initialize();
+  //  fitter* fit = new fitter(ana_store,bhep::MUTE);
+  fitter fit(ana_store,bhep::MUTE);
 
-  catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
+  //  MINDplotter* plot = new MINDplotter();
+  MINDplotter plot = MINDplotter();
+  
+  //catchOk = fit->initialize();
+  catchOk = fit.initialize();
+
+  //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
+  catchOk = plot.initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
 
   vector<string> input_data = data_store.fetch_svstore("idst_files");
   
@@ -98,9 +102,11 @@ int main(int argc, char* argv[]){
 	  
 	  if (parts[part]->name()=="void") continue;
 	  
-	  fitOk = fit->execute(*parts[part],e.event_number());
+	  //fitOk = fit->execute(*parts[part],e.event_number());
+	  fitOk = fit.execute(*parts[part],e.event_number());
 	  
-	  catchOk = plot->execute(*fit, e, fitOk, patR);
+	  //catchOk = plot->execute(*fit, e, fitOk, patR);
+	  catchOk = plot.execute(fit, e, fitOk, patR);
 	}
       }
       
@@ -115,9 +121,11 @@ int main(int argc, char* argv[]){
 
   }
   
-  catchOk = fit->finalize();
+  //catchOk = fit->finalize();
+  catchOk = fit.finalize();
 
-  catchOk = plot->finalize();
+  //catchOk = plot->finalize();
+  catchOk = plot.finalize();
   
   return 0;
   

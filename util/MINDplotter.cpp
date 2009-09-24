@@ -71,10 +71,11 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     if (_reFit) _leng = -Fit.get_traj().length();
     else _leng = Fit.get_traj().length();
     
-    if (_leng !=0) {
-      Fit.calculate_len_mom( _leng, _rangP );
-    } else { _rangP[0] = 0; _rangP[1] = -99; }
-    
+    //if (_leng !=0) {
+    //Fit.calculate_len_mom( _leng, _rangP );
+    //} else { _rangP[0] = 0; _rangP[1] = -99; }
+    _rangP[0] = 0; _rangP[1] = -99;
+
     if (ok2) {
       max_local_chi2( Fit.get_traj() );
       position_pulls();

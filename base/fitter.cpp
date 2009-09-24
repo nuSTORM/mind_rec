@@ -32,14 +32,6 @@ bool fitter::initialize() {
     
   m.message("+++ fitter init  function ++++",bhep::VERBOSE);
   
-  // Initialise fail counters for fit stats.
-  // totFitAttempts = 0;
-//   fitSucceed = 0;
-//   toomany = 0;
-//   toofew = 0;
-//   kink = 0;
-//   nonFid = 0;
-//   patFail = 0;
   _hadunit = EVector(3,0);
   _hadunit[2] = 1.;
   
@@ -48,49 +40,15 @@ bool fitter::initialize() {
   
   // initialize geometry
   
-  //geom.init(store,run_store,level);
   geom.init(store, level);
+
   //Instanciate recpack manager.
   MINDfitman::instance().set_man_parameters( store, geom.setup() );
-  
-  // initialize geometrical limits
-  // man().geometry_svc().set_zero_length(1e-5 * mm);
-//   man().geometry_svc().set_infinite_length(1e12 * mm);
-  
-  // select the fitter
-  
-  // man().fitting_svc().select_fitter(kfitter);
-  
-  // turn off MS if X0 = 0
   
   if (X0 == 0){
     man().model_svc().enable_noiser(model, RP::ms, false);
   }
 
-  // man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
-//   man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
-  
-  // set maximum local chi2
-  
-  // man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-//     set_max_local_chi2ndf(chi2node_max);
-  
-//   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-//     set_number_allowed_outliers(max_outliers);
-  
-  // create the experimental setup
-        
-  //create_setup();
-  
-  // don't propagate to surface with no measurement
-  
-  // man().navigation_svc().navigator(model).set_unique_surface(true);
-  
-  // set verbosity of recpack services
-  
-  //setVerbosity(vfit,vnav,vmod);
-  
-  // 
   bool ok = get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
@@ -98,54 +56,21 @@ bool fitter::initialize() {
   return true;
 }
 
-
-
-// //*************************************************************
-// void fitter::create_setup() {
-// //*************************************************************
-    
-   
-//   // add the setup to the geometry service
-//   man().geometry_svc().add_setup("main",geom.setup());
-  
-//   // select the setup to be used by the geometry service
-//   man().geometry_svc().select_setup("main");
-  
-  
-// }
-
 //*************************************************************
-bool fitter::execute(bhep::particle& part,State seed,bool tklen){
-//*************************************************************
-  
-  m.message("+++ fitter execute function ++++",bhep::VERBOSE);
-  
-  // create seed state
-  
-  userseed=true;
-  
-  setSeed(seed.vector());
-  
-  return execute(part,tklen);
-  
-}
-
-//*************************************************************
-bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
+bool fitter::execute(bhep::particle& part,int evNo){
 //*************************************************************
     
   m.message("+++ fitter execute function ++++",bhep::VERBOSE);
   
   bool ok, checker; 
   bool fitted=false;
-  //_fitTracker.clear();
-  //totFitAttempts++;
+  
   _failType = 0; //set to 'success' before run to avoid faults in value.
   ok = readTrajectory(part);
   
   reseed_ok = false;
 
-  if (!userseed && ok) computeSeed();
+  if ( ok ) computeSeed();
   
   if (ok) {
     
@@ -159,9 +84,6 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
     if ( reseed_ok )
       ok = man().matching_svc().compute_length(_traj2, length);
     else ok = man().matching_svc().compute_length(_traj, length);
-    //addFitInfo(part,fitted);
-    
-    // if (tklen) addTrackLength(part,_traj);
     
     if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
     else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
@@ -171,12 +93,8 @@ bool fitter::execute(bhep::particle& part,int evNo, bool tklen){
   }
   else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
   
-  userseed=false;
-  
-  if (fitted) {
-    //fitSucceed++; 
+  if (fitted) 
     if (_failType!=3) _failType = 0;
-  } 
   
   return fitted;
   
@@ -192,116 +110,32 @@ void fitter::reset() {
   
   _traj.reset();
   _traj2.reset();
-  stc_tools::destroy(_meas);
+  //stc_tools::destroy(_meas);
+  std::vector<Measurement*>::const_iterator it;
+  for (it=_meas.begin();it!=_meas.end();it++)
+    delete *it;
+  _meas.clear();
   _hadmeas.clear();
   _hadEng = 0;
-
-  //reset virtual planes
-  
-  //resetVirtualPlanes();
   
   
 }
 
+// //*************************************************************
+// void fitter::calculate_len_mom(double len, double *mom){
+// //*************************************************************
 
-// //*************************************************************
-// void fitter::resetVirtualPlanes() {
-// //*************************************************************
-  
-//   m.message("+++ resetVirtualPlanes function +++",bhep::VERBOSE);
-  
-//   for (size_t i=0; i<pnumber; i++){
-    
-//     const dict::Key sname = "VPLANE_"+bhep::to_string(i);
-//     m.message("Deleting virtual surface: ",sname,bhep::VERBOSE);
-//     geom.setup().remove_surface(sname);
-//     delete virtual_planes[i];
-//   }
-    
-//   virtual_planes.clear(); virtual_planes.resize(0); 
-  
-//   m.message("++ Virtual surfaces deleted",bhep::VERBOSE);
-  
-//   pnumber=0;
+//   double weight = geom.get_Fe_prop();
+
+//   //parameters form fit to range data for Scint and Fe.
+
+//   mom[0] = exp( ( log( len ) - 8.35 + 1.72 * weight ) / ( 0.981 - 0.023 * weight ) );
+//   mom[0] *= GeV;
+//   //All considered?? 5% from range fit and 1cm error on length?
+//   mom[1] = sqrt( pow( 0.05, 2) + pow( 10.0/len, 2) ) / ( 0.981 - 0.023 * weight );
+//   mom[1] *= mom[0]; 
   
 // }
-
-// //***********************************************************************
-// void fitter::addFitInfo(bhep::particle& part,bool fitted) {
-// //***********************************************************************
- 
-//   m.message("+++ addFitInfo function +++",bhep::VERBOSE);
-  
-//   bool hasproperty = part.find_sproperty("fitted");
-//   bool ok;
-//   double length;
-  
-//   if (fitted) {
-    
-//     m.message("++ Particle fitted",bhep::VERBOSE);
-//     m.message("++ Chi2 of fit: ",getChi2(),bhep::VERBOSE);
-
-//     if ( reseed_ok )
-//       ok = man().matching_svc().compute_length(_traj2, length);
-//     else ok = man().matching_svc().compute_length(_traj, length);
-
-//     if (hasproperty) {
-      
-//       part.change_property("fitted","1");  
-//       part.change_property("fitChi2",bhep::to_string(getChi2())); 
-//       part.change_property("ndof",bhep::to_string(_traj.ndof())); 
-//       part.change_property("charge",bhep::to_string(getQ()));
-      
-//     }
-    
-//     else{
-
-//       part.add_property("fitted","1");  
-//       part.add_property("fitChi2",bhep::to_string(getChi2()));
-//       part.add_property("ndof",bhep::to_string(_traj.ndof())); 
-//       part.add_property("charge",bhep::to_string(getQ()));
-//       part.add_property("length",bhep::to_string(length));  
-      
-//     }
-
-//   }
-    
-//   else{ //particle not fitted
-
-//     if (hasproperty){
-//       part.change_property("fitted","0"); 
-//       part.change_property("fitChi2","-999"); 
-//       part.change_property("ndof","0"); 
-//       part.change_property("charge","0"); 
-//       part.change_property("length","0");  
-//     }
-//     else{
-//       part.add_property("fitted","0");
-//       part.add_property("fitChi2","-999"); 
-//       part.add_property("ndof","0"); 
-//       part.add_property("charge","0"); 
-//       part.add_property("length","0");  
-//     }    
-//   }
-    
-
-// }
-
-//*************************************************************
-void fitter::calculate_len_mom(double len, double *mom){
-//*************************************************************
-
-  double weight = geom.get_Fe_prop();
-
-  //parameters form fit to range data for Scint and Fe.
-
-  mom[0] = exp( ( log( len ) - 8.35 + 1.72 * weight ) / ( 0.981 - 0.023 * weight ) );
-  mom[0] *= GeV;
-  //All considered?? 5% from range fit and 1cm error on length?
-  mom[1] = sqrt( pow( 0.05, 2) + pow( 10.0/len, 2) ) / ( 0.981 - 0.023 * weight );
-  mom[1] *= mom[0]; 
-  
-}
 
 //*************************************************************
 bool fitter::fitTrajectory(State seed) {
@@ -320,8 +154,6 @@ bool fitter::fitTrajectory(State seed) {
 	  
 	  //--------- refit using a new seed --------//	
 	  State newstate = _traj.state(_traj.first_fitted_node());
-	  // man().model_svc().model(RP::particle_helix).representation()
-// 	    .convert(newstate, RP::slopes_curv_z);
 	  
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
@@ -330,12 +162,7 @@ bool fitter::fitTrajectory(State seed) {
 
 	  EMatrix C = setSeedCov(C0,facRef);
 	  
-	  // man().model_svc().model(RP::particle_helix).representation()
-// 	    .convert(seedstate, RP::slopes_curv_z);
 	  seedstate.set_hv(HyperVector(v,C)); 
-	  
-	  // man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-// 	    .convert(seedstate,RP::default_rep);
 	  
 	  ok = man().fitting_svc().fit(seedstate,_traj);
 	}
@@ -391,8 +218,6 @@ bool fitter::reseed_traj(){
       
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
-      // man().model_svc().model(RP::particle_helix).representation()
-// 	.convert(newstate, RP::slopes_curv_z);
       
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
@@ -400,13 +225,8 @@ bool fitter::reseed_traj(){
       set_de_dx( fabs(1./v[5])/GeV );
       
       EMatrix C = setSeedCov(C0,facRef);
-	  
-     //  man().model_svc().model(RP::particle_helix).representation()
-// 	.convert(seedstate, RP::slopes_curv_z);
+
       seedstate.set_hv(HyperVector(v,C)); 
-      
-      // man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-// 	.convert(seedstate,RP::default_rep);
       
       ok = man().fitting_svc().fit(seedstate,_traj2);
     }
@@ -635,12 +455,10 @@ bool fitter::check_valid_traj() {
   int lowPass = store.fetch_istore("low_Pass_hits");
 
   if ((int)_traj.nmeas() > highPass) { 
-    //toomany++;
     _failType = 2; 
     return false; }
 
   if ((int)_traj.nmeas() < lowPass) { 
-    //toofew++; 
     _failType = 1;
     return false;
   }
@@ -738,19 +556,6 @@ bool fitter::finalize() {
   bool ok;
   ok = get_classifier().finalize();
 
-  // ofstream fitstats;
-//   fitstats.open("MindFitStats.txt");
-
-//   fitstats << "Type of fail \t No. Events" << endl
-// 	   << "Total Fits: \t" << totFitAttempts << endl
-// 	   << "Successes: \t"  << fitSucceed     << endl
-// 	   << "Too few hit: \t"<< toofew         << endl
-// 	   << "Too many: \t"   << toomany        << endl
-// 	   << "With Kink: \t"  << kink           << endl
-// 	   << "Patrec. fail: \t"<< patFail       << endl
-// 	   << "Outside Fid: \t"<< nonFid         << endl;
-//   fitstats.close();
-
   return true;
 }
 
@@ -814,9 +619,7 @@ void fitter::setSeed(EVector r, int firsthit){
   v2[0] = 1;
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
-  
-  // man().model_svc().model(RP::particle_helix).representation(RP::slopes_curv_z)
-//     .convert(seedstate,RP::default_rep);
+
 }
 
 //*************************************************************
@@ -939,10 +742,6 @@ void fitter::readParam(){
     dim=6; // ??????
     
 
-    // if (store.find_sstore("kfitter"))
-//       kfitter = store.fetch_sstore("kfitter");
-//     else kfitter="kalman";
-
     if (store.find_istore("refit"))
       refit=store.fetch_istore("refit");
     else refit=false;
@@ -956,52 +755,12 @@ void fitter::readParam(){
     min_seed_hits = store.fetch_istore("min_seed_hits");
     min_iso_prop = store.fetch_dstore("min_iso_prop");
 
-    // chi2node_max = store.fetch_dstore("chi2node_max");
-    
-    // max_outliers = store.fetch_istore("max_outliers");
-
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
     X0 = store.fetch_dstore("x0Fe") * mm;
     _tolerance = store.fetch_dstore("pos_res") * cm;
     
-    // vfit = store.fetch_istore("vfit");
-//     vnav = store.fetch_istore("vnav");
-//     vmod = store.fetch_istore("vmod");
-    
 }
-
-// //*****************************************************************************
-// void fitter::setVerbosity(int v0,int v1,int v2){
-// //*****************************************************************************
-  
-//   m.message("+++ setVerbosity function ++++",bhep::VERBOSE);
-
-//   // std::string info[4]={"MUTE","NORMAL","VERBOSE","VVERBOSE"};
-
-// //   Messenger::Level l0 = Messenger::str(info[v0]);
-// //   Messenger::Level l1 = Messenger::str(info[v1]);
-// //   Messenger::Level l2 = Messenger::str(info[v2]);
-  
-
-//   // verbosity levels related with fitting
-//   man().fitting_svc().fitter(model).set_verbosity(l0);
-
-//   // verbosity levels related with navigation
-//   man().navigation_svc().set_verbosity(l1);
-//   man().navigation_svc().navigator(model).set_verbosity(l1);
-//   man().navigation_svc().inspector("ms").set_verbosity(l1);
-//   man().navigation_svc().navigator(model).master_inspector().set_verbosity(l1);
-//   man().navigation_svc().inspector("BField").set_verbosity(l1);  
-//   man().navigation_svc().inspector("eloss").set_verbosity(l1);     
-//   man().model_svc().model(model).intersector("plane").set_verbosity(l1);
-
-//   // verbosity levels related with model operation (soft intersection)
-//   man().model_svc().model(model).equation().set_verbosity(l2);
-//   man().model_svc().model(model).propagator().set_verbosity(l2);
-//   man().model_svc().model(model).tool("noiser/ms").set_verbosity(l2);
-
-// }
 
 
 

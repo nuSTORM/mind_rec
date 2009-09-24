@@ -43,15 +43,7 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
   readParam();
 
   FeWeight = wFe;
-  
-  //define parameters for cellular automaton.
-  // man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-//     .set_max_distance( _max_sep );
-//   man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-//     .set_plane_tolerance( _tolerance );
-//   man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-//     .set_max_trajs( _max_traj );
-  //
+
   if ( _outLike ){
     string likeFile = pstore.fetch_sstore("like_file");
     _outFileEv = new TFile(likeFile.c_str(), "recreate");
@@ -60,8 +52,6 @@ bool event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
     set_branches();
 
   }
-  
-  //set_extract_properties( det );
 
   return true;
 }
@@ -115,79 +105,20 @@ void event_classif::readParam() {
  
   m.message("++++ readParam function of classifier ++++",bhep::VERBOSE);
   
-  //model="particle/helix"; 
-  
-  // if ( _infoStore.find_sstore("fitter") )
-//     kfitter = _infoStore.fetch_sstore("kfitter");
-//   else kfitter="kalman";
-
   if ( _infoStore.find_istore("likeli") )
     _outLike = _infoStore.fetch_istore("likeli");
   else _outLike = false;
   
-  //patRec_maxChi = _infoStore.fetch_dstore("pat_rec_max_chi");
-  //patRec_max_outliers = _infoStore.fetch_istore("pat_rec_max_outliers");
   max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
   min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
   min_check =  _infoStore.fetch_istore("min_check_nodes");
   min_hits = _infoStore.fetch_istore("low_Pass_hits");
   
   _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
-  //_max_sep = _infoStore.fetch_dstore("max_sep") * cm;
-  //_max_traj = _infoStore.fetch_istore("max_traj");
   chi2_max = _infoStore.fetch_dstore("accept_chi");
   max_coincedence = _infoStore.fetch_dstore("max_coincidence");
   
-  // vfit = _infoStore.fetch_istore("vfit");
-//   vnav = _infoStore.fetch_istore("vnav");
-//   vmod = _infoStore.fetch_istore("vmod");
-//   vmat = _infoStore.fetch_istore("vmat");
-  
 }
-
-// //***********************************************************************
-// void event_classif::set_extract_properties(Setup& det) {
-// //***********************************************************************
-  
-//   // std::string info[4]={"MUTE","NORMAL","VERBOSE","VVERBOSE"};
-// //   Messenger::Level l0 = Messenger::str(info[vfit]);
-// //   Messenger::Level l1 = Messenger::str(info[vnav]);
-// //   Messenger::Level l2 = Messenger::str(info[vmod]);
-// //   Messenger::Level l3 = Messenger::str(info[vmat]);
-
-//   man().fitting_svc().fitter(model).set_verbosity(l0);
-//   man().fitting_svc().select_fitter(kfitter);
-
-//   man().navigation_svc().set_verbosity(l1);
-//   man().model_svc().model(model).equation().set_verbosity(l2);
-//   man().model_svc().model(model).propagator().set_verbosity(l2);
-//   man().model_svc().model(model).tool("noiser/ms").set_verbosity(l2);
-
-//   man().geometry_svc().set_zero_length(1e-5 * mm);
-//   man().geometry_svc().set_infinite_length(1e12 * mm);
-
-//   // add the setup to the geometry service
-//   man().geometry_svc().add_setup("main", det);
-  
-//   // select the setup to be used by the geometry service
-//   man().geometry_svc().select_setup("main");
-  
-//   man().navigation_svc().navigator(model).set_unique_surface(true);
-
-//   man().fitting_svc().set_fitting_representation(RP::slopes_curv_z);//_fit_rep);
-//   man().matching_svc().set_matching_representation(RP::slopes_curv_z);//_fit_rep);
-  
-//   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-//     set_max_local_chi2ndf(patRec_maxChi);
-
-//   man().fitting_svc().retrieve_fitter<KalmanFitter>(kfitter,model).
-//     set_number_allowed_outliers(patRec_max_outliers);
-
-//   //Cell auto verbosity.
-//   man().matching_svc().retrieve_trajectory_finder<CellularAutomaton>("cat")
-//     .set_verbosity(l3);
-
-// }
 
 //***********************************************************************
 void event_classif::reset(){
@@ -684,11 +615,11 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
       std::vector<double> Chis;
 
       ok = reject_high( trajs2, trajs3);
-
+      //!!!!
       trajs2.clear();
 
       if ( ok ){
-	if ( trajs2.size() == 1 ){
+	if ( trajs3.size() == 1 ){
   
 	  muontraj.reset();
       
@@ -759,7 +690,7 @@ bool event_classif::reject_high(vector<Trajectory*>& trajs,
       (*it1)->set_quality( temp_traj.quality() );
       
       const dict::Key relErr = "relErr";
-      momErr = temp_seed.matrix()[6][6] / temp_seed.vector()[6];
+      momErr = (double)(temp_seed.matrix()[6][6] / temp_seed.vector()[6]);
       (*it1)->set_quality( relErr, momErr);
 
       trajs2.push_back( (*it1) );

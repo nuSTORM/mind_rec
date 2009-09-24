@@ -35,8 +35,7 @@ public:
   //bool initialize(const bhep::sstore&) ;
   bool initialize();
   //exe
-  bool execute(bhep::particle& part,int evNo,bool tklen=false);
-  bool execute(bhep::particle& part,State seed,bool tklen=false);
+  bool execute(bhep::particle& part,int evNo);
   //end
   bool finalize() ;
   //-------------------------------------------------// 
@@ -59,7 +58,7 @@ public:
   int getQ();
 
   //calculate momentum from range.
-  void calculate_len_mom(double len, double *mom);
+  //void calculate_len_mom(double len, double *mom);
  
   //recpack manager
   
@@ -75,12 +74,6 @@ public:
 protected:
   
   void resetVirtualPlanes(); 
-
-  //generate Recpack Setup
-  //void create_setup();
-
-  //recpack verbosity levels
-  // void setVerbosity(int v0,int v1,int v2);
 
   //read parameters from store
   void readParam();
@@ -110,8 +103,6 @@ protected:
   //--------------------------------------//
   
   bool checkQuality();
-   
-  //void addFitInfo(bhep::particle&,bool);
     
   void reset();
 
@@ -125,14 +116,8 @@ protected:
     
   MINDsetup geom;
   
-  //RecpackManager _man;
-
-  //vector<Surface*> virtual_planes;
-  
   //counter for virtual planes
   size_t pnumber;
-  
-  bool userseed;
   
   //Parameters to define fitting method.
   bool refit; //Do second fit.
@@ -140,15 +125,6 @@ protected:
 
   int min_seed_hits; //Minimum isolated hits required for Prec seed.
   double min_iso_prop;
-
-  //Counters for fit fails and successes for various reasons.
-  // int totFitAttempts;
-//   int fitSucceed;
-//   int toomany;
-//   int toofew;
-//   int kink;
-//   int nonFid;
-//   int patFail;
 
   //bit to tell if reseed perfromed
   bool reseed_ok;

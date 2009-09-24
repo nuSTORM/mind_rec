@@ -88,8 +88,6 @@ protected:
   
   bhep::messenger m;
   
-  //RecpackManager _man;
-  
   //Members to store plane occupancy and mean energy.
   int _nplanes;
   double _meanOcc;
@@ -97,8 +95,6 @@ protected:
   vector<double> _energyPerPlane;
   vector<double> _planeZ;
   double _tolerance; //required 'closeness' to be considered in plane.
-  //double _max_sep; //maximum transverse separation for cell auto neighbour.
-  //int _max_traj; //maximum no. of trajectories from cell auto.
   
   //integer for type candidate (NC etc.)
   int _intType;
@@ -114,21 +110,13 @@ protected:
   EVector _recChi;
   State _seedState;
 
-  //Properties for muon extraction
-  //string model;
-  //string kfitter;
-
-  //double patRec_maxChi;
   double FeWeight;
-  //int patRec_max_outliers;
   int max_consec_missed_planes;
   int min_seed_hits;
   int min_check;
   int min_hits;
   double chi2_max;
   double max_coincedence;
-
-  //int vfit,vnav,vmod,vmat,vsim;
 
   //Output Likilihood info?
   bool _outLike;

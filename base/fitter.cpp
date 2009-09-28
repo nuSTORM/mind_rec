@@ -11,9 +11,9 @@ fitter::fitter(const bhep::gstore& pstore,bhep::prlevel vlevel){
   
   store = pstore;
   
-  //m = bhep::messenger(level);
+  m = bhep::messenger(level);
 
-  //m.message("++fitter Messenger generated++",bhep::VERBOSE);
+  m.message("++fitter Messenger generated++",bhep::VERBOSE);
   
 }
 
@@ -30,7 +30,7 @@ fitter::~fitter() {
 bool fitter::initialize() {
 //*************************************************************
     
-  //m.message("+++ fitter init  function ++++",bhep::VERBOSE);
+  m.message("+++ fitter init  function ++++",bhep::VERBOSE);
   
   _hadunit = EVector(3,0);
   _hadunit[2] = 1.;
@@ -51,7 +51,7 @@ bool fitter::initialize() {
 
   get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
 
-  //m.message("+++ End of init function ++++",bhep::VERBOSE);
+  m.message("+++ End of init function ++++",bhep::VERBOSE);
   
   return true;
 }
@@ -60,7 +60,7 @@ bool fitter::initialize() {
 bool fitter::execute(bhep::particle& part,int evNo){
 //*************************************************************
     
-  //m.message("+++ fitter execute function ++++",bhep::VERBOSE);
+  m.message("+++ fitter execute function ++++",bhep::VERBOSE);
   
   bool ok, checker; 
   bool fitted=false;
@@ -104,7 +104,7 @@ bool fitter::execute(bhep::particle& part,int evNo){
 void fitter::reset() {
 //*************************************************************
   
-  //m.message("+++ reset function +++",bhep::VERBOSE);
+  m.message("+++ reset function +++",bhep::VERBOSE);
   
   //reset trajectory 
   
@@ -141,7 +141,7 @@ void fitter::reset() {
 bool fitter::fitTrajectory(State seed) {
 //*************************************************************
     
-  //m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
+  m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
     
     bool ok = man().fitting_svc().fit(seed,_traj);
     
@@ -150,7 +150,7 @@ bool fitter::fitTrajectory(State seed) {
         ok = checkQuality(); 
 	if (ok) {
 	  
-	  //m.message("Going to refit...",bhep::VERBOSE);
+	  m.message("Going to refit...",bhep::VERBOSE);
 	  
 	  //--------- refit using a new seed --------//	
 	  State newstate = _traj.state(_traj.first_fitted_node());
@@ -214,7 +214,7 @@ bool fitter::reseed_traj(){
      
     if (_traj2.quality() <= chi2fit_max) {
 
-      //m.message("Going to refit...",bhep::VERBOSE);
+      m.message("Going to refit...",bhep::VERBOSE);
       
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
@@ -358,7 +358,7 @@ bool fitter::checkQuality(){
 bool fitter::readTrajectory(const bhep::particle& part){
 //*************************************************************
     
-  //m.message("+++ readTrajectory function ++++",bhep::VERBOSE);
+  m.message("+++ readTrajectory function ++++",bhep::VERBOSE);
   
   //---------- read trajectory, i.e, particle hits ---------//
   
@@ -400,7 +400,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
 bool fitter::recTrajectory(const bhep::particle& p) {
 //*************************************************************
 
-  //m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
+  m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
  
     reset();
     //--------- take hits from particle -------//
@@ -421,7 +421,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       
       _meas.push_back(mnt); 
       
-      //m.message("Measurement added:",*mnt,bhep::VVERBOSE);
+      m.message("Measurement added:",*mnt,bhep::VVERBOSE);
       
     }//end of loop over hits
 
@@ -436,7 +436,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     } else {
       _traj.add_measurements(_meas);
 
-      //m.message("Trajectory created:",_traj,bhep::VVERBOSE);
+      m.message("Trajectory created:",_traj,bhep::VVERBOSE);
     }
     
     return true;
@@ -507,7 +507,7 @@ int fitter::getQ(){
 Measurement*  fitter::getMeasurement(bhep::hit& hit){
 //*************************************************************
     
-  //m.message("+++ getMeasurement function ++++",bhep::VERBOSE);
+  m.message("+++ getMeasurement function ++++",bhep::VERBOSE);
     
     //---- generate a virtual plane to hold the hit ----//
     
@@ -539,7 +539,8 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     me->set_name(Edep, EdepVal);
     if (patternRec){
       const dict::Key motherP = "MotherParticle";
-      const dict::Key mothName = hit.mother_particle().name();
+      //const dict::Key mothName = hit.mother_particle().name();
+      const dict::Key mothName = hit.sdata( "true_moth" );
       me->set_name(motherP, mothName);
     }
     
@@ -563,7 +564,7 @@ bool fitter::finalize() {
 void fitter::computeSeed(int firsthit) {
 //*************************************************************
     
-  //m.message("+++ computeSeed function ++++",bhep::VERBOSE);
+  m.message("+++ computeSeed function ++++",bhep::VERBOSE);
     
     //use position slightly offset from first meas as seed 
 
@@ -577,7 +578,7 @@ void fitter::computeSeed(int firsthit) {
 
     setSeed(v, firsthit);
     
-    //m.message("++ Seed estate:",seedstate,bhep::VERBOSE);
+    m.message("++ Seed estate:",seedstate,bhep::VERBOSE);
 
 }
 
@@ -585,7 +586,7 @@ void fitter::computeSeed(int firsthit) {
 void fitter::setSeed(EVector r, int firsthit){
 //*************************************************************
   
-  //m.message("+++ setSeed function ++++",bhep::VERBOSE);
+  m.message("+++ setSeed function ++++",bhep::VERBOSE);
   
   EVector v(6,0), v2(1,0);
   EMatrix C(6,6,0), C2(1,1,0);
@@ -603,7 +604,7 @@ void fitter::setSeed(EVector r, int firsthit){
   
   set_de_dx( fabs(1./v[5])/GeV );
 
-  //m.message("reset energy loss to approx value",bhep::VERBOSE);
+  m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
@@ -735,7 +736,7 @@ void fitter::set_de_dx(double mom){
 void fitter::readParam(){
 //*****************************************************************************
     
-  //m.message("+++ readParam function of fitter ++++",bhep::VERBOSE);
+  m.message("+++ readParam function of fitter ++++",bhep::VERBOSE);
         
     model = store.find_sstore("model");//"particle/helix"; 
     dim=6; // ??????

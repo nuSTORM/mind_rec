@@ -86,7 +86,7 @@ protected:
   
   bhep::gstore _infoStore;
   
-  //bhep::messenger m;
+  bhep::messenger m;
   
   //Members to store plane occupancy and mean energy.
   int _nplanes;

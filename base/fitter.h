@@ -112,7 +112,7 @@ protected:
   
   bhep::prlevel level;
     
-  //bhep::messenger m;
+  bhep::messenger m;
     
   MINDsetup geom;
   

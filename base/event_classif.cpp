@@ -36,8 +36,8 @@ void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
 			       Setup& det, double wFe) {
 //***********************************************************************
 
-  //m = bhep::messenger( vlevel );
-  //m.message("++++ Classifier  init  function ++++",bhep::VERBOSE);
+  m = bhep::messenger( vlevel );
+  m.message("++++ Classifier  init  function ++++",bhep::VERBOSE);
 
   _infoStore = pstore;
   readParam();
@@ -60,7 +60,7 @@ bool event_classif::execute(measurement_vector& hits,
 			    Trajectory& muontraj, measurement_vector& hads) {
 //***********************************************************************
 
-  //m.message("++++ Classifier Execute Function ++++", bhep::VERBOSE);
+  m.message("++++ Classifier Execute Function ++++", bhep::VERBOSE);
 
   bool ok;
   _intType = 0;
@@ -101,7 +101,7 @@ void event_classif::finalize() {
 void event_classif::readParam() {
 //***********************************************************************
  
-  //m.message("++++ readParam function of classifier ++++",bhep::VERBOSE);
+  m.message("++++ readParam function of classifier ++++",bhep::VERBOSE);
   
   if ( _infoStore.find_istore("likeli") )
     _outLike = _infoStore.fetch_istore("likeli");
@@ -136,7 +136,7 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
 //***********************************************************************
 //Gets plane occupancies and total plane energies.
 //Needs hits in increasing z order.
-  //m.message("++++ Calculating plane energies and occupancies ++++",bhep::VERBOSE);
+  m.message("++++ Calculating plane energies and occupancies ++++",bhep::VERBOSE);
 
   bool ok = true;
 
@@ -192,7 +192,7 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
 bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
 					   Trajectory& muontraj, measurement_vector& hads){
 //***********************************************************************
-  //m.message("++++ Performing CC reconstruction ++++",bhep::VERBOSE);
+  m.message("++++ Performing CC reconstruction ++++",bhep::VERBOSE);
 
   bool ok = true;
   _recChi = EVector(3,0);
@@ -488,7 +488,8 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
 				     Trajectory& muontraj, measurement_vector& hads){
 //***********************************************************************
 //uses cellular automaton to try and retrieve more complicated events.
-  //m.message("+++ Performing Cellular Automaton analysis +++",bhep::VERBOSE);
+
+  m.message("+++ Performing Cellular Automaton analysis +++",bhep::VERBOSE);
   
   bool ok;
 
@@ -525,7 +526,7 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
     delete_bad_trajs( muontraj, trajs );
   else stc_tools::destroy( trajs );
 
-  //m.message("+++ End of Cellular automaton +++",bhep::VERBOSE);
+  m.message("+++ End of Cellular automaton +++",bhep::VERBOSE);
   
   return ok;
 }

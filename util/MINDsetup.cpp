@@ -22,15 +22,15 @@ MINDsetup::~MINDsetup() {
 void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
 //*************************************************************
     
-  //_msetup=bhep::messenger(level);
-    
-  //_msetup.message("++MINDsetup Messenger generated++",bhep::VERBOSE);
+  _msetup=bhep::messenger(level);
+  
+  _msetup.message("++MINDsetup Messenger generated++",bhep::VERBOSE);
+  
+  _pstore=pstore; //_store=gstore;
+  
+  readParam();
 
-    _pstore=pstore; //_store=gstore;
-    
-    readParam();
-
-    //--------------- generate recpack setup -----------//
+  //--------------- generate recpack setup -----------//
     
     _gsetup.set_name("main");
     
@@ -46,7 +46,7 @@ void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
 
     addProperties();
     
-    //_msetup.message("++ Setup has been generated !! ++",bhep::VERBOSE);
+    _msetup.message("++ Setup has been generated !! ++",bhep::VERBOSE);
 
     //_msetup.message("MIND Setup:", _gsetup,bhep::VERBOSE);
 }
@@ -65,7 +65,7 @@ Setup& MINDsetup::setup() {
 void MINDsetup::createGeom(){
 //*************************************************************    
     
-  //_msetup.message("+++ CreatGeom function +++",bhep::VERBOSE);
+  _msetup.message("+++ CreatGeom function +++",bhep::VERBOSE);
 
   //----- axes for definition of volumes and surfaces ----//
 
@@ -80,13 +80,13 @@ void MINDsetup::createGeom(){
   Volume* mother = new Box(pos,xaxis,yaxis,
 			   MOTHER_x/2,MOTHER_y/2,MOTHER_z/2);
     
-  //_msetup.message("Mother volume generated",bhep::VERBOSE);
+  _msetup.message("Mother volume generated",bhep::VERBOSE);
 
   // add mother volume
   
   _gsetup.set_mother(mother);
    
-  // _msetup.message("Mother added to setup",bhep::VERBOSE);
+  _msetup.message("Mother added to setup",bhep::VERBOSE);
 
   // Create detector volume
   
@@ -96,7 +96,7 @@ void MINDsetup::createGeom(){
   
   Volume* det = new Box(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2);
     
-  //_msetup.message("MIND volume generated",bhep::VERBOSE);
+  _msetup.message("MIND volume generated",bhep::VERBOSE);
 
   // add volume
 
@@ -156,7 +156,7 @@ void MINDsetup::setResolution(){
       
     */
   
-  //_msetup.message("+++ setResolution function +++",bhep::VERBOSE);
+  _msetup.message("+++ setResolution function +++",bhep::VERBOSE);
 
   resolution = EVector(meas_dim,0);
   resolution[0] = resx*mm;  
@@ -177,7 +177,7 @@ void MINDsetup::setResolution(){
 void MINDsetup::addProperties(){
 //*************************************************************    
   
-  //_msetup.message("+++ addProperties function +++",bhep::VERBOSE);
+  _msetup.message("+++ addProperties function +++",bhep::VERBOSE);
 
   //-------------------- magnetic field ------------------//
     
@@ -188,7 +188,7 @@ void MINDsetup::addProperties(){
   _zaxis[2]=1;
 
   // _gsetup.set_volume_property("mother","BField",BField);
-//   _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
+  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
 
   _gsetup.set_volume_property_to_sons("mother","BField",BField);
   _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
@@ -196,13 +196,13 @@ void MINDsetup::addProperties(){
     
   const dict::Key vol_name = "Detector";
 //   _gsetup.set_volume_property(vol_name,"BField",BField);
-//   _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
+  _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
   
   _gsetup.set_volume_property(vol_name,"X0",X0Eff);
-  //_msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
+  _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
 
   // _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
-  //_msetup.message("+++de/dx added to MIND:",de_dx,bhep::VERBOSE);
+  _msetup.message("+++de/dx added to MIND:",de_dx,bhep::VERBOSE);
   
  
 }
@@ -219,15 +219,15 @@ void MINDsetup::readParam(){
 
     MIND_x = _pstore.fetch_dstore("MIND_x") * m; 
       
-    //_msetup.message("MIND height:",MIND_x/cm,"cm",c);
+    _msetup.message("MIND height:",MIND_x/cm,"cm",c);
     
     MIND_y =  _pstore.fetch_dstore("MIND_y") * m;
       
-    //_msetup.message("MIND width:",MIND_y/cm,"cm",c);
+    _msetup.message("MIND width:",MIND_y/cm,"cm",c);
     
     MIND_z =  _pstore.fetch_dstore("MIND_z") * m;
       
-    //_msetup.message("MIND length:",MIND_z/cm,"cm",c);
+    _msetup.message("MIND length:",MIND_z/cm,"cm",c);
     
     //-------------------------------------------------------------//
     //                      | INNER DIMENSIONS |                   //
@@ -254,7 +254,7 @@ void MINDsetup::readParam(){
     
     B_int = 1.0 * tesla;
       
-    //_msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
+    _msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
     
     // -------------------------------------------------------------//
     //            |  RADIATION LENGTH AND ENERGY LOSS |             //
@@ -270,7 +270,7 @@ void MINDsetup::readParam(){
     de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
     //X0 = 1e9 *mm;
 
-    //_msetup.message("Radiation length:",X0Fe/cm,"cm",c);
+    _msetup.message("Radiation length:",X0Fe/cm,"cm",c);
 
     // -------------------------------------------------------------//
     //                       |  MEASUREMENTS |                    //

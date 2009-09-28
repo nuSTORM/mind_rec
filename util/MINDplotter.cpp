@@ -21,9 +21,9 @@ bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
 
   level = vlevel;
 
-  //m = bhep::messenger(level);
+  m = bhep::messenger(level);
 
-  //m.message("++Creating output root file++",bhep::VERBOSE);
+  m.message("++Creating output root file++",bhep::VERBOSE);
 
   outFile = new TFile(outFileName.c_str(), "recreate");
 
@@ -31,7 +31,7 @@ bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
 
   define_tree_branches();
 
-  //m.message("++plotter initialized",bhep::VERBOSE);
+  m.message("++plotter initialized",bhep::VERBOSE);
 
   return ok;
 }
@@ -124,7 +124,7 @@ bool MINDplotter::finalize() {
 
   bool ok = true;
 
-  //m.message("++Finalizing Output++",bhep::VERBOSE);
+  m.message("++Finalizing Output++",bhep::VERBOSE);
   
   //outFile->Write();
   outFile->Close();
@@ -174,7 +174,7 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
 				   fitter& fitObj, State& ste) {
 //*************************************************************************************
 
-  //m.message("++Extrapolation function, Finding best fit to vertex++",bhep::VERBOSE);
+  m.message("++Extrapolation function, Finding best fit to vertex++",bhep::VERBOSE);
   if ( fitObj.check_reseed() ) ste = traj.node(traj.last_fitted_node()).state();
   else ste = traj.node(traj.first_fitted_node()).state();
 
@@ -207,7 +207,7 @@ void MINDplotter::position_pulls() {
 //**************************************************************************************
 
 //Function to calculate the pull for a measurement
-  //m.message("++Calculating position pulls++",bhep::VERBOSE);
+  m.message("++Calculating position pulls++",bhep::VERBOSE);
   
   //Reconstructed x,y position.
   _X[1][0] = vert[0]; _X[1][1] = vert[1];
@@ -225,7 +225,7 @@ void MINDplotter::momentum_pulls() {
 //**************************************************************************************
 
 ///Function to calculate momentum pulls.
-  //m.message("++Calculating momentum pulls++",bhep::VERBOSE);
+  m.message("++Calculating momentum pulls++",bhep::VERBOSE);
 
   //Reconstructed q/P.
   if (vert[5] !=0) _Q[1] = (int)( vert[5]/fabs(vert[5]) );
@@ -349,7 +349,7 @@ void MINDplotter::hadron_direction(fitter& fit) {
 void MINDplotter::max_local_chi2(const Trajectory& traj) {
 //*************************************************************************************
 
-  //m.message("++Finding trajectory local chi max++",bhep::VERBOSE);
+  m.message("++Finding trajectory local chi max++",bhep::VERBOSE);
 
   size_t nNodes = traj.size();
   double trajMax = 0;

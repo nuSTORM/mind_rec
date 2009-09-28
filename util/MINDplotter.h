@@ -60,7 +60,7 @@ protected:
 
   bhep::prlevel level;
     
-  //bhep::messenger m;
+  bhep::messenger m;
 
   TFile *outFile;
 

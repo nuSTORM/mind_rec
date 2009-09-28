@@ -3,7 +3,7 @@
 #define _setupsk___
 
 #include <recpack/RecpackManager.h>
-#include <bhep/messenger.h>
+//#include <bhep/messenger.h>
 #include <bhep/gstore.h>
 
 using namespace Recpack;
@@ -20,7 +20,7 @@ protected:
 
   Setup _gsetup;
     
-  bhep::messenger _msetup;
+  //bhep::messenger _msetup;
     
   //store for geom params
   //bhep::sstore _store;

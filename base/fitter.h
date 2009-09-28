@@ -90,8 +90,8 @@ protected:
   //fit trajectory
   bool fitTrajectory(State seed);
   bool reseed_traj();
-  bool fitHadrons();
-  double eng_scale(double visEng);
+  //bool fitHadrons();
+  //double eng_scale(double visEng);
 
   //-------- get traj from event----------//
   bool readTrajectory(const bhep::particle& part);
@@ -99,7 +99,7 @@ protected:
   bool recTrajectory(const bhep::particle& part); 
   // Check traj passes cuts for fitting.
   bool check_valid_traj();
-  string getPlaneName(bhep::hit);
+  //string getPlaneName(bhep::hit);
   //--------------------------------------//
   
   bool checkQuality();
@@ -112,7 +112,7 @@ protected:
   
   bhep::prlevel level;
     
-  bhep::messenger m;
+  //bhep::messenger m;
     
   MINDsetup geom;
   

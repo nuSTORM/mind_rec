@@ -11,9 +11,9 @@ fitter::fitter(const bhep::gstore& pstore,bhep::prlevel vlevel){
   
   store = pstore;
   
-  m = bhep::messenger(level);
+  //m = bhep::messenger(level);
 
-  m.message("++fitter Messenger generated++",bhep::VERBOSE);
+  //m.message("++fitter Messenger generated++",bhep::VERBOSE);
   
 }
 
@@ -30,7 +30,7 @@ fitter::~fitter() {
 bool fitter::initialize() {
 //*************************************************************
     
-  m.message("+++ fitter init  function ++++",bhep::VERBOSE);
+  //m.message("+++ fitter init  function ++++",bhep::VERBOSE);
   
   _hadunit = EVector(3,0);
   _hadunit[2] = 1.;
@@ -49,9 +49,9 @@ bool fitter::initialize() {
     man().model_svc().enable_noiser(model, RP::ms, false);
   }
 
-  bool ok = get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
+  get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
 
-  m.message("+++ End of init function ++++",bhep::VERBOSE);
+  //m.message("+++ End of init function ++++",bhep::VERBOSE);
   
   return true;
 }
@@ -60,7 +60,7 @@ bool fitter::initialize() {
 bool fitter::execute(bhep::particle& part,int evNo){
 //*************************************************************
     
-  m.message("+++ fitter execute function ++++",bhep::VERBOSE);
+  //m.message("+++ fitter execute function ++++",bhep::VERBOSE);
   
   bool ok, checker; 
   bool fitted=false;
@@ -76,22 +76,22 @@ bool fitter::execute(bhep::particle& part,int evNo){
     
     fitted = fitTrajectory(seedstate);
     
-    if ( fitted )
-      checker = fitHadrons();
-    if (!checker) std::cout << "Had fit fail" << std::endl;
+    // if ( fitted )
+//       checker = fitHadrons();
+//     if (!checker) std::cout << "Had fit fail" << std::endl;
     
     double length;
     if ( reseed_ok )
       ok = man().matching_svc().compute_length(_traj2, length);
     else ok = man().matching_svc().compute_length(_traj, length);
     
-    if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
-    else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
+    // if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
+//     else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
 
-    if (!fitted)
-      m.message("++Failed fit trajectory++",bhep::NORMAL);
+    // if (!fitted)
+//       m.message("++Failed fit trajectory++",bhep::NORMAL);
   }
-  else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
+  // else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
   
   if (fitted) 
     if (_failType!=3) _failType = 0;
@@ -104,7 +104,7 @@ bool fitter::execute(bhep::particle& part,int evNo){
 void fitter::reset() {
 //*************************************************************
   
-  m.message("+++ reset function +++",bhep::VERBOSE);
+  //m.message("+++ reset function +++",bhep::VERBOSE);
   
   //reset trajectory 
   
@@ -141,7 +141,7 @@ void fitter::reset() {
 bool fitter::fitTrajectory(State seed) {
 //*************************************************************
     
-    m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
+  //m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
     
     bool ok = man().fitting_svc().fit(seed,_traj);
     
@@ -150,7 +150,7 @@ bool fitter::fitTrajectory(State seed) {
         ok = checkQuality(); 
 	if (ok) {
 	  
-	  m.message("Going to refit...",bhep::VERBOSE);
+	  //m.message("Going to refit...",bhep::VERBOSE);
 	  
 	  //--------- refit using a new seed --------//	
 	  State newstate = _traj.state(_traj.first_fitted_node());
@@ -214,7 +214,7 @@ bool fitter::reseed_traj(){
      
     if (_traj2.quality() <= chi2fit_max) {
 
-      m.message("Going to refit...",bhep::VERBOSE);
+      //m.message("Going to refit...",bhep::VERBOSE);
       
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
@@ -236,110 +236,110 @@ bool fitter::reseed_traj(){
   return ok;
 }
 
-//*************************************************************
-bool fitter::fitHadrons(){
-//*************************************************************
+// //*************************************************************
+// bool fitter::fitHadrons(){
+// //*************************************************************
   
-  size_t nhadhits = _hadmeas.size();
+//   size_t nhadhits = _hadmeas.size();
 
-  measurement_vector::iterator engIt;
-  const dict::Key Edep = "E_dep";
+//   measurement_vector::iterator engIt;
+//   const dict::Key Edep = "E_dep";
 
-  for (engIt = _hadmeas.begin();engIt != _hadmeas.end();engIt++)
-    _hadEng += bhep::double_from_string( (*engIt)->name( Edep ) );
+//   for (engIt = _hadmeas.begin();engIt != _hadmeas.end();engIt++)
+//     _hadEng += bhep::double_from_string( (*engIt)->name( Edep ) );
 
-  _hadEng = eng_scale( _hadEng );
+//   _hadEng = eng_scale( _hadEng );
 
-  if (nhadhits<2) {
-    _hadunit[0] = 0; _hadunit[1] = 0; return false;}
-  const int nplanes = ( (int)_hadmeas[0]->position()[2]
-			- (int)_hadmeas[nhadhits-1]->position()[2] + 50 )/50;
+//   if (nhadhits<2) {
+//     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
+//   const int nplanes = ( (int)_hadmeas[0]->position()[2]
+// 			- (int)_hadmeas[nhadhits-1]->position()[2] + 50 )/50;
   
-  if (nplanes<2) {
-    _hadunit[0] = 0; _hadunit[1] = 0; return false;}
-  double x[nplanes], y[nplanes], z[nplanes];
-  double EngPlane, EngHit, testZ, curZ;
+//   if (nplanes<2) {
+//     _hadunit[0] = 0; _hadunit[1] = 0; return false;}
+//   double x[nplanes], y[nplanes], z[nplanes];
+//   double EngPlane, EngHit, testZ, curZ;
   
-  size_t hits_used = 0, imeas = 0;
-  int ientry = nplanes-1;
+//   size_t hits_used = 0, imeas = 0;
+//   int ientry = nplanes-1;
 
-  do {  
+//   do {  
     
-    int count = 0;
-    EngPlane = 0;
-    EngHit = bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
-    x[ientry] = _hadmeas[imeas]->vector()[0] * EngHit;
-    y[ientry] = _hadmeas[imeas]->vector()[1] * EngHit;
-    z[ientry] = _hadmeas[imeas]->position()[2];
-    testZ = z[ientry];
-    hits_used++;
-    count++;
-    EngPlane += EngHit;
+//     int count = 0;
+//     EngPlane = 0;
+//     EngHit = bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
+//     x[ientry] = _hadmeas[imeas]->vector()[0] * EngHit;
+//     y[ientry] = _hadmeas[imeas]->vector()[1] * EngHit;
+//     z[ientry] = _hadmeas[imeas]->position()[2];
+//     testZ = z[ientry];
+//     hits_used++;
+//     count++;
+//     EngPlane += EngHit;
     
-    for (size_t i=hits_used;i < nhadhits;i++){
-      curZ = _hadmeas[i]->position()[2];
-      if (curZ >= testZ-_tolerance){
-	EngHit = bhep::double_from_string( _hadmeas[i]->name( Edep ) )*GeV;
-	x[ientry] += _hadmeas[i]->vector()[0] * EngHit;
-	y[ientry] += _hadmeas[i]->vector()[1] * EngHit;
-	z[ientry] += curZ;
-	count++;
-	hits_used++;
-	EngPlane += EngHit;
+//     for (size_t i=hits_used;i < nhadhits;i++){
+//       curZ = _hadmeas[i]->position()[2];
+//       if (curZ >= testZ-_tolerance){
+// 	EngHit = bhep::double_from_string( _hadmeas[i]->name( Edep ) )*GeV;
+// 	x[ientry] += _hadmeas[i]->vector()[0] * EngHit;
+// 	y[ientry] += _hadmeas[i]->vector()[1] * EngHit;
+// 	z[ientry] += curZ;
+// 	count++;
+// 	hits_used++;
+// 	EngPlane += EngHit;
 
-      } else break;
-    }
+//       } else break;
+//     }
     
-    x[ientry] /= EngPlane; y[ientry] /= EngPlane; 
-    z[ientry] /= (double)count;
+//     x[ientry] /= EngPlane; y[ientry] /= EngPlane; 
+//     z[ientry] /= (double)count;
     
-    ientry--;
-    imeas+=count;
+//     ientry--;
+//     imeas+=count;
     
-  } while (hits_used != nhadhits);
+//   } while (hits_used != nhadhits);
   
-  TGraph *gr1 = new TGraph(nplanes, z, x);
-  TGraph *gr2 = new TGraph(nplanes, z, y);
+//   TGraph *gr1 = new TGraph(nplanes, z, x);
+//   TGraph *gr2 = new TGraph(nplanes, z, y);
   
-  TF1 *fitfunc = new TF1("fitfun","[0]+[1]*x",-3,3);
+//   TF1 *fitfunc = new TF1("fitfun","[0]+[1]*x",-3,3);
   
-  gr1->Fit("fitfun","QN");
-  _hadunit[0] = fitfunc->GetParameter(1);
+//   gr1->Fit("fitfun","QN");
+//   _hadunit[0] = fitfunc->GetParameter(1);
 
-  gr2->Fit("fitfun","QN");
-  _hadunit[1] = fitfunc->GetParameter(1);
+//   gr2->Fit("fitfun","QN");
+//   _hadunit[1] = fitfunc->GetParameter(1);
   
-  _hadunit /= _hadunit.norm();
+//   _hadunit /= _hadunit.norm();
 
-  delete gr1;
-  delete gr2;
-  delete fitfunc;
+//   delete gr1;
+//   delete gr2;
+//   delete fitfunc;
 
-  return true;
-}
+//   return true;
+// }
 
-//*************************************************************
-double fitter::eng_scale(double visEng){
-//*************************************************************
+// //*************************************************************
+// double fitter::eng_scale(double visEng){
+// //*************************************************************
 
-  double factor1, factor2, scaledEng;
-  //Equations/error calc. in log. root from parafit at mo.
-  if ( visEng==0 ) return -99;
-  else if ( visEng > 0.03263 ) visEng = 0.03263;
+//   double factor1, factor2, scaledEng;
+//   //Equations/error calc. in log. root from parafit at mo.
+//   if ( visEng==0 ) return -99;
+//   else if ( visEng > 0.03263 ) visEng = 0.03263;
 
-  factor1 = (-0.0024 + sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
-    /(2*-0.0000484);
-  factor2 = (-0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
-    /(2*-0.0000484);
+//   factor1 = (-0.0024 + sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
+//     /(2*-0.0000484);
+//   factor2 = (-0.0024 - sqrt( pow(-0.0024, 2) - 4*(0.00288-visEng)*-0.0000484))
+//     /(2*-0.0000484);
   
-  if ( factor1 < 0 )
-    scaledEng = factor2;
-  else if ( factor2 < 0 )
-    scaledEng = factor1;
-  else scaledEng = TMath::Min(factor1, factor2);
+//   if ( factor1 < 0 )
+//     scaledEng = factor2;
+//   else if ( factor2 < 0 )
+//     scaledEng = factor1;
+//   else scaledEng = TMath::Min(factor1, factor2);
   
-  return scaledEng * GeV;
-}
+//   return scaledEng * GeV;
+// }
 
 //*************************************************************
 bool fitter::checkQuality(){
@@ -358,7 +358,7 @@ bool fitter::checkQuality(){
 bool fitter::readTrajectory(const bhep::particle& part){
 //*************************************************************
     
-  m.message("+++ readTrajectory function ++++",bhep::VERBOSE);
+  //m.message("+++ readTrajectory function ++++",bhep::VERBOSE);
   
   //---------- read trajectory, i.e, particle hits ---------//
   
@@ -400,7 +400,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
 bool fitter::recTrajectory(const bhep::particle& p) {
 //*************************************************************
 
-    m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
+  //m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
  
     reset();
     //--------- take hits from particle -------//
@@ -421,7 +421,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       
       _meas.push_back(mnt); 
       
-      m.message("Measurement added:",*mnt,bhep::VVERBOSE);
+      //m.message("Measurement added:",*mnt,bhep::VVERBOSE);
       
     }//end of loop over hits
 
@@ -436,7 +436,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     } else {
       _traj.add_measurements(_meas);
 
-      m.message("Trajectory created:",_traj,bhep::VVERBOSE);
+      //m.message("Trajectory created:",_traj,bhep::VVERBOSE);
     }
     
     return true;
@@ -507,7 +507,7 @@ int fitter::getQ(){
 Measurement*  fitter::getMeasurement(bhep::hit& hit){
 //*************************************************************
     
-    m.message("+++ getMeasurement function ++++",bhep::VERBOSE);
+  //m.message("+++ getMeasurement function ++++",bhep::VERBOSE);
     
     //---- generate a virtual plane to hold the hit ----//
     
@@ -553,8 +553,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
 bool fitter::finalize() {
 //*************************************************************
    
-  bool ok;
-  ok = get_classifier().finalize();
+  get_classifier().finalize();
 
   return true;
 }
@@ -564,7 +563,7 @@ bool fitter::finalize() {
 void fitter::computeSeed(int firsthit) {
 //*************************************************************
     
-    m.message("+++ computeSeed function ++++",bhep::VERBOSE);
+  //m.message("+++ computeSeed function ++++",bhep::VERBOSE);
     
     //use position slightly offset from first meas as seed 
 
@@ -578,7 +577,7 @@ void fitter::computeSeed(int firsthit) {
 
     setSeed(v, firsthit);
     
-    m.message("++ Seed estate:",seedstate,bhep::VERBOSE);
+    //m.message("++ Seed estate:",seedstate,bhep::VERBOSE);
 
 }
 
@@ -586,7 +585,7 @@ void fitter::computeSeed(int firsthit) {
 void fitter::setSeed(EVector r, int firsthit){
 //*************************************************************
   
-  m.message("+++ setSeed function ++++",bhep::VERBOSE);
+  //m.message("+++ setSeed function ++++",bhep::VERBOSE);
   
   EVector v(6,0), v2(1,0);
   EMatrix C(6,6,0), C2(1,1,0);
@@ -604,7 +603,7 @@ void fitter::setSeed(EVector r, int firsthit){
   
   set_de_dx( fabs(1./v[5])/GeV );
 
-  m.message("reset energy loss to approx value",bhep::VERBOSE);
+  //m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
@@ -736,7 +735,7 @@ void fitter::set_de_dx(double mom){
 void fitter::readParam(){
 //*****************************************************************************
     
-    m.message("+++ readParam function of fitter ++++",bhep::VERBOSE);
+  //m.message("+++ readParam function of fitter ++++",bhep::VERBOSE);
         
     model = store.find_sstore("model");//"particle/helix"; 
     dim=6; // ??????

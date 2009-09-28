@@ -30,10 +30,10 @@ public:
   virtual ~event_classif();
   
   //-------------- main functions --------------//
-  bool initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det, double wFe); //needs to take store with all info for pat rec/more?
+  void initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det, double wFe); //needs to take store with all info for pat rec/more?
   bool execute(measurement_vector& hits,
 	       Trajectory& muontraj, measurement_vector& hads); //more arguments needed?
-  bool finalize();
+  void finalize();
   //-------------------------------------------//
   
   //Grabbers for monitoring etc.
@@ -86,7 +86,7 @@ protected:
   
   bhep::gstore _infoStore;
   
-  bhep::messenger m;
+  //bhep::messenger m;
   
   //Members to store plane occupancy and mean energy.
   int _nplanes;

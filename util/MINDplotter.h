@@ -60,7 +60,7 @@ protected:
 
   bhep::prlevel level;
     
-  bhep::messenger m;
+  //bhep::messenger m;
 
   TFile *outFile;
 
@@ -83,12 +83,12 @@ private:
   double _engvar;
   double _hadP[3];
   double _hadE[2];
-  double _haddot;
+  //double _haddot;
   double _X[3][2];
   double _Th[3][2];
   double _qP[3];
-  double _leng;
-  double _rangP[2];
+  //double _leng;
+  //double _rangP[2];
   int _Q[3];
   double _Chi[2];
   int _plns[2];

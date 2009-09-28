@@ -21,9 +21,9 @@ bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
 
   level = vlevel;
 
-  m = bhep::messenger(level);
+  //m = bhep::messenger(level);
 
-  m.message("++Creating output root file++",bhep::VERBOSE);
+  //m.message("++Creating output root file++",bhep::VERBOSE);
 
   outFile = new TFile(outFileName.c_str(), "recreate");
 
@@ -31,7 +31,7 @@ bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
 
   define_tree_branches();
 
-  m.message("++plotter initialized",bhep::VERBOSE);
+  //m.message("++plotter initialized",bhep::VERBOSE);
 
   return ok;
 }
@@ -60,7 +60,8 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   for (int i = 0;i<4;i++)
     _hitType[i] = 0;
   _engTraj = 0;
-  
+  _hadE[1] = 0;
+
   ok1 = extract_true_particle(evt, Fit, patRec);
   
   if (success) {
@@ -68,13 +69,13 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     State ste;
     ok2 = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
     
-    if (_reFit) _leng = -Fit.get_traj().length();
-    else _leng = Fit.get_traj().length();
+    //if (_reFit) _leng = -Fit.get_traj().length();
+    //else _leng = Fit.get_traj().length();
     
     //if (_leng !=0) {
     //Fit.calculate_len_mom( _leng, _rangP );
     //} else { _rangP[0] = 0; _rangP[1] = -99; }
-    _rangP[0] = 0; _rangP[1] = -99;
+    //_rangP[0] = 0; _rangP[1] = -99;
 
     if (ok2) {
       max_local_chi2( Fit.get_traj() );
@@ -83,7 +84,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
       momentum_pulls();
     }
     
-    hadron_direction(Fit);
+    //hadron_direction(Fit);
     
   }
   
@@ -100,12 +101,12 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     _Chi[0] = 0; _Chi[1] = 0;
 
     _Q[1] = 0; _Q[2] = 0;
-    _leng = 0;
-    _rangP[0] = 0;
-    _rangP[1] = -99;
+    //_leng = 0;
+    //_rangP[0] = 0;
+    //_rangP[1] = -99;
 
-    _haddot = 99;
-    _hadE[1] = -99;
+    //_haddot = 99;
+    //_hadE[1] = -99;
   }
   
   if (patRec)
@@ -123,9 +124,9 @@ bool MINDplotter::finalize() {
 
   bool ok = true;
 
-  m.message("++Finalizing Output++",bhep::VERBOSE);
+  //m.message("++Finalizing Output++",bhep::VERBOSE);
   
-  outFile->Write();
+  //outFile->Write();
   outFile->Close();
 
   return ok;
@@ -148,12 +149,12 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
-  statTree->Branch("length", &_leng,"lenTraj/D");
-  statTree->Branch("RangeMomentum", &_rangP,"rangP/D:rangErr/D");
+  //statTree->Branch("length", &_leng,"lenTraj/D");
+  //statTree->Branch("RangeMomentum", &_rangP,"rangP/D:rangErr/D");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
   statTree->Branch("hadEng", &_hadE, "truE/D:recE/D");
-  statTree->Branch("hadDir", &_haddot, "dotProd/D");
+  //statTree->Branch("hadDir", &_haddot, "dotProd/D");
   statTree->Branch("NoPlanes", &_plns, "nplanes/I:freeplanes/I");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
   statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I");
@@ -173,7 +174,7 @@ bool MINDplotter::extrap_to_vertex(const Trajectory& traj,
 				   fitter& fitObj, State& ste) {
 //*************************************************************************************
 
-  m.message("++Extrapolation function, Finding best fit to vertex++",bhep::VERBOSE);
+  //m.message("++Extrapolation function, Finding best fit to vertex++",bhep::VERBOSE);
   if ( fitObj.check_reseed() ) ste = traj.node(traj.last_fitted_node()).state();
   else ste = traj.node(traj.first_fitted_node()).state();
 
@@ -206,7 +207,7 @@ void MINDplotter::position_pulls() {
 //**************************************************************************************
 
 //Function to calculate the pull for a measurement
-  m.message("++Calculating position pulls++",bhep::VERBOSE);
+  //m.message("++Calculating position pulls++",bhep::VERBOSE);
   
   //Reconstructed x,y position.
   _X[1][0] = vert[0]; _X[1][1] = vert[1];
@@ -224,7 +225,7 @@ void MINDplotter::momentum_pulls() {
 //**************************************************************************************
 
 ///Function to calculate momentum pulls.
-  m.message("++Calculating momentum pulls++",bhep::VERBOSE);
+  //m.message("++Calculating momentum pulls++",bhep::VERBOSE);
 
   //Reconstructed q/P.
   if (vert[5] !=0) _Q[1] = (int)( vert[5]/fabs(vert[5]) );
@@ -327,20 +328,20 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
 void MINDplotter::hadron_direction(fitter& fit) {
 //*************************************************************************************
   
-  double normal;
-  EVector fitunit;
-  normal = sqrt(pow(_hadP[0],2)+pow(_hadP[1],2)+pow(_hadP[2],2));
+  // double normal;
+//   EVector fitunit;
+//   normal = sqrt(pow(_hadP[0],2)+pow(_hadP[1],2)+pow(_hadP[2],2));
   
-  if ( _nhits >= 2 ){
-    fitunit = fit.get_had_unit();
+//   if ( _nhits >= 2 ){
+//     fitunit = fit.get_had_unit();
     
-    _haddot = fitunit[0]*(_hadP[0]/normal)
-      +fitunit[1]*(_hadP[1]/normal)
-      +fitunit[2]*(_hadP[2]/normal);
+//     _haddot = fitunit[0]*(_hadP[0]/normal)
+//       +fitunit[1]*(_hadP[1]/normal)
+//       +fitunit[2]*(_hadP[2]/normal);
     
-  } else _haddot = 99;
+//   } else _haddot = 99;
   
-  _hadE[1] = fit.get_had_eng();
+  //_hadE[1] = fit.get_had_eng();
   
 }
 
@@ -348,7 +349,7 @@ void MINDplotter::hadron_direction(fitter& fit) {
 void MINDplotter::max_local_chi2(const Trajectory& traj) {
 //*************************************************************************************
 
-  m.message("++Finding trajectory local chi max++",bhep::VERBOSE);
+  //m.message("++Finding trajectory local chi max++",bhep::VERBOSE);
 
   size_t nNodes = traj.size();
   double trajMax = 0;

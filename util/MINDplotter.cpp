@@ -126,7 +126,7 @@ bool MINDplotter::finalize() {
 
   m.message("++Finalizing Output++",bhep::VERBOSE);
   
-  //outFile->Write();
+  outFile->Write();
   outFile->Close();
 
   return ok;

@@ -43,7 +43,7 @@ RUN pos_res D 1.
 #############################################
 
 # monitor ntuple file
-RUN out_file S /home/alaing/decNtup/bhep3Rectest.root
+RUN out_file S ../bhep3Rectest.root
 
 #liklihood file.
 RUN like_file S /data3/andrew/mind/LikeOut_nc_3-5.root
@@ -116,9 +116,8 @@ ANA min_iso_prop D 0.8
 RUN likeli I 0
 
 ###  data to read ###
-
 DATA idst_files SV 1
-/home/alaing/decNtup/wsdecays_1.10k.dst.root
+../wsdecays_1.dst.root
 # /home/alaing/varVert/variable_vert_0.gz
 # /home/alaing/varVert/variable_vert_1.gz
 # /home/alaing/decNtup/wsdecays_1.gz

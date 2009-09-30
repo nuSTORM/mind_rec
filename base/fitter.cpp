@@ -110,11 +110,11 @@ void fitter::reset() {
   
   _traj.reset();
   _traj2.reset();
-  //stc_tools::destroy(_meas);
-  std::vector<Measurement*>::const_iterator it;
-  for (it=_meas.begin();it!=_meas.end();it++)
-    delete *it;
-  _meas.clear();
+  stc_tools::destroy(_meas);
+  // std::vector<Measurement*>::const_iterator it;
+//   for (it=_meas.begin();it!=_meas.end();it++)
+//     delete *it;
+  //_meas.clear();
   _hadmeas.clear();
   _hadEng = 0;
   

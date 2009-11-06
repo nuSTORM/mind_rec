@@ -291,7 +291,7 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
   }
   //STUFF ABOVE FOR REDESIGN.!!!!!
   _nhits = Fit.get_nMeas();
-
+  cout << "NMEAS=" << _nhits << endl;
   for (int iHits = 0;iHits < _nhits;iHits++){
 
     _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];

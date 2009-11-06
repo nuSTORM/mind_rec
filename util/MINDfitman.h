@@ -30,6 +30,8 @@ class MINDfitman
 
   void rec_mode();
 
+  bool in_rec_mode();
+
  private:
   //Constructors, destructor hidden
   MINDfitman();
@@ -49,6 +51,8 @@ class MINDfitman
   RecpackManager _man;
 
   bhep::gstore _store;
+
+  bool _inRecMode;
 
   //-------------- verbosity levels ------------//
 

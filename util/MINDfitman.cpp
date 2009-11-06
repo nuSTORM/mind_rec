@@ -42,6 +42,8 @@ void MINDfitman::fit_mode()
 
   _man.fitting_svc().retrieve_fitter<KalmanFitter>(_fitter,_model)
     .set_number_allowed_outliers( _store.fetch_istore("max_outliers") );
+  
+  _inRecMode = false;
 
 }
 
@@ -54,6 +56,13 @@ void MINDfitman::rec_mode()
   _man.fitting_svc().retrieve_fitter<KalmanFitter>(_fitter,_model)
     .set_number_allowed_outliers( _store.fetch_istore("pat_rec_max_outliers") );
   
+  _inRecMode = true;
+  
+}
+
+bool MINDfitman::in_rec_mode()
+{
+  return _inRecMode;
 }
 
 void MINDfitman::config_common_props()

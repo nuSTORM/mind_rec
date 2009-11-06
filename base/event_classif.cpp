@@ -69,7 +69,7 @@ bool event_classif::execute(measurement_vector& hits,
   
   //Occupancy.
   ok = get_plane_occupancy( hits );
-
+  
   if ( _outLike )
     output_liklihood_info( hits );
   
@@ -215,13 +215,16 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
   _lastIso = (int)muontraj.nmeas();
 
   if ( !_outLike ) _freeplanes = (int)muontraj.nmeas();
+  
+  //set to reconstruction mode.
+  if ( !MINDfitman::instance().in_rec_mode() )
+    MINDfitman::instance().rec_mode();
 
   if ( _meanOcc == 1 ){
     
     _intType = 2;
-    if ( muontraj.size() !=0 ){
-      MINDfitman::instance().rec_mode();
-      ok = muon_extraction( hits, muontraj, hads);}
+    if ( muontraj.size() !=0 )
+      ok = muon_extraction( hits, muontraj, hads);
     else ok = false;
     
   } else {
@@ -230,11 +233,11 @@ bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
       
       ok = invoke_cell_auto( hits, muontraj, hads);
       if ( !ok ) _failType = 4;
+      //ok = false; _failType = 4;
       _intType = 5;
       
-    } else {
-      MINDfitman::instance().rec_mode();
-      ok = muon_extraction( hits, muontraj, hads);}
+    } else
+      ok = muon_extraction( hits, muontraj, hads);
     
   }
   
@@ -428,7 +431,7 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
   int nConsecHole = 0;
   
   while (_hitIt >= hits.begin() + _vertGuess) {
-
+    
     double Chi2[(const int)(*_planeIt)];
 
     for (int iMat = (*_planeIt)-1;iMat >= 0;iMat--, _hitIt--){
@@ -436,10 +439,11 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
       
       if ( !ok )
 	Chi2[iMat] = 999999999;
+      
     }
     
     ChiMin = TMath::LocMin( (const int)(*_planeIt), Chi2);
-
+    
     for (int iFil = 0;iFil < (*_planeIt);iFil++){
 
       if ( iFil == (int)ChiMin) {
@@ -689,7 +693,7 @@ bool event_classif::reject_high(vector<Trajectory*>& trajs,
       (*it1)->set_quality( temp_traj.quality() );
       
       const dict::Key relErr = "relErr";
-      momErr = (double)(temp_seed.matrix()[6][6] / temp_seed.vector()[6]);
+      momErr = (double)(temp_seed.matrix()[5][5] / temp_seed.vector()[5]);
       (*it1)->set_quality( relErr, momErr);
 
       trajs2.push_back( (*it1) );
@@ -737,7 +741,7 @@ bool event_classif::reject_final(vector<Trajectory*>& trajs,
 
   }
   trajs.clear();
-
+  
   if ( temp_trajs.size() == 1 ) {
     
     muontraj.reset();
@@ -795,7 +799,7 @@ void event_classif::select_trajectory(vector<Trajectory*>& trajs,
 
   int longest = (int)TMath::LocMax( (int)trajs.size(), length);
   int safest = (int)TMath::LocMin( (int)trajs.size(), Err);
-
+  
   if ( longest == safest )
     muontraj = *trajs[longest];
   else {

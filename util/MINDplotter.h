@@ -94,12 +94,12 @@ private:
   int _plns[2];
   int _nhits;
   int _hitType[4];
-  double _XPos[450];
-  double _YPos[450];
-  double _ZPos[450];
-  bool _mus[450];
-  bool _cand[450];
-  bool _node[450];
+  double _XPos[4500];
+  double _YPos[4500];
+  double _ZPos[4500];
+  bool _mus[4500];
+  bool _cand[4500];
+  bool _node[4500];
   double _pChi[3];
 
   void define_tree_branches();

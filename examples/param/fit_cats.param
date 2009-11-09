@@ -38,6 +38,11 @@ RUN de_dx D -8
 # Position resolution for detector (cm).
 RUN pos_res D 1.
 
+########
+# For hit reconstruction.
+RUN do_rec I 0
+RUN rec_edge D 3.5
+
 #############################################
 #  parameters for the analysis
 #############################################

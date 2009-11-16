@@ -29,7 +29,7 @@ class hit_constructor
   ~hit_constructor();
 
   //reconstruction.
-  void execute(const std::vector<bhep::hit*>& hits, measurement_vector& meas);
+  void execute(const std::vector<bhep::hit*>& hits, std::vector<rec_hit*>& meas);
 
  private:
 
@@ -45,7 +45,7 @@ class hit_constructor
   //find vox number of hit.
   int calculate_vox_no(bhep::hit& curHit);
   //Make the rec hits.
-  void construct_hits(measurement_vector& meas);
+  void construct_hits(std::vector<rec_hit*>& meas);
   //make an individual rec hit.
   rec_hit* get_vhit(int vox, double z, const std::multimap<int,bhep::hit*>& map);
   

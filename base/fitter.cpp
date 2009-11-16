@@ -405,7 +405,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     reset();
     //--------- take hits from particle -------//
     
-    const vector<bhep::hit*> hits = p.hits("MIND");  
+    const vector<bhep::hit*> hits = p.hits("tracking");//"MIND");  
     
     //------------- loop over hits ------------//
  

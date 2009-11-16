@@ -15,7 +15,7 @@ hit_constructor::hit_constructor(const bhep::gstore& store)
   _voxXdim = store.fetch_dstore("rec_boxX") * cm;
   _voxYdim = store.fetch_dstore("rec_boxY") * cm;
   _nVoxX = (int)( _detectorX / _voxXdim );
-  _nVox = _nVoxX * (int)(_detectorY / _voxYdim );
+  _nVox = _nVoxX * (int)( _detectorY / _voxYdim );
 
   double res = store.fetch_dstore("pos_res") * cm;
   _cov = EMatrix(2,2,0);
@@ -40,22 +40,22 @@ void hit_constructor::reset()
 }
 
 void hit_constructor::execute(const std::vector<bhep::hit*>& hits,
-			      measurement_vector& meas)
+			      std::vector<rec_hit*>& meas)
 {
   //First clear out map.
   reset();
-
+  
   //copy hits so they can be sorted in z.
   std::vector<bhep::hit*> sortedHits = hits;
 
   sort( sortedHits.begin(), sortedHits.end(), forwardSort() );
-
+  
   //sort into voxels map.
   parse_to_map( sortedHits );
-
+  
   //Make rec_hits from vox.
   construct_hits( meas );
-
+  
 }
 
 void hit_constructor::calculate_layerZ()
@@ -90,6 +90,8 @@ void hit_constructor::calculate_layerZ()
 
     }
 
+    z -= _detectorLength/2;
+    
     _zLayer.push_back( z );
 
   }
@@ -111,7 +113,7 @@ void hit_constructor::parse_to_map(const std::vector<bhep::hit*> hits)
 
     //find plane.
     zpos = find_plane( *(*hitIt) );
-
+    
     //get Vox number;
     voxNo = calculate_vox_no( *(*hitIt) );
 
@@ -147,14 +149,14 @@ int hit_constructor::calculate_vox_no(bhep::hit& curHit)
 
   int xbox = (int)( (curHit.x()[0] + _detectorX/2) / _voxXdim );
 
-  int ybox = (int)( (curHit.x()[1] + _detectorY/2) / _voxYdim );
+  int ybox = (int)( fabs( curHit.x()[1] - _detectorY/2 ) / _voxYdim );
 
   int vox_num = xbox + ybox*_nVoxX;
 
   return vox_num;
 }
 
-void hit_constructor::construct_hits(measurement_vector& meas)
+void hit_constructor::construct_hits(std::vector<rec_hit*>& meas)
 {
   //takes the voxels which have been filled and make
   //rec_hit objects out of them.
@@ -181,13 +183,13 @@ rec_hit* hit_constructor::get_vhit(int vox, double z,
 				   const std::multimap<int,bhep::hit*>& map)
 {
   //Makes a rec_hit from the voxel position and adds the relevant points.
-
+  
   int irow = vox / _nVoxX;
   int icol = vox % _nVoxX;
-
-  double voxX = icol*_voxXdim + _voxXdim/2;
-  double voxY = irow*_voxYdim + _voxYdim/2;
-
+  //std::cout << "Vox to XY test: " << vox << ", " <<irow << ", " << icol << std::endl;
+  double voxX = icol*_voxXdim + _voxXdim/2 - _detectorX/2;
+  double voxY = _detectorY/2 - (irow*_voxYdim + _voxYdim/2);
+  //std::cout << "Values: " << voxX << ", " << voxY << std::endl;
   EVector hit_pos(2,0);
   hit_pos[0] = voxX;
   hit_pos[1] = voxY;

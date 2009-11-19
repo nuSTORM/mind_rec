@@ -27,7 +27,7 @@ fitter::~fitter() {
 
 //*************************************************************
 //bool fitter::initialize(const bhep::sstore& run_store) {
-bool fitter::initialize() {
+void fitter::initialize() {
 //*************************************************************
     
   m.message("+++ fitter init  function ++++",bhep::VERBOSE);
@@ -49,11 +49,16 @@ bool fitter::initialize() {
     man().model_svc().enable_noiser(model, RP::ms, false);
   }
 
-  get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
+  //If required make the clustering object.
+  if ( _doClust )
+    _clusters = new hit_clusterer( store );
+  //
+  //get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
+  get_classifier().initialize( store, level, geom.get_Fe_prop() )
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
-  return true;
+  //return true;
 }
 
 //*************************************************************
@@ -111,10 +116,6 @@ void fitter::reset() {
   _traj.reset();
   _traj2.reset();
   stc_tools::destroy(_meas);
-  // std::vector<Measurement*>::const_iterator it;
-//   for (it=_meas.begin();it!=_meas.end();it++)
-//     delete *it;
-  //_meas.clear();
   _hadmeas.clear();
   _hadEng = 0;
   
@@ -154,6 +155,9 @@ bool fitter::fitTrajectory(State seed) {
 	  
 	  //--------- refit using a new seed --------//	
 	  State newstate = _traj.state(_traj.first_fitted_node());
+
+	  //Want to re-seed with diagonal matrix.
+	  newstate.hv().keepDiagonalMatrix();
 	  
 	  EVector v = newstate.vector();
 	  EMatrix C0 = newstate.matrix();
@@ -203,6 +207,8 @@ bool fitter::reseed_traj(){
   bool ok;
     
   State backSeed = get_classifier().get_patRec_seed();
+  //Want to re-seed with diagonal matrix.
+  newstate.hv().keepDiagonalMatrix();
   
   vector<Node*>::iterator nIt;
   for (nIt = _traj.nodes().end()-1;nIt >= _traj.nodes().begin();nIt--)
@@ -218,7 +224,10 @@ bool fitter::reseed_traj(){
       
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
-      
+
+      //Want to re-seed with diagonal matrix.
+      newstate.hv().keepDiagonalMatrix();
+
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
       
@@ -403,33 +412,35 @@ bool fitter::recTrajectory(const bhep::particle& p) {
   m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
  
     reset();
-    //--------- take hits from particle -------//
     
     const vector<bhep::hit*> hits = p.hits("tracking");//"MIND");  
     
-    //------------- loop over hits ------------//
+    //Cluster or directly make measurements.
+    if ( _doClust )
+      _clusters->execute( hits, _meas );
+    else {
  
-    for(size_t j=0; j< hits.size(); j++){
-
-      //bhep::hit& hit = *hits[j];
+      for(size_t j=0; j< hits.size(); j++){
         	        
-      //---------- create measurament ---------------//
-      
-      Measurement* mnt = getMeasurement(*hits[j]);
-      
-      //---------end of create measurement-----------//
-      
-      _meas.push_back(mnt); 
-      
-      m.message("Measurement added:",*mnt,bhep::VVERBOSE);
-      
-    }//end of loop over hits
+	//---------- create measurament ---------------//
+	
+	cluster* mnt = getMeasurement(*hits[j]);
+	
+	_meas.push_back(mnt); 
+	
+	m.message("Measurement added:",*mnt,bhep::VVERBOSE);
+	
+      }//end of loop over hits
+
+    }
 
     //--------- add measurements to trajectory --------//
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
-      if ((int)hits.size() < min_seed_hits) {//toofew++; 
-      _failType = 7; return false;}
+
+      if ((int)hits.size() < min_seed_hits) {
+      _failType = 7; return false;
+      }
       
       sort( _meas.begin(), _meas.end(), forwardSorter() );
       
@@ -446,9 +457,9 @@ bool fitter::recTrajectory(const bhep::particle& p) {
 bool fitter::check_valid_traj() {
 //*************************************************************
 
-  double zCut = store.fetch_dstore("z_cut");
-  double xCut = store.fetch_dstore("x_cut");
-  double yCut = store.fetch_dstore("y_cut");
+  // double zCut = store.fetch_dstore("z_cut");
+//   double xCut = store.fetch_dstore("x_cut");
+//   double yCut = store.fetch_dstore("y_cut");
 
   //--------- Reject too many hits --------//
   int highPass = store.fetch_istore("high_Pass_hits");
@@ -464,11 +475,11 @@ bool fitter::check_valid_traj() {
   }
   
   //---- Reject if initial meas outside fid. Vol ----//
-  if (_traj.nodes()[0]->measurement().position()[2] > geom.getPlaneZ()/2-zCut*cm
-      || fabs(_traj.nodes()[0]->measurement().vector()[0]) > geom.getPlaneX()/2-xCut*cm
-      || fabs(_traj.nodes()[0]->measurement().vector()[1]) > geom.getPlaneY()/2-yCut*cm)
-    { //nonFid++; 
-    _failType = 3;}
+  // if (_traj.nodes()[0]->measurement().position()[2] > geom.getPlaneZ()/2-zCut*cm
+//       || fabs(_traj.nodes()[0]->measurement().vector()[0]) > geom.getPlaneX()/2-xCut*cm
+//       || fabs(_traj.nodes()[0]->measurement().vector()[1]) > geom.getPlaneY()/2-yCut*cm)
+//     {
+//     _failType = 3;}
     
   return true;
 }
@@ -504,7 +515,7 @@ int fitter::getQ(){
 
 
 //*************************************************************
-Measurement*  fitter::getMeasurement(bhep::hit& hit){
+cluster*  fitter::getMeasurement(bhep::hit& hit){
 //*************************************************************
     
   m.message("+++ getMeasurement function ++++",bhep::VERBOSE);
@@ -515,7 +526,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
 
     string meastype = geom.getMeasType();
     EMatrix cov = geom.getCov();
-    pnumber++;
+    //pnumber++;
 
     //----- generate repack hit from bhep one ----//
     
@@ -528,7 +539,7 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
     meas_pos[1] = hit_pos[1];
     meas_pos[2] = bhit_pos[2];
     
-    Measurement* me = new Measurement();
+    cluster* me = new cluster();
     me->set_name(meastype);
     me->set_hv(HyperVector(hit_pos,cov));
     me->set_name("volume", "Detector");
@@ -551,12 +562,14 @@ Measurement*  fitter::getMeasurement(bhep::hit& hit){
 
 
 //*************************************************************
-bool fitter::finalize() {
+void fitter::finalize() {
 //*************************************************************
    
   get_classifier().finalize();
 
-  return true;
+  delete _clusters;
+
+  //return true;
 }
 
 
@@ -742,13 +755,17 @@ void fitter::readParam(){
     dim=6; // ??????
     
 
-    if (store.find_istore("refit"))
+    if ( store.find_istore("refit") )
       refit=store.fetch_istore("refit");
     else refit=false;
 
-    if (store.find_istore("patRec"))
+    if ( store.find_istore("patRec") )
       patternRec=store.fetch_istore("patRec");
     else patternRec=false;
+
+    if ( store.find_istore("do_clust") )
+      _doClust = store.fetch_istore("do_clust");
+    else _doClust = false;
 
     facRef = store.fetch_dstore("facRef");
 
@@ -758,7 +775,7 @@ void fitter::readParam(){
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
     X0 = store.fetch_dstore("x0Fe") * mm;
-    _tolerance = store.fetch_dstore("pos_res") * cm;
+    //_tolerance = store.fetch_dstore("pos_res") * cm;
     
 }
 

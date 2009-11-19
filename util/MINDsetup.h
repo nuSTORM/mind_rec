@@ -69,8 +69,8 @@ protected:
   double MOTHER_x, MIND_x;
   double MOTHER_y, MIND_y;
   double MOTHER_z, MIND_z;
-  double IRON_z, SCINT_z;
-  double rel_den;
+  double IRON_z, SCINT_z, AIR_z;
+  double rel_denAS, rel_denSI;//AIR/Scint, Scint/Fe.
   int nScint;
 
   // -------------------------------------------------------------//
@@ -79,14 +79,14 @@ protected:
 
   //------------------------ MAGNETIC FIELD ----------------------//
     
-  double B_int;
+  //double B_int;
   EVector BField;
    
   //-------------------------------------------------------------//
   
   //------------------- PROPERTIES OF MATERIALS -----------------//
     
-  double X0Fe, X0Sc, X0Eff;
+  double X0Fe, X0Sc, X0AIR, X0Eff;//members for if/when geom more strict.
   double _wFe;
   double de_dx;
   EVector _zaxis;

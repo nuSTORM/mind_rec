@@ -32,8 +32,9 @@ event_classif::~event_classif() {
 }
 
 //***********************************************************************
-void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
-			       Setup& det, double wFe) {
+// void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
+// 			       Setup& det, double wFe) {
+void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, double wFe) {
 //***********************************************************************
 
   m = bhep::messenger( vlevel );
@@ -56,8 +57,8 @@ void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
 }
 
 //***********************************************************************
-bool event_classif::execute(measurement_vector& hits,
-			    Trajectory& muontraj, measurement_vector& hads) {
+bool event_classif::execute(vector<cluster*>& hits,
+			    Trajectory& muontraj, vector<cluster*>& hads) {
 //***********************************************************************
 
   m.message("++++ Classifier Execute Function ++++", bhep::VERBOSE);
@@ -132,7 +133,7 @@ void event_classif::reset(){
 }
 
 //***********************************************************************
-bool event_classif::get_plane_occupancy(measurement_vector& hits){
+bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
 //***********************************************************************
 //Gets plane occupancies and total plane energies.
 //Needs hits in increasing z order.
@@ -189,8 +190,8 @@ bool event_classif::get_plane_occupancy(measurement_vector& hits){
 }
 
 //***********************************************************************
-bool event_classif::chargeCurrent_analysis(measurement_vector& hits,
-					   Trajectory& muontraj, measurement_vector& hads){
+bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
+					   Trajectory& muontraj, vector<cluster*>& hads){
 //***********************************************************************
   m.message("++++ Performing CC reconstruction ++++",bhep::VERBOSE);
 
@@ -271,8 +272,8 @@ int event_classif::exclude_backwards_particle(){
 }
 
 //***********************************************************************
-bool event_classif::muon_extraction(measurement_vector& hits,
-				    Trajectory& muontraj, measurement_vector& hads) {
+bool event_classif::muon_extraction(vector<cluster*>& hits,
+				    Trajectory& muontraj, vector<cluster*>& hads) {
 //***********************************************************************
 //Decide on appropriate pattern recognition and perform it.
 //Are there ways to avoid doing full extraction algorithm.
@@ -298,7 +299,7 @@ bool event_classif::muon_extraction(measurement_vector& hits,
 
 //***********************************************************************
 bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
-					measurement_vector& hits) {
+					vector<cluster*>& hits) {
 //***********************************************************************
 
   EVector V(6,0); EVector V2(1,0);
@@ -421,8 +422,8 @@ bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 }
 
 //***********************************************************************
-bool event_classif::perform_muon_extraction(const State& seed, measurement_vector& hits,
-					    Trajectory& muontraj, measurement_vector& hads) {
+bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>& hits,
+					    Trajectory& muontraj, vector<cluster*>& hads) {
 //***********************************************************************
 //Loop through multiple occupancy planes finding the best match to the muon
 //traj and filtering it into the trajectory.
@@ -488,8 +489,8 @@ bool event_classif::perform_muon_extraction(const State& seed, measurement_vecto
 }
 
 //***********************************************************************
-bool event_classif::invoke_cell_auto(measurement_vector& hits,
-				     Trajectory& muontraj, measurement_vector& hads){
+bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
+				     Trajectory& muontraj, vector<cluster*>& hads){
 //***********************************************************************
 //uses cellular automaton to try and retrieve more complicated events.
 
@@ -536,8 +537,8 @@ bool event_classif::invoke_cell_auto(measurement_vector& hits,
 }
 
 //***********************************************************************
-void event_classif::sort_hits(measurement_vector& hits,
-			      Trajectory& muontraj, measurement_vector& hads){
+void event_classif::sort_hits(vector<cluster*>& hits,
+			      Trajectory& muontraj, vector<cluster*>& hads){
 //***********************************************************************
   
   bool inTraj;
@@ -675,7 +676,7 @@ bool event_classif::reject_high(vector<Trajectory*>& trajs,
 
   vector<Trajectory*>::iterator it1;
   State temp_seed;
-  measurement_vector dummy_hits;
+  vector<cluster*> dummy_hits;
   double momErr;
   
   for (it1 = trajs.begin();it1 != trajs.end();it1++){
@@ -830,7 +831,7 @@ void event_classif::set_branches(){
 }
 
 //***********************************************************************
-void event_classif::output_liklihood_info(const measurement_vector& hits){
+void event_classif::output_liklihood_info(const vector<cluster*>& hits){
 //***********************************************************************
   
   bool multFound = false;
@@ -868,12 +869,12 @@ void event_classif::output_liklihood_info(const measurement_vector& hits){
 }
 
 //***********************************************************************
-void event_classif::traj_like(const measurement_vector& hits, const Trajectory& muontraj){
+void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& muontraj){
 //***********************************************************************
   
   const dict::Key Edep = "E_dep";
   const dict::Key candHit = "inMu";
-  measurement_vector::const_iterator hitIt3;
+  vector<cluster*>::const_iterator hitIt3;
   vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
   vector<double>::iterator planIt;
 

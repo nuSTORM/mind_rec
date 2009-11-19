@@ -14,10 +14,13 @@ MINDplotter::~MINDplotter() {
 }
 
 //*************************************************************************************
-bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
+void MINDplotter::initialize(string outFileName, bhep::prlevel vlevel,
+			     bool patRec, bool clust) {
 //*************************************************************************************
 
-  bool ok = true;
+  //bool ok = true;
+  _patR = patRec;
+  _clu = clust;
 
   level = vlevel;
 
@@ -33,12 +36,11 @@ bool MINDplotter::initialize(string outFileName, bhep::prlevel vlevel) {
 
   m.message("++plotter initialized",bhep::VERBOSE);
 
-  return ok;
+  //return ok;
 }
 
 //*************************************************************************************
-bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
-			  bool success, bool patRec) {
+void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
 //*************************************************************************************
   
   bool ok1, ok2;
@@ -62,7 +64,7 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
   _engTraj = 0;
   _hadE[1] = 0;
 
-  ok1 = extract_true_particle(evt, Fit, patRec);
+  ok1 = extract_true_particle(evt, Fit);
   
   if (success) {
     
@@ -109,27 +111,27 @@ bool MINDplotter::execute(fitter& Fit, const bhep::event& evt,
     //_hadE[1] = -99;
   }
   
-  if (patRec)
+  if (_patR)
     patternStats( Fit );
   
   //Fill tree event with the values.
   int fillcatch = statTree->Fill();
   
-  return ok1;
+  //return ok1;
 }
 
 //*************************************************************************************
-bool MINDplotter::finalize() {
+void MINDplotter::finalize() {
 //*************************************************************************************
 
-  bool ok = true;
+  //bool ok = true;
 
   m.message("++Finalizing Output++",bhep::VERBOSE);
   
   outFile->Write();
   outFile->Close();
 
-  return ok;
+  //return ok;
 }
 
 //*************************************************************************************
@@ -257,8 +259,7 @@ void MINDplotter::direction_pulls() {
 }
 
 //*************************************************************************************
-bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
-					bool patRec) {
+bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
 //*************************************************************************************
 
 /* sets true particle momentum for calculation and returns a reference
@@ -291,14 +292,14 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit,
   }
   //STUFF ABOVE FOR REDESIGN.!!!!!
   _nhits = Fit.get_nMeas();
-  cout << "NMEAS=" << _nhits << endl;
+  
   for (int iHits = 0;iHits < _nhits;iHits++){
 
     _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
     _ZPos[iHits] = Fit.get_meas(iHits)->position()[2];
 
-    if (!patRec)
+    if (!_patR)
       if ( Fit.get_traj().node(iHits).status("fitted") )
 	_hitType[3]++;
   }

@@ -6,20 +6,17 @@
 #include <bhep/particle.h>
 
 #include <TFile.h>
-//#include <TCanvas.h>
-//#include <TH1F.h>
-//#include <TGraph.h>
-//#include <TProfile.h>
 #include <TTree.h>
 
 #include <recpack/RecpackManager.h>
-#include <recpack/Measurement.h>
+//#include <recpack/Measurement.h>
 #include <recpack/Ring.h>
+
 #include <mind/fitter.h>
+#include <mind/cluster.h>
 
 using namespace std;
 using namespace Recpack;
-//using namespace bhep;
 
 /* A Class with functions to plot the results of fits to MIND data */
 
@@ -32,9 +29,9 @@ class MINDplotter{
   virtual ~MINDplotter();
 
   //Main functions for output initialization.
-  bool initialize(string outFileName, bhep::prlevel vlevel=bhep::NORMAL);
-  bool execute(fitter& Fit, const bhep::event& evt, bool success, bool patRec);
-  bool finalize();
+  void initialize(string outFileName, bhep::prlevel vlevel=bhep::NORMAL, bool patRec, bool clust);
+  void execute(fitter& Fit, const bhep::event& evt, bool success);
+  void finalize();
 //   //
   //To calculate expected vertex position give trajectory and vertex location.
   bool extrap_to_vertex(const Trajectory& traj, 
@@ -65,6 +62,8 @@ protected:
   TFile *outFile;
 
   TTree *statTree;
+
+  bool _patR, _clu;
 
 private:
 
@@ -104,7 +103,7 @@ private:
 
   void define_tree_branches();
 
-  bool extract_true_particle(const bhep::event& evt, fitter& Fit, bool patRec);
+  bool extract_true_particle(const bhep::event& evt, fitter& Fit);
 
 };
 

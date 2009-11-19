@@ -3,21 +3,24 @@
 #define _fitter___
 
 #include <recpack/RecpackManager.h>
-#include <mind/MINDsetup.h>
-#include <mind/Utilities.h>
-#include <mind/MINDfitman.h>
-#include <bhep/event.h>
-#include <bhep/gstore.h>
 #include <recpack/RayTool.h>
 #include <recpack/KalmanFitter.h>
 #include <recpack/LsqFitter.h>
 #include <recpack/ParticleState.h>
 
+#include <mind/MINDsetup.h>
+#include <mind/Utilities.h>
+#include <mind/MINDfitman.h>
+#include <mind/cluster.h>
+#include <mind/event_classif.h>
+#include <mind/hit_clusterer.h>
+
+#include <bhep/event.h>
+#include <bhep/gstore.h>
+
 #include <TH1F.h>
 #include <TGraphErrors.h>
 #include <TF1.h>
-
-#include <mind/event_classif.h>
 
 using namespace Recpack;
 
@@ -33,13 +36,13 @@ public:
   //------------------ main functions ---------------// 
   //init
   //bool initialize(const bhep::sstore&) ;
-  bool initialize();
+  void initialize();
   //exe
   bool execute(bhep::particle& part,int evNo);
   //end
-  bool finalize() ;
+  void finalize() ;
   //-------------------------------------------------// 
-    
+  //Getters.    
   const Trajectory& get_traj(){ 
     if (reseed_ok) return _traj2;
     else return _traj; }
@@ -48,12 +51,12 @@ public:
   int get_fail_type(){ return _failType; }
   bool check_reseed(){ return reseed_ok; }
 
-  Measurement* get_meas(int num){return _meas[num];}
+  cluster* get_meas(int num){return _meas[num];}
   int get_nMeas(){return (int)_meas.size();}
 
   double getChi2(){ return _traj.quality(); }
-  
-  Measurement* getMeasurement(bhep::hit& hit);
+  //
+  cluster* getMeasurement(bhep::hit& hit);
   
   int getQ();
 
@@ -69,11 +72,11 @@ public:
   
   //fit twice
 
-  void setRefit(bool ok){refit=ok;}
+  //void setRefit(bool ok){refit=ok;}
    
 protected:
   
-  void resetVirtualPlanes(); 
+  //void resetVirtualPlanes(); 
 
   //read parameters from store
   void readParam();
@@ -117,7 +120,7 @@ protected:
   MINDsetup geom;
   
   //counter for virtual planes
-  size_t pnumber;
+  //size_t pnumber;
   
   //Parameters to define fitting method.
   bool refit; //Do second fit.
@@ -134,11 +137,11 @@ protected:
   double X0;
 
   int dim; //dimension of model state
-  int meas_dim; //dimension of measurement
-  double _tolerance; //pos. resolution/plane tolerance
+  //int meas_dim; //dimension of measurement
+  //double _tolerance; //pos. resolution/plane tolerance
   
   State seedstate;   
-  EVector qoverp;
+  //EVector qoverp;
 
   string model;  // fit model
   //string kfitter; // kind of fit
@@ -150,15 +153,17 @@ protected:
     
   Trajectory _traj;
   Trajectory _traj2;
-  measurement_vector _meas;
-  measurement_vector _hadmeas;
+  // measurement_vector _meas;
+//   measurement_vector _hadmeas;
+  std::vector<cluster*> _meas;
+  std::vector<cluster*> _hadmeas;
 
   //value set to identify where a traj failed:
   //0=too few hits. 1=too many hits. 2=outside fiducial. 3=no convergence with kink.
   //4=Couldn't find seed for patrec. 5=Failed in pat rec filtering
   int _failType;
 
-  size_t nnodes;
+  //size_t nnodes;
 
   //Temporary fix (??). vector to store hadron unit dir vec.
   EVector _hadunit;
@@ -168,15 +173,21 @@ protected:
   // Stuff relevant for event classification, will be uncommented when needed.
   event_classif _classify;
 
+  // hit clustering.
+  hit_clusterer* _clusters;
+
+  bool _doClust;
+  //
+
   //-------------- verbosity levels ------------//
 
-  int vfit,vnav,vmod,vmat,vsim;
+  //int vfit,vnav,vmod,vmat,vsim;
   
 };
 
 class reverseSorter{
 public:
-  bool operator()(const Measurement* p1, const Measurement* p2){
+  bool operator()(const cluster* p1, const cluster* p2){
     if (p2->position()[2] < p1->position()[2]) return true;
     return false;
   }
@@ -185,7 +196,7 @@ public:
 
 class forwardSorter{
 public:
-  bool operator()(const Measurement* p1, const Measurement* p2){
+  bool operator()(const cluster* p1, const cluster* p2){
     if (p2->position()[2] > p1->position()[2]) return true;
     return false;
   }

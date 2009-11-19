@@ -5,6 +5,7 @@
 #include <mind/MINDsetup.h>
 #include <mind/SetupSk.h>
 #include <mind/MINDfitman.h>
+#include <mind/cluster.h>
 
 #include <recpack/RecpackManager.h>
 #include <recpack/RayTool.h>
@@ -19,8 +20,6 @@
 #include <TFile.h>
 #include <TTree.h>
 
-//using namespace bhep;
-
 class event_classif{
   
 public:
@@ -30,9 +29,10 @@ public:
   virtual ~event_classif();
   
   //-------------- main functions --------------//
-  void initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det, double wFe); //needs to take store with all info for pat rec/more?
-  bool execute(measurement_vector& hits,
-	       Trajectory& muontraj, measurement_vector& hads); //more arguments needed?
+  //void initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det, double wFe);
+  void initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, double wFe);
+  bool execute(vector<cluster*>& hits,
+	       Trajectory& muontraj, vector<cluster*>& hads);
   void finalize();
   //-------------------------------------------//
   
@@ -48,7 +48,7 @@ public:
   int get_free_planes(){ return _freeplanes; }
   //
   
-  bool get_plane_occupancy(measurement_vector& hits);
+  bool get_plane_occupancy(vector<cluster*>& hits);
   
 protected:
   
@@ -57,21 +57,22 @@ protected:
   void reset();
   
   //Functions to be performed on CC mu candidates.  
-  bool chargeCurrent_analysis(measurement_vector& hits,
-			      Trajectory& muontraj, measurement_vector& hads);
+  bool chargeCurrent_analysis(vector<cluster*>& hits,
+			      Trajectory& muontraj, vector<cluster*>& hads);
   int exclude_backwards_particle();
-  bool muon_extraction(measurement_vector& hits,
-		       Trajectory& muontraj, measurement_vector& hads);
-  bool get_patternRec_seed(State& seed, Trajectory& muontraj, measurement_vector& hits);
+  bool muon_extraction(vector<cluster*>& hits,
+		       Trajectory& muontraj, vector<cluster*>& hads);
+  bool get_patternRec_seed(State& seed, Trajectory& muontraj, vector<cluster*>& hits);
   void fit_parabola(EVector& vec, Trajectory& track);
   void set_de_dx(double mom);
   bool perform_kalman_fit(State& seed, Trajectory& track);
-  bool perform_muon_extraction(const State& seed, measurement_vector& hits,
-			       Trajectory& muontraj, measurement_vector& hads);
+  bool perform_muon_extraction(const State& seed, vector<cluster*>& hits,
+			       Trajectory& muontraj, vector<cluster*>& hads);
+
   //specific functions using cellular automaton.
-  bool invoke_cell_auto(measurement_vector& hits,
-			Trajectory& muontraj, measurement_vector& hads);
-  void sort_hits(measurement_vector& hits, Trajectory& muontraj, measurement_vector& hads);
+  bool invoke_cell_auto(vector<cluster*>& hits,
+			Trajectory& muontraj, vector<cluster*>& hads);
+  void sort_hits(vector<cluster*>& hits, Trajectory& muontraj, vector<cluster*>& hads);
   void delete_bad_trajs(const Trajectory& muontraj, vector<Trajectory*>& trajs);
   bool sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs);
   bool reject_small(vector<Trajectory*>& trajs, vector<Trajectory*>& trajs2);
@@ -101,7 +102,7 @@ protected:
   int _lastIso;
   
   //interator for hits and container for estimated 'vertex' hit.
-  measurement_vector::iterator _hitIt;
+  vector<cluster*>::iterator _hitIt;
   vector<int>::iterator _planeIt;
   int _vertGuess;
   
@@ -131,8 +132,8 @@ protected:
   double _plEng[500], _trajEngPlan[500];
 
   void set_branches();
-  void output_liklihood_info(const measurement_vector& hits);
-  void traj_like(const measurement_vector& hits, const Trajectory& muontraj);
+  void output_liklihood_info(const vector<cluster*>& hits);
+  void traj_like(const vector<cluster*>& hits, const Trajectory& muontraj);
   void out_like();
   //
 

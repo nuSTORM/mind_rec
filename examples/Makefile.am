@@ -18,7 +18,7 @@ fit: fit_tracks
 
 hadrec: rec_had_show
 
-rectest: rec_hit_test
+rect: rec_hit_test
 
 CLEANFILES = *~* 
 

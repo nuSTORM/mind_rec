@@ -16,26 +16,32 @@ RUN MIND_z D 40.
 # MIND internal dimensions (cm)
 # ****IRON****
 RUN widthI D 4.
-
 # radiation length (mm)
 RUN x0Fe D 17.58
 
 # ****SCIN**** (cm)
 RUN widthS D 1.
 RUN nplane I 1
-
-# ****AIR **** (cm)
-RUN widthA D 0.1
-
 # radiation length (mm)
 RUN x0Sc D 413.1
 
-# relative density, Sc/Fe.
-RUN rel_den D 0.135
+# ****AIR **** (cm)
+RUN widthA D 0.1
+# radiation length (m)
+RUN x0AIR D 303.9
+
+# relative density, Sc/Fe, AIR/Sc.
+RUN rel_denSI D 0.135
+RUN rel_denAS D 0.001
 
 # measurement type.
 RUN meas_type S xy
 
+# magnetic field.
+RUN mag_field DV 3
+0.
+1.
+0.
 ########
 
 # energy loss (MeV/cm)
@@ -45,10 +51,15 @@ RUN de_dx D -8
 RUN pos_res D 1.
 
 ########
-# For hit reconstruction.(edge in cm)
-RUN do_rec I 0
+# For hit clustering.(edge in cm)
+RUN do_clust I 0
 RUN rec_boxX D 3.5
-RUN rec_boxY D 3.5
+
+# Seed for smear on cluster position.
+RUN Gen_seed D 283940592
+
+# sigma (cm)
+RUN pos_sig D 1.
 
 #############################################
 #  parameters for the analysis

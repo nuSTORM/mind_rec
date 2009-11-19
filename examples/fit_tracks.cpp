@@ -1,11 +1,10 @@
 #include <mind/fitter.h>
 #include <mind/MINDplotter.h>
-//#include <bhep/EventManager2.h>
+
 #include <bhep/gstore.h>
 #include <bhep/sreader.h>
 #include <bhep/reader_root.h>
 
-#include <recpack/Measurement.h>
 #include <recpack/Ring.h>
 #include <recpack/stc_tools.h>
 
@@ -23,7 +22,7 @@ int main(int argc, char* argv[]){
   string param_file="param/fit_cats.param";
   
   int nevents=1;
-  bool fitOk, catchOk;
+  bool fitOk;
   if (argc==2) param_file = argv[1];
   
   else if(argc==3) {param_file = argv[1];nevents = atoi(argv[2]);}
@@ -33,7 +32,7 @@ int main(int argc, char* argv[]){
   exit(1);}
   
   // generate stores for analysis parameters 
-  bhep::gstore data_store,ana_store,run_store;
+  bhep::gstore data_store,ana_store;//,run_store;
   
   // read analysis parameters 
   bhep::sreader reader(ana_store);
@@ -44,12 +43,12 @@ int main(int argc, char* argv[]){
   reader2.group("RUN");reader2.read();
   //
   
-  // read run properties
-  bhep::sreader preader(run_store);
-  preader.file(param_file);
-  preader.group("RUN");
-  preader.read();
-  //
+  // // read run properties
+//   bhep::sreader preader(run_store);
+//   preader.file(param_file);
+//   preader.group("RUN");
+//   preader.read();
+//   //
   
   // read input/ouput data
   bhep::sreader data_reader(data_store);
@@ -67,14 +66,15 @@ int main(int argc, char* argv[]){
   MINDplotter plot = MINDplotter();
   
   //catchOk = fit->initialize();
-  catchOk = fit.initialize();
-
-  //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-  catchOk = plot.initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-
-  vector<string> input_data = data_store.fetch_svstore("idst_files");
+  fit.initialize();
   
   bool patR = ana_store.fetch_istore("patRec");
+  bool clusts = ana_store.fetch_istore("do_clust");
+
+  //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
+  plot.initialize(ana_store.fetch_sstore("out_file"),bhep::MUTE, patR, clusts);
+
+  vector<string> input_data = data_store.fetch_svstore("idst_files");
 
   //Counters for event loops;
   int i;
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]){
 	  fitOk = fit.execute(*parts[part],e.event_number());
 	  
 	  //catchOk = plot->execute(*fit, e, fitOk, patR);
-	  catchOk = plot.execute(fit, e, fitOk, patR);
+	  plot.execute(fit, e, fitOk);
 	}
       }
       
@@ -122,10 +122,10 @@ int main(int argc, char* argv[]){
   }
   
   //catchOk = fit->finalize();
-  catchOk = fit.finalize();
+  fit.finalize();
 
   //catchOk = plot->finalize();
-  catchOk = plot.finalize();
+  plot.finalize();
   
   return 0;
   

@@ -17,8 +17,6 @@ MINDsetup::~MINDsetup() {
 
 
 //*************************************************************
-// void MINDsetup::init(bhep::gstore pstore,bhep::sstore gstore,
-// 		       bhep::prlevel level) {
 void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
 //*************************************************************
     
@@ -26,7 +24,7 @@ void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
   
   _msetup.message("++MINDsetup Messenger generated++",bhep::VERBOSE);
   
-  _pstore=pstore; //_store=gstore;
+  _pstore=pstore;
   
   readParam();
 
@@ -111,7 +109,7 @@ void MINDsetup::createGeom(){
 
 //   }
 
-  std::cout << _gsetup << std::endl;
+  //std::cout << _gsetup << std::endl;
 
 }
 
@@ -181,8 +179,8 @@ void MINDsetup::addProperties(){
 
   //-------------------- magnetic field ------------------//
     
-  BField = EVector(3,0);
-  BField[1] = B_int;
+  // BField = EVector(3,0);
+//   BField[1] = B_int;
 
   _zaxis = EVector(3,0);
   _zaxis[2]=1;
@@ -235,8 +233,15 @@ void MINDsetup::readParam(){
 
     IRON_z = _pstore.fetch_dstore("widthI") * cm;
     SCINT_z = _pstore.fetch_dstore("widthS") * cm;
+    AIR_z = _pstore.fetch_dstore("widthA") * cm;
     nScint = _pstore.fetch_istore("nplane");
-    rel_den = _pstore.fetch_dstore("rel_den");
+
+    //Adjust length for interger number of pieces.
+    double piece = IRON_z + nScint*SCINT_z + (nScint+1)*AIR_z;
+    int npieces = (int)ceil( MIND_z / piece );
+    MIND_z = npieces * piece;
+    rel_denIS = _pstore.fetch_dstore("rel_denSI");
+    rel_denSA = _pstore.fetch_dstore("rel_denAS");
 
     //--------------------------- VOLUMES ------------------------//
     
@@ -248,13 +253,13 @@ void MINDsetup::readParam(){
     //                       |  MAGNETIC FIELD |                    //
     // -------------------------------------------------------------//
     
-
-    //B_int=_pstore.fetch_dstore("B") * mm;
-    //B_int=bhep::double_from_string(_store.fetch("GEOM_GG_CELL_diam"))*tesla;
-    
-    B_int = 1.0 * tesla;
+    bhep::vdouble field = _pstore.fetch_vstore("mag_field");
+    BField = EVector(3,0);
+    BField[0] = field[0] * tesla; BField[1] = field[1] * tesla;
+    BField[1] = field[2] * tesla;
+    //B_int = 1.0 * tesla;
       
-    _msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
+    //_msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
     
     // -------------------------------------------------------------//
     //            |  RADIATION LENGTH AND ENERGY LOSS |             //
@@ -262,13 +267,15 @@ void MINDsetup::readParam(){
     
     X0Fe = _pstore.fetch_dstore("x0Fe") * mm;
     X0Sc = _pstore.fetch_dstore("x0Sc") * mm;
+    X0AIR = _pstore.fetch_dstore("x0AIR") * m;
 
-    _wFe = IRON_z/(IRON_z + SCINT_z*nScint*rel_den);
-    double wSc = 1-_wFe;
-    X0Eff = 1./(_wFe/X0Fe + wSc/X0Sc);
+    double wSc = SCINT_z / (SCINT_z + AIR_z*(nScint+1)*rel_denAS);
+    double X01 = (X0Sc*X0AIR) / (wSc*(X0AIR-X0Sc) + X0Sc);
+    _wFe = IRON_z/(IRON_z + ((SCINT_z+AIR_z)*nScint+AIR_z)*rel_denSI*(wSc*(1-rel_denAS)+rel_denAS));
+    
+    X0Eff = 1./(_wFe/X0Fe + wSc/X01);
 
     de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
-    //X0 = 1e9 *mm;
 
     _msetup.message("Radiation length:",X0Fe/cm,"cm",c);
 
@@ -277,7 +284,7 @@ void MINDsetup::readParam(){
     // -------------------------------------------------------------//
 
     meas_dim = 2;
-    meastype = "xy";
+    meastype = _pstore.fetch_sstore("meas_type");
     
     resx = _pstore.fetch_dstore("pos_res") * cm;
     resy = _pstore.fetch_dstore("pos_res") * cm;

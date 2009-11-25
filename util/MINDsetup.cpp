@@ -240,8 +240,8 @@ void MINDsetup::readParam(){
     double piece = IRON_z + nScint*SCINT_z + (nScint+1)*AIR_z;
     int npieces = (int)ceil( MIND_z / piece );
     MIND_z = npieces * piece;
-    rel_denIS = _pstore.fetch_dstore("rel_denSI");
-    rel_denSA = _pstore.fetch_dstore("rel_denAS");
+    rel_denSI = _pstore.fetch_dstore("rel_denSI");
+    rel_denAS = _pstore.fetch_dstore("rel_denAS");
 
     //--------------------------- VOLUMES ------------------------//
     
@@ -256,7 +256,8 @@ void MINDsetup::readParam(){
     bhep::vdouble field = _pstore.fetch_vstore("mag_field");
     BField = EVector(3,0);
     BField[0] = field[0] * tesla; BField[1] = field[1] * tesla;
-    BField[1] = field[2] * tesla;
+    BField[2] = field[2] * tesla;
+    
     //B_int = 1.0 * tesla;
       
     //_msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
@@ -272,7 +273,7 @@ void MINDsetup::readParam(){
     double wSc = SCINT_z / (SCINT_z + AIR_z*(nScint+1)*rel_denAS);
     double X01 = (X0Sc*X0AIR) / (wSc*(X0AIR-X0Sc) + X0Sc);
     _wFe = IRON_z/(IRON_z + ((SCINT_z+AIR_z)*nScint+AIR_z)*rel_denSI*(wSc*(1-rel_denAS)+rel_denAS));
-    
+
     X0Eff = 1./(_wFe/X0Fe + wSc/X01);
 
     de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;

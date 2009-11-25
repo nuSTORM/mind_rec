@@ -73,6 +73,7 @@ protected:
   bool invoke_cell_auto(vector<cluster*>& hits,
 			Trajectory& muontraj, vector<cluster*>& hads);
   void sort_hits(vector<cluster*>& hits, Trajectory& muontraj, vector<cluster*>& hads);
+  void get_cluster_meas(const vector<cluster*>& hits, measurement_vector& meas);
   void delete_bad_trajs(const Trajectory& muontraj, vector<Trajectory*>& trajs);
   bool sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs);
   bool reject_small(vector<Trajectory*>& trajs, vector<Trajectory*>& trajs2);

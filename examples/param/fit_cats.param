@@ -26,7 +26,7 @@ RUN nplane I 1
 RUN x0Sc D 413.1
 
 # ****AIR **** (cm)
-RUN widthA D 0.1
+RUN widthA D 0.
 # radiation length (m)
 RUN x0AIR D 303.9
 
@@ -141,6 +141,7 @@ RUN likeli I 0
 ###  data to read ###
 DATA idst_files SV 1
 ~/decNtup/newTest.dst.root
+# ../test_digi.dst.root
 # /home/alaing/varVert/variable_vert_0.gz
 # /home/alaing/varVert/variable_vert_1.gz
 # /home/alaing/decNtup/wsdecays_1.gz

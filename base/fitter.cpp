@@ -54,7 +54,7 @@ void fitter::initialize() {
     _clusters = new hit_clusterer( store );
   //
   //get_classifier().initialize( store, level, geom.setup(), geom.get_Fe_prop() );
-  get_classifier().initialize( store, level, geom.get_Fe_prop() )
+  get_classifier().initialize( store, level, geom.get_Fe_prop() );
 
   m.message("+++ End of init function ++++",bhep::VERBOSE);
   
@@ -67,7 +67,7 @@ bool fitter::execute(bhep::particle& part,int evNo){
     
   m.message("+++ fitter execute function ++++",bhep::VERBOSE);
   
-  bool ok, checker; 
+  bool ok;//, checker; 
   bool fitted=false;
   
   _failType = 0; //set to 'success' before run to avoid faults in value.
@@ -143,62 +143,63 @@ bool fitter::fitTrajectory(State seed) {
 //*************************************************************
     
   m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
+  //cout << "Fit one...";
+  bool ok = man().fitting_svc().fit(seed,_traj);
+  //cout << "done. " << ok << endl;
+  if (ok && refit){
     
-    bool ok = man().fitting_svc().fit(seed,_traj);
-    
-    if (ok && refit){
-        
-        ok = checkQuality(); 
-	if (ok) {
-	  
-	  m.message("Going to refit...",bhep::VERBOSE);
-	  
-	  //--------- refit using a new seed --------//	
-	  State newstate = _traj.state(_traj.first_fitted_node());
-
-	  //Want to re-seed with diagonal matrix.
-	  newstate.hv().keepDiagonalMatrix();
-	  
-	  EVector v = newstate.vector();
-	  EMatrix C0 = newstate.matrix();
-	  
-	  set_de_dx( fabs(1./v[5])/GeV );
-
-	  EMatrix C = setSeedCov(C0,facRef);
-	  
-	  seedstate.set_hv(HyperVector(v,C)); 
-	  
-	  ok = man().fitting_svc().fit(seedstate,_traj);
-	}
-	
+    ok = checkQuality(); 
+    if (ok) {
+      
+      m.message("Going to refit...",bhep::VERBOSE);
+      
+      //--------- refit using a new seed --------//	
+      State newstate = _traj.state(_traj.first_fitted_node());
+      
+      EVector v = newstate.vector();
+      EMatrix C0 = newstate.matrix();
+      
+      set_de_dx( fabs(1./v[5])/GeV );
+      
+      EMatrix C = setSeedCov(C0,facRef);
+      
+      HyperVector HV(v,C);
+      HV.keepDiagonalMatrix();
+      //seedstate.set_hv(HyperVector(v,C)); 
+      seedstate.set_hv( HV );
+      //cout << "Fit 2...";
+      ok = man().fitting_svc().fit(seedstate,_traj);
+      //cout << "done. " << ok << _traj.state(_traj.first_fitted_node());
     }
     
-    int fitCheck = 0;
-    vector<Node*>::iterator nDIt;
-    for (nDIt = _traj.nodes().begin();nDIt!=_traj.nodes().end();nDIt++)
-      if ( (*nDIt)->status("fitted") )
-	fitCheck++;
-
-    double low_fit_cut;
-    if (get_classifier().get_int_type() == 2)
-      low_fit_cut = store.fetch_dstore("low_fit_cut2");
-    else
-      low_fit_cut = store.fetch_dstore("low_fit_cut0");
-    //disallow backfit on cell auto tracks for now.
-    
-    if (get_classifier().get_int_type() != 5){
-      if (get_classifier().get_int_type() != 2){
-	if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
-	  reseed_ok = reseed_traj();
-      } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+  }
+  
+  int fitCheck = 0;
+  vector<Node*>::iterator nDIt;
+  for (nDIt = _traj.nodes().begin();nDIt!=_traj.nodes().end();nDIt++)
+    if ( (*nDIt)->status("fitted") )
+      fitCheck++;
+  
+  double low_fit_cut;
+  if (get_classifier().get_int_type() == 2)
+    low_fit_cut = store.fetch_dstore("low_fit_cut2");
+  else
+    low_fit_cut = store.fetch_dstore("low_fit_cut0");
+  //disallow backfit on cell auto tracks for now.
+  
+  if (get_classifier().get_int_type() != 5){
+    if (get_classifier().get_int_type() != 2){
+      if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
 	reseed_ok = reseed_traj();
-    }
-    
-    if (ok && !reseed_ok) ok = checkQuality();
-    else if ( reseed_ok ) ok = true;
-    
-    return ok;
-
+    } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+      reseed_ok = reseed_traj();
+  }
+  
+  if (ok && !reseed_ok) ok = checkQuality();
+  else if ( reseed_ok ) ok = true;
+  
+  return ok;
+  
 }
 
 //*************************************************************
@@ -208,7 +209,9 @@ bool fitter::reseed_traj(){
     
   State backSeed = get_classifier().get_patRec_seed();
   //Want to re-seed with diagonal matrix.
-  newstate.hv().keepDiagonalMatrix();
+  HyperVector HV1 = backSeed.hv();//.keepDiagonalMatrix();
+  HV1.keepDiagonalMatrix();
+  backSeed.set_hv( HV1 );
   
   vector<Node*>::iterator nIt;
   for (nIt = _traj.nodes().end()-1;nIt >= _traj.nodes().begin();nIt--)
@@ -225,9 +228,6 @@ bool fitter::reseed_traj(){
       //--------- refit using a new seed --------//	
       State newstate = _traj2.state(_traj2.first_fitted_node());
 
-      //Want to re-seed with diagonal matrix.
-      newstate.hv().keepDiagonalMatrix();
-
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
       
@@ -235,8 +235,11 @@ bool fitter::reseed_traj(){
       
       EMatrix C = setSeedCov(C0,facRef);
 
-      seedstate.set_hv(HyperVector(v,C)); 
-      
+      HyperVector HV(v,C);
+      HV.keepDiagonalMatrix();
+      //seedstate.set_hv(HyperVector(v,C)); 
+      seedstate.set_hv( HV );
+
       ok = man().fitting_svc().fit(seedstate,_traj2);
     }
     
@@ -413,7 +416,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
  
     reset();
     
-    const vector<bhep::hit*> hits = p.hits("tracking");//"MIND");  
+    const vector<bhep::hit*> hits = p.hits("MIND");//"tracking");//"MIND");  
     
     //Cluster or directly make measurements.
     if ( _doClust )
@@ -445,7 +448,10 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       sort( _meas.begin(), _meas.end(), forwardSorter() );
       
     } else {
-      _traj.add_measurements(_meas);
+      //_traj.add_measurements(_meas);
+      std::vector<cluster*>::iterator it1;
+      for (it1 = _meas.begin();it1 != _meas.end();it1++)
+	_traj.add_measurement( *(*it1) );
 
       m.message("Trajectory created:",_traj,bhep::VVERBOSE);
     }
@@ -555,7 +561,6 @@ cluster*  fitter::getMeasurement(bhep::hit& hit){
       me->set_name(motherP, mothName);
     }
     
-    
     return me;
 
 }
@@ -567,7 +572,7 @@ void fitter::finalize() {
    
   get_classifier().finalize();
 
-  delete _clusters;
+  if ( _doClust ) delete _clusters;
 
   //return true;
 }

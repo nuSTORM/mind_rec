@@ -14,8 +14,8 @@ MINDplotter::~MINDplotter() {
 }
 
 //*************************************************************************************
-void MINDplotter::initialize(string outFileName, bhep::prlevel vlevel,
-			     bool patRec, bool clust) {
+void MINDplotter::initialize(string outFileName, bool patRec, bool clust,
+			     bhep::prlevel vlevel) {
 //*************************************************************************************
 
   //bool ok = true;
@@ -59,12 +59,18 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     _intType = Fit.get_classifier().get_int_type();
   else _intType = 7;
   
-  for (int i = 0;i<4;i++)
+  for (int i = 0;i<4;i++){
     _hitType[i] = 0;
+    if ( i < 3 ) _hadP[i] = 0.;
+    else _hadE[0] = 0.;
+  }
   _engTraj = 0;
   _hadE[1] = 0;
 
-  ok1 = extract_true_particle(evt, Fit);
+  if ( _clu )
+    ok1 = extract_true_particle2(evt, Fit);
+  else
+    ok1 = extract_true_particle1(evt, Fit);
   
   if (success) {
     
@@ -111,8 +117,12 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     //_hadE[1] = -99;
   }
   
-  if (_patR)
-    patternStats( Fit );
+  if (_patR){
+    if ( _clu )
+      patternStats2( Fit );
+    else
+      patternStats1( Fit );
+  }
   
   //Fill tree event with the values.
   int fillcatch = statTree->Fill();
@@ -259,7 +269,7 @@ void MINDplotter::direction_pulls() {
 }
 
 //*************************************************************************************
-bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
+bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
 //*************************************************************************************
 
 /* sets true particle momentum for calculation and returns a reference
@@ -326,6 +336,74 @@ bool MINDplotter::extract_true_particle(const bhep::event& evt, fitter& Fit) {
 }
 
 //*************************************************************************************
+bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
+//*************************************************************************************
+
+  _nuEng = evt.fetch_dproperty("nuEnergy") * MeV;
+  
+  const vector<bhep::particle*> Pospart = evt.true_particles();
+
+  int count = 0;
+  for (int iParts=0;iParts < (int)Pospart.size();iParts++){
+
+    if ( Pospart[iParts]->name() == "mu+" &&
+	 Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none"  ){
+      _Q[0] = 1;
+      _truPart = Pospart[iParts];
+      count++;
+    } else if ( Pospart[iParts]->name() == "mu-" &&
+		Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none"  ){
+      _Q[0] = 1;
+      _truPart = Pospart[iParts];
+      count++;
+    } else if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" ){
+      add_to_hads( *Pospart[iParts] );
+    }
+  }
+
+  _nhits = Fit.get_nMeas();
+  for (int iHits = 0;iHits < _nhits;iHits++){
+    
+    _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
+    _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
+    _ZPos[iHits] = Fit.get_meas(iHits)->position()[2];
+    
+    if (!_patR)
+      if ( Fit.get_traj().node(iHits).status("fitted") )
+	_hitType[3]++;
+  }
+  if (count == 0) {
+    cout << "No particles of muon or antimuon type in file" << endl;
+    _Q[0] = 0;
+    _qP[0] = 0;
+    _Th[0][0] = _Th[0][1]= 0;
+    _X[0][0] = _X[0][1] = 0;
+    return false;
+  }
+  
+  //Set true values of muon mom. etc.
+  //True q/P.
+  _qP[0] = _Q[0]/_truPart->p();
+  //True direction.
+  _Th[0][0]= _truPart->px()/_truPart->pz();
+  _Th[0][1]= _truPart->py()/_truPart->pz();
+  //True x,y position.
+  _X[0][0] = evt.vertex().x(); _X[0][1] = evt.vertex().y();
+
+  return true;
+}
+
+void MINDplotter::add_to_hads(const bhep::particle& part){
+
+  _hadP[0] += part.px();
+  _hadP[1] += part.py();
+  _hadP[2] += part.pz();
+
+  _hadE[0] += part.e();
+
+}
+
+//*************************************************************************************
 void MINDplotter::hadron_direction(fitter& fit) {
 //*************************************************************************************
   
@@ -368,10 +446,10 @@ void MINDplotter::max_local_chi2(const Trajectory& traj) {
 }
 
 //****************************************************************************************
-void MINDplotter::patternStats(fitter& Fit) {
+void MINDplotter::patternStats1(fitter& Fit) {
 //****************************************************************************************
   //Event classifier version.
-  _nhits = Fit.get_nMeas();
+  //_nhits = Fit.get_nMeas();
   const dict::Key candHit = "inMu";
   const dict::Key engDep = "E_dep";
   int nNode = 0;
@@ -417,9 +495,63 @@ void MINDplotter::patternStats(fitter& Fit) {
     _engvar /= (_hitType[1]-1);
   } else _engvar = -1;
   
-  for (int iclear = _nhits;iclear<300;iclear++){
-    _mus[iclear] = false; _cand[iclear] = false;
-    _node[iclear] = false;
+  // for (int iclear = _nhits;iclear<300;iclear++){
+//     _mus[iclear] = false; _cand[iclear] = false;
+//     _node[iclear] = false;
+//   }
+
+}
+
+void MINDplotter::patternStats2(fitter& Fit) {
+
+  const dict::Key candHit = "inMu";
+  int nNode = 0;
+  if ( Fit.check_reseed() ) nNode = (int)Fit.get_traj().size()-1;
+  bool isMu;
+
+  std::vector<cluster*> hits = Fit.get_meas_vec();
+  std::vector<cluster*> inMuC;
+
+  for (int iHits = 0;iHits < _nhits;iHits++){
+    
+    if ( hits[iHits]->get_mu_prop() > 0.8 ){//good number??
+      isMu = true;
+      _mus[iHits] = true;
+      _hitType[0]++;
+    }
+    else {_mus[iHits] = false; isMu = false;}
+
+    if ( _fail != 7 && hits[iHits]->names().has_key(candHit) ){
+
+      if ( hits[iHits]->name(candHit).compare("True")==0 ){
+	_cand[iHits] = true;
+	_hitType[1]++;
+	_engTraj += hits[iHits]->get_eng() * MeV;
+	inMuC.push_back( hits[iHits] );
+	if ( isMu ) _hitType[2]++;
+
+	if ( Fit.get_traj().node(nNode).status("fitted") && _fail!=1 && _fail<4 ){	
+	  _node[iHits] = true; _hitType[3]++; }
+	else _node[iHits] = false;
+	if ( Fit.check_reseed() ) nNode--;
+	else nNode++;
+      } else { _node[iHits] = false; _cand[iHits] = false; }
+
+    } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
   }
 
+  if (_fail != 7){
+    _pChi[0] = Fit.get_classifier().get_PatRec_Chis()[0];
+    _pChi[1] = Fit.get_classifier().get_PatRec_Chis()[1];
+    _pChi[2] = Fit.get_classifier().get_PatRec_Chis()[2];
+
+    _engvar = 0;
+    for(int ii=0;ii<_hitType[1];ii++)
+      _engvar += pow( inMuC[ii]->get_eng()*MeV - _engTraj/_hitType[1], 2);
+    _engvar /= (_hitType[1]-1);
+  } else _engvar = -1;
+
+  hits.clear();
+  inMuC.clear();
+  
 }

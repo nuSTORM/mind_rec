@@ -52,6 +52,7 @@ public:
   bool check_reseed(){ return reseed_ok; }
 
   cluster* get_meas(int num){return _meas[num];}
+  std::vector<cluster*> get_meas_vec(){ return _meas; }
   int get_nMeas(){return (int)_meas.size();}
 
   double getChi2(){ return _traj.quality(); }

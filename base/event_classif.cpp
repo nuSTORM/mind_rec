@@ -146,12 +146,13 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
   int count = 0;
   double EngPlane = 0, testZ, curZ;
   size_t hits_used = 0, imeas = 0;
-  const dict::Key Edep = "E_dep";
+  //const dict::Key Edep = "E_dep";
   if ( !_outLike ) _visEng = 0;
   
   do {
     
-    EngPlane = bhep::double_from_string( hits[imeas]->name( Edep ) ) * GeV;
+    //EngPlane = bhep::double_from_string( hits[imeas]->name( Edep ) ) * GeV;
+    EngPlane = hits[imeas]->get_eng()*MeV;
     testZ = hits[imeas]->position()[2];
     count++;
     hits_used++;
@@ -161,7 +162,7 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
 
       if (curZ <= testZ + _tolerance) {
 
-	EngPlane += bhep::double_from_string( hits[i]->name( Edep ) ) * GeV;
+	EngPlane += hits[i]->get_eng() * MeV;
 	testZ = hits[i]->position()[2];
 	count++;
 	hits_used++;
@@ -237,8 +238,9 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
       //ok = false; _failType = 4;
       _intType = 5;
       
-    } else
-      ok = muon_extraction( hits, muontraj, hads);
+    } else {
+      //cout << "About to do muon extraction" << endl;
+      ok = muon_extraction( hits, muontraj, hads);}
     
   }
   
@@ -248,13 +250,17 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
 //***********************************************************************
 int event_classif::exclude_backwards_particle(){
 //***********************************************************************
-//Try to exclude any backwards had by looking for increases in
-//occupancy from the start of the event.
-  vector<int>::iterator measIt;
+//Try to exclude some occurencies of  backwards had by looking
+//for spaces between the early planes
+  //occupancy from the start of the event.
+  vector<int>::iterator measIt;// = _hitsPerPlane.begin()+1;
+  vector<double>::iterator zIt;
   int excluded_hits = 0;
 
-  for (measIt = _hitsPerPlane.begin();measIt != _hitsPerPlane.end();measIt++){
+  for (measIt = _hitsPerPlane.begin()+1;measIt != _hitsPerPlane.end();measIt++){
+  // for (zIt = _planeZ.begin()+1;zIt != _planeZ.end();zIt++,measIt++){
 
+//     if ( abs( (*zIt) - (*(zIt-1)) ) > ? )
     if (measIt == _hitsPerPlane.begin()) {
       excluded_hits += (*measIt);
       continue;
@@ -411,7 +417,7 @@ void event_classif::set_de_dx(double mom){
 //***********************************************************************
 bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 //***********************************************************************
-  
+  //cout << "PAttern rec seed fit..."<< seed;
   bool ok = man().fitting_svc().fit(seed, track);
   
   if (ok)
@@ -456,8 +462,9 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
 	  const dict::Key hit_in = "True";
 	  (*(_hitIt+iFil+1))->set_name(candHit, hit_in);
 
-	  if ( (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu+")==0 ||
-	       (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu-")==0 )
+	  // if ( (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu+")==0 ||
+// 	       (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu-")==0 )
+	  if ( (*(_hitIt+iFil+1))->get_mu_prop() > 0.8 )
 	    _recChi[0] = TMath::Max(Chi2[iFil], _recChi[0]);
 	  else
 	    _recChi[1] = TMath::Min(Chi2[iFil], _recChi[1]);
@@ -501,9 +508,13 @@ bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
   if ( _nplanes < min_hits ) return false;
 
   std::vector<Trajectory*> trajs;
-  
-  ok = man().matching_svc().find_trajectories( hits, trajs);
-  
+  //TEST!!
+  measurement_vector hit_meas;
+  get_cluster_meas( hits, hit_meas );
+  //
+  //ok = man().matching_svc().find_trajectories( hits, trajs);
+  ok = man().matching_svc().find_trajectories( hit_meas, trajs );
+
   if ( !ok || trajs.size() == 0) return false;
    
   // output_results_tree( hits, trajs );
@@ -534,6 +545,16 @@ bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
   m.message("+++ End of Cellular automaton +++",bhep::VERBOSE);
   
   return ok;
+}
+
+void event_classif::get_cluster_meas(const vector<cluster*>& hits,
+				     measurement_vector& meas)
+{
+
+  std::vector<cluster*>::const_iterator cIt;
+  for (cIt = hits.begin();cIt != hits.end();cIt++)
+    meas.push_back( (*cIt) );
+
 }
 
 //***********************************************************************
@@ -884,9 +905,11 @@ void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& mu
     if ( (*hitIt3)->names().has_key( candHit ) ){
       if ( (*hitIt3)->name( candHit ).compare("True") == 0 ){
 	_trajhit++;
-	_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * GeV;
-	if ( (*hitIt3)->name("MotherParticle").compare("mu+") == 0
-	     || (*hitIt3)->name("MotherParticle").compare("mu-") == 0 )
+	//_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * GeV;
+	_trajEng += (*hitIt3)->get_eng();
+	// if ( (*hitIt3)->name("MotherParticle").compare("mu+") == 0
+// 	     || (*hitIt3)->name("MotherParticle").compare("mu-") == 0 )
+	if ( (*hitIt3)->get_mu_prop() > 0.8 )//still to be decided.
 	  _trajpur++;
       }
     }

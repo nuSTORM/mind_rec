@@ -72,7 +72,7 @@ int main(int argc, char* argv[]){
   bool clusts = ana_store.fetch_istore("do_clust");
 
   //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-  plot.initialize(ana_store.fetch_sstore("out_file"),bhep::MUTE, patR, clusts);
+  plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
 
   vector<string> input_data = data_store.fetch_svstore("idst_files");
 

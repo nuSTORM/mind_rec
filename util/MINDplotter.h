@@ -29,7 +29,7 @@ class MINDplotter{
   virtual ~MINDplotter();
 
   //Main functions for output initialization.
-  void initialize(string outFileName, bhep::prlevel vlevel=bhep::NORMAL, bool patRec, bool clust);
+  void initialize(string outFileName, bool patRec, bool clust, bhep::prlevel vlevel=bhep::NORMAL);
   void execute(fitter& Fit, const bhep::event& evt, bool success);
   void finalize();
 //   //
@@ -47,8 +47,9 @@ class MINDplotter{
      and enter that value in a histogram */
   void max_local_chi2(const Trajectory& traj);
 
-  /* Function to plot stats about pattern recogntion */
-  void patternStats(fitter& Fit);
+  /* Function to plot stats about pattern recogntion, 1: no clust, 2: clust */
+  void patternStats1(fitter& Fit);
+  void patternStats2(fitter& Fit);
 
   /*Function to record quality of hadron fit*/
   void hadron_direction(fitter& fit);
@@ -102,9 +103,11 @@ private:
   double _pChi[3];
 
   void define_tree_branches();
-
-  bool extract_true_particle(const bhep::event& evt, fitter& Fit);
-
+  //1: Old method. 2: with clustering etc.
+  bool extract_true_particle1(const bhep::event& evt, fitter& Fit);
+  bool extract_true_particle2(const bhep::event& evt, fitter& Fit);
+  void add_to_hads(const bhep::particle& part);
+  //
 };
 
 #endif

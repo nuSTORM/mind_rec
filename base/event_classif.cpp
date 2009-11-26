@@ -238,9 +238,8 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
       //ok = false; _failType = 4;
       _intType = 5;
       
-    } else {
-      //cout << "About to do muon extraction" << endl;
-      ok = muon_extraction( hits, muontraj, hads);}
+    } else
+      ok = muon_extraction( hits, muontraj, hads);
     
   }
   
@@ -417,7 +416,7 @@ void event_classif::set_de_dx(double mom){
 //***********************************************************************
 bool event_classif::perform_kalman_fit(State& seed, Trajectory& track) {
 //***********************************************************************
-  //cout << "PAttern rec seed fit..."<< seed;
+  
   bool ok = man().fitting_svc().fit(seed, track);
   
   if (ok)

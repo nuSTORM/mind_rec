@@ -143,9 +143,9 @@ bool fitter::fitTrajectory(State seed) {
 //*************************************************************
     
   m.message("+++ fitTrajectory function ++++",bhep::VERBOSE);
-  //cout << "Fit one...";
+  
   bool ok = man().fitting_svc().fit(seed,_traj);
-  //cout << "done. " << ok << endl;
+  
   if (ok && refit){
     
     ok = checkQuality(); 
@@ -167,9 +167,9 @@ bool fitter::fitTrajectory(State seed) {
       HV.keepDiagonalMatrix();
       //seedstate.set_hv(HyperVector(v,C)); 
       seedstate.set_hv( HV );
-      //cout << "Fit 2...";
+      
       ok = man().fitting_svc().fit(seedstate,_traj);
-      //cout << "done. " << ok << _traj.state(_traj.first_fitted_node());
+      
     }
     
   }

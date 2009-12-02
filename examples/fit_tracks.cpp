@@ -63,16 +63,16 @@ int main(int argc, char* argv[]){
   fitter fit(ana_store,bhep::MUTE);
 
   //  MINDplotter* plot = new MINDplotter();
-  MINDplotter plot = MINDplotter();
+  //MINDplotter plot = MINDplotter();
   
   //catchOk = fit->initialize();
   fit.initialize();
   
-  bool patR = ana_store.fetch_istore("patRec");
-  bool clusts = ana_store.fetch_istore("do_clust");
+  // bool patR = ana_store.fetch_istore("patRec");
+//   bool clusts = ana_store.fetch_istore("do_clust");
 
   //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-  plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
+  //plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
 
   vector<string> input_data = data_store.fetch_svstore("idst_files");
 
@@ -106,7 +106,9 @@ int main(int argc, char* argv[]){
 	  fitOk = fit.execute(*parts[part],e.event_number());
 	  
 	  //catchOk = plot->execute(*fit, e, fitOk, patR);
-	  plot.execute(fit, e, fitOk);
+	  
+	  //plot.execute(fit, e, fitOk);
+	  
 	}
       }
       
@@ -123,9 +125,9 @@ int main(int argc, char* argv[]){
   
   //catchOk = fit->finalize();
   fit.finalize();
-
+  
   //catchOk = plot->finalize();
-  plot.finalize();
+  //plot.finalize();
   
   return 0;
   

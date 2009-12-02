@@ -26,7 +26,7 @@ RUN nplane I 1
 RUN x0Sc D 413.1
 
 # ****AIR **** (cm)
-RUN widthA D 0.
+RUN widthA D 0.1
 # radiation length (m)
 RUN x0AIR D 303.9
 
@@ -50,9 +50,12 @@ RUN de_dx D -8
 # Position resolution for detector (cm).
 RUN pos_res D 1.
 
+# name of detector for hit getter.
+RUN detect S tracking
+
 ########
 # For hit clustering.(edge in cm)
-RUN do_clust I 0
+RUN do_clust I 1
 RUN rec_boxX D 3.5
 
 # Seed for smear on cluster position.
@@ -66,7 +69,7 @@ RUN pos_sig D 1.
 #############################################
 
 # monitor ntuple file
-RUN out_file S ../bhep3Rectest2.root
+RUN out_file S ../Rec_out/muCC1.root
 
 #liklihood file.
 RUN like_file S /data3/andrew/mind/LikeOut_nc_3-5.root
@@ -95,6 +98,9 @@ RUN max_outliers I 5
 RUN pat_rec_max_chi D 100
 RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
+# minimum proportion of planes used to not reject
+# event failing consec planes cut
+RUN min_use_prop D 0.8
 
 # cuts on cellular automaton trajectories. separation in cm.
 RUN max_sep D 7
@@ -140,7 +146,8 @@ RUN likeli I 0
 
 ###  data to read ###
 DATA idst_files SV 1
-~/decNtup/newTest.dst.root
+../digi_out/muCC_test20k_digi.dst.root
+# ~/decNtup/newTest.dst.root
 # ../test_digi.dst.root
 # /home/alaing/varVert/variable_vert_0.gz
 # /home/alaing/varVert/variable_vert_1.gz

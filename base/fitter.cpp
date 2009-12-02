@@ -21,7 +21,8 @@ fitter::fitter(const bhep::gstore& pstore,bhep::prlevel vlevel){
 fitter::~fitter() {
 //*************************************************************
  
-  reset();
+  //reset();
+  //if ( _doClust ) delete _clusters;
   
 }
 
@@ -34,7 +35,7 @@ void fitter::initialize() {
   
   _hadunit = EVector(3,0);
   _hadunit[2] = 1.;
-  
+  _detect = store.fetch_sstore("detect");
   // read parameters
   readParam();
   
@@ -182,9 +183,9 @@ bool fitter::fitTrajectory(State seed) {
   
   double low_fit_cut;
   if (get_classifier().get_int_type() == 2)
-    low_fit_cut = store.fetch_dstore("low_fit_cut2");
+    low_fit_cut = lowFit2;//store.fetch_dstore("low_fit_cut2");
   else
-    low_fit_cut = store.fetch_dstore("low_fit_cut0");
+    low_fit_cut = lowFit1;//store.fetch_dstore("low_fit_cut0");
   //disallow backfit on cell auto tracks for now.
   
   if (get_classifier().get_int_type() != 5){
@@ -381,7 +382,7 @@ bool fitter::readTrajectory(const bhep::particle& part){
   if (patternRec && ok){
     
     ok = get_classifier().execute( _meas, _traj, _hadmeas);
-     
+    
     _traj.sort_nodes(1);
     sort( _hadmeas.begin(), _hadmeas.end(), reverseSorter() );
     
@@ -393,17 +394,17 @@ bool fitter::readTrajectory(const bhep::particle& part){
       MINDfitman::instance().fit_mode();
     }
   }
-  // // ******HARDWIRE FAIL******** only interested in likelihood info at the mo
-//   ok = false;
-//   _failType = 5;
+  // ******HARDWIRE FAIL******** only interested in likelihood info at the mo
+  ok = false;
+  _failType = 5;
   
   // Check that the 'muon' can be fitted.
   // Is the lowest z hit in fiducial volume?
   // Are there enough hits? Are there too many?
-
+  
   if (ok)
     ok = check_valid_traj();
-   
+  
   return ok;
 }
 
@@ -415,11 +416,13 @@ bool fitter::recTrajectory(const bhep::particle& p) {
   m.message("+++ recTrajectory function ++++",bhep::VERBOSE);
  
     reset();
-    
-    const vector<bhep::hit*> hits = p.hits("MIND");//"tracking");//"MIND");  
+
+    //string detect = store.fetch_sstore("detect");
+
+    const vector<bhep::hit*> hits = p.hits( _detect ); 
     
     //Cluster or directly make measurements.
-    if ( _doClust )
+    if ( _doClust && hits.size() != 0 )
       _clusters->execute( hits, _meas );
     else {
  
@@ -436,7 +439,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
       }//end of loop over hits
 
     }
-
+    
     //--------- add measurements to trajectory --------//
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
@@ -468,8 +471,8 @@ bool fitter::check_valid_traj() {
 //   double yCut = store.fetch_dstore("y_cut");
 
   //--------- Reject too many hits --------//
-  int highPass = store.fetch_istore("high_Pass_hits");
-  int lowPass = store.fetch_istore("low_Pass_hits");
+  // int highPass = store.fetch_istore("high_Pass_hits");
+//   int lowPass = store.fetch_istore("low_Pass_hits");
 
   if ((int)_traj.nmeas() > highPass) { 
     _failType = 2; 
@@ -571,9 +574,10 @@ void fitter::finalize() {
 //*************************************************************
    
   get_classifier().finalize();
+  reset();
 
   if ( _doClust ) delete _clusters;
-
+  
   //return true;
 }
 
@@ -781,6 +785,10 @@ void fitter::readParam(){
     
     X0 = store.fetch_dstore("x0Fe") * mm;
     //_tolerance = store.fetch_dstore("pos_res") * cm;
+    highPass = store.fetch_istore("high_Pass_hits");
+    lowPass = store.fetch_istore("low_Pass_hits");
+    lowFit1 = store.fetch_dstore("low_fit_cut0");
+    lowFit2 = store.fetch_dstore("low_fit_cut2");
     
 }
 

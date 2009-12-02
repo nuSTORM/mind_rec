@@ -50,6 +50,10 @@ public:
   
   bool get_plane_occupancy(vector<cluster*>& hits);
   
+  //Tempory for likelihoods.
+  void set_int_type(const string name);
+  //
+  
 protected:
   
   void readParam();
@@ -68,7 +72,7 @@ protected:
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, vector<cluster*>& hits,
 			       Trajectory& muontraj, vector<cluster*>& hads);
-
+  void use_mini_cellAuto(const int occ, Trajectory& muontraj);
   //specific functions using cellular automaton.
   bool invoke_cell_auto(vector<cluster*>& hits,
 			Trajectory& muontraj, vector<cluster*>& hads);
@@ -82,7 +86,7 @@ protected:
   double compare_nodes(const vector<Node*>& n1, const vector<Node*>& n2);
   void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
-  
+
   RecpackManager& man(){
     return MINDfitman::instance().manager();}
   
@@ -106,6 +110,7 @@ protected:
   vector<cluster*>::iterator _hitIt;
   vector<int>::iterator _planeIt;
   int _vertGuess;
+  int _exclPlanes;
   
   //Monitoring variables.
   int _failType;
@@ -114,11 +119,13 @@ protected:
 
   double FeWeight;
   int max_consec_missed_planes;
+  double min_plane_prop;
   int min_seed_hits;
   int min_check;
   int min_hits;
   double chi2_max;
   double max_coincedence;
+  double _pieceLength;
 
   //Output Likilihood info?
   bool _outLike;
@@ -126,11 +133,11 @@ protected:
   TTree *_likeTree;
   //
 
-  int _nhit, _trajhit;
-  int _freeplanes, _occ[500];
+  int _nhit, _trajhit, _truInt;
+  int _freeplanes, _occ[1000], _trclusthits[1000];
   double _visEng;
   double _trajpur, _trajEng;
-  double _plEng[500], _trajEngPlan[500];
+  double _plEng[1000], _trajEngPlan[1000];
 
   void set_branches();
   void output_liklihood_info(const vector<cluster*>& hits);

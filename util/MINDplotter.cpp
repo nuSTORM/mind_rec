@@ -46,6 +46,9 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   bool ok1, ok2;
   
   _evNo = evt.event_number();
+  if (_clu)
+    get_tru_int_type( evt );
+  
   _Fit = success;
   _fail = Fit.get_fail_type();
   _reFit = Fit.check_reseed();
@@ -130,6 +133,31 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   //return ok1;
 }
 
+void MINDplotter::get_tru_int_type(const bhep::event& evt){
+  
+  string intName = evt.fetch_sproperty("IntType");
+
+  if ( intName=="CCQE" )
+    _truInt = 1;
+  else if ( intName=="NCQE" )
+    _truInt = 2;
+  else if ( intName=="CCDIS" )
+    _truInt = 3;
+  else if ( intName=="NCDIS" )
+    _truInt = 4;
+  else if ( intName=="1piRes" )
+    _truInt = 5;
+  else if ( intName=="miscRes" )
+    _truInt = 6;
+  else if ( intName=="eEl" )
+    _truInt = 7;
+  else if ( intName=="muINVe" )
+    _truInt = 7;
+  else
+    _truInt = 8;
+  
+}
+
 //*************************************************************************************
 void MINDplotter::finalize() {
 //*************************************************************************************
@@ -150,6 +178,7 @@ void MINDplotter::define_tree_branches() {
 
   statTree->Branch("Evt", &_evNo, "EventNo/I");
   statTree->Branch("Fitted", &_Fit, "success/B");
+  if (_clu) statTree->Branch("TrueInteraction",&_truInt,"truInt/I");
   statTree->Branch("backFit",&_reFit,"backFit/B");
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("interaction",&_intType,"Inter/I");

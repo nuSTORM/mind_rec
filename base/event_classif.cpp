@@ -109,6 +109,7 @@ void event_classif::readParam() {
   else _outLike = false;
   
   max_consec_missed_planes = _infoStore.fetch_istore("max_consec_missed_planes");
+  min_plane_prop = _infoStore.fetch_dstore("min_use_prop");
   min_seed_hits = _infoStore.fetch_istore("min_seed_hits");
   min_check =  _infoStore.fetch_istore("min_check_nodes");
   min_hits = _infoStore.fetch_istore("low_Pass_hits");
@@ -116,6 +117,10 @@ void event_classif::readParam() {
   _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
   chi2_max = _infoStore.fetch_dstore("accept_chi");
   max_coincedence = _infoStore.fetch_dstore("max_coincidence");
+
+  _pieceLength = _infoStore.fetch_dstore("widthI") * cm
+    + _infoStore.fetch_dstore("widthS") * _infoStore.fetch_istore("nplane") * cm
+    + _infoStore.fetch_dstore("widthA") * (_infoStore.fetch_istore("nplane")+1) * cm;
   
 }
 
@@ -205,12 +210,17 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
   _vertGuess = exclude_backwards_particle();
   
   //Maybe another which looks for kinks very early (backwards proton quasi?)
-  for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin()+min_check;_planeIt--, _hitIt--){
+  for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin()+_exclPlanes+min_check;_planeIt--, _hitIt--){
     if ( (*_planeIt) == 1 ){
       muontraj.add_measurement( *(*_hitIt) );
       const dict::Key candHit = "inMu";
       const dict::Key hit_in = "True";
       (*_hitIt)->set_name(candHit, hit_in);
+    } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 ){
+      //Extra logic to avoid unneccessary use of call. auto. on high curve events.
+      if ( (*(_planeIt-1)) == 1 )
+	use_mini_cellAuto( (*_planeIt), muontraj );
+      else break;
     } else break;
   }
   
@@ -233,10 +243,10 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
     
     if ( (int)muontraj.nmeas() < min_seed_hits ) {
       
+      _intType = 5;
       ok = invoke_cell_auto( hits, muontraj, hads);
       if ( !ok ) _failType = 4;
       //ok = false; _failType = 4;
-      _intType = 5;
       
     } else
       ok = muon_extraction( hits, muontraj, hads);
@@ -252,28 +262,70 @@ int event_classif::exclude_backwards_particle(){
 //Try to exclude some occurencies of  backwards had by looking
 //for spaces between the early planes
   //occupancy from the start of the event.
-  vector<int>::iterator measIt;// = _hitsPerPlane.begin()+1;
+  vector<int>::iterator measIt = _hitsPerPlane.begin();
   vector<double>::iterator zIt;
+  int check_planes;
+  if ( _nplanes >= 50 ) check_planes = 21;
+  else check_planes = (int)( 0.4 * _nplanes ) + 1;
   int excluded_hits = 0;
+  _exclPlanes = 0;
+  bool found = false;
 
-  for (measIt = _hitsPerPlane.begin()+1;measIt != _hitsPerPlane.end();measIt++){
-  // for (zIt = _planeZ.begin()+1;zIt != _planeZ.end();zIt++,measIt++){
+  //for (measIt = _hitsPerPlane.begin()+1;measIt != _hitsPerPlane.end();measIt++){
+  for (zIt = _planeZ.begin()+1;zIt != _planeZ.begin()+check_planes;zIt++,measIt++){
 
-//     if ( abs( (*zIt) - (*(zIt-1)) ) > ? )
-    if (measIt == _hitsPerPlane.begin()) {
-      excluded_hits += (*measIt);
-      continue;
+    excluded_hits += (*measIt);
+    _exclPlanes++;
+
+    if ( abs( (*zIt) - (*(zIt-1)) ) >  2*_pieceLength ){
+      found = true;
+      break;
     }
+    // if (measIt == _hitsPerPlane.begin()) {
+//       excluded_hits += (*measIt);
+//       continue;
+//     }
 
-    if ( (*measIt) > (*(measIt - 1)) ) break;
-    else excluded_hits += (*measIt);
+    // if ( (*measIt) > (*(measIt - 1)) ) break;
+//     else excluded_hits += (*measIt);
+    
 
   }
 
-  if (measIt == _hitsPerPlane.end())
+  // if (measIt == _hitsPerPlane.end())
+  if ( !found ){
     excluded_hits = 0;
+    _exclPlanes = 0;
+  }
 
   return excluded_hits;
+}
+//
+void event_classif::use_mini_cellAuto(const int occ, Trajectory& muontraj){
+  //
+  double disp[occ];
+  long minPos;
+  double nextX = (*(_hitIt-occ))->vector()[0];
+  double nextY = (*(_hitIt-occ))->vector()[1];
+  //calculate x,y displacement to hit in next plane.
+  for (int i=0;i<occ;i++){
+
+    disp[i] = sqrt( pow( (*(_hitIt-i))->vector()[0] - nextX, 2) +
+		    pow( (*(_hitIt-i))->vector()[1] - nextY, 2) );
+
+  }
+  //find the smallest displacement.
+  minPos = TMath::LocMin( occ, disp );
+
+  //Add selected hit to trajectory.
+  muontraj.add_measurement( *(*(_hitIt-minPos)) );
+  const dict::Key candHit = "inMu";
+  const dict::Key hit_in = "True";
+  (*(_hitIt-minPos))->set_name(candHit, hit_in);
+
+  //move iterator so next plane hit is the next in line.
+  _hitIt -= occ-1;
+
 }
 
 //***********************************************************************
@@ -485,8 +537,13 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
     _planeIt--;
 
     if ( nConsecHole > max_consec_missed_planes ) {
-      _failType = 6;
-      return false;
+      if ( muontraj.nmeas() < min_plane_prop*(double)_nplanes ){
+	_failType = 6;
+	return false;
+      } else {
+	sort_hits( hits, muontraj, hads );
+	return true;
+      }
     }
 
   }
@@ -504,7 +561,7 @@ bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
   
   bool ok;
 
-  if ( _nplanes < min_hits ) return false;
+  if ( _nplanes-_exclPlanes < min_hits ) return false;
 
   std::vector<Trajectory*> trajs;
   //TEST!!
@@ -512,8 +569,9 @@ bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
   get_cluster_meas( hits, hit_meas );
   //
   //ok = man().matching_svc().find_trajectories( hits, trajs);
+  
   ok = man().matching_svc().find_trajectories( hit_meas, trajs );
-
+  
   if ( !ok || trajs.size() == 0) return false;
    
   // output_results_tree( hits, trajs );
@@ -551,7 +609,7 @@ void event_classif::get_cluster_meas(const vector<cluster*>& hits,
 {
 
   std::vector<cluster*>::const_iterator cIt;
-  for (cIt = hits.begin();cIt != hits.end();cIt++)
+  for (cIt = hits.begin()+_vertGuess;cIt != hits.end();cIt++)
     meas.push_back( (*cIt) );
 
 }
@@ -568,6 +626,9 @@ void event_classif::sort_hits(vector<cluster*>& hits,
   const dict::Key candHit = "inMu";
   const dict::Key not_in = "False";
   const dict::Key hit_in = "True";
+
+  //Protection against double entries in hads in max_consec_planes fail case.
+  if ( _intType != 5 ) hads.clear();
 
   for (_hitIt = hits.begin();_hitIt!=hits.end();_hitIt++){
 
@@ -623,7 +684,7 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
   std::vector<Trajectory*> trajs2;
   
   ok = reject_small( trajs, trajs2);
-
+  
   if ( ok ){
     if ( trajs2.size() == 1 ){
       
@@ -637,8 +698,9 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
 
       std::vector<Trajectory*> trajs3;
       std::vector<double> Chis;
-
+      
       ok = reject_high( trajs2, trajs3);
+      
       //!!!!
       trajs2.clear();
 
@@ -652,9 +714,9 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
 	  return ok;
 
 	} else {
-
+	  
 	  ok = reject_final( trajs3, muontraj);
-
+	  
 	}
 
       }
@@ -837,6 +899,7 @@ void event_classif::select_trajectory(vector<Trajectory*>& trajs,
 void event_classif::set_branches(){
 //***********************************************************************
   
+  _likeTree->Branch("truInt",&_truInt,"Int/I");
   _likeTree->Branch("nhits", &_nhit, "nhits/I");
   _likeTree->Branch("VisEng", &_visEng, "visEng/D");
   _likeTree->Branch("nplanes", &_nplanes, "nplanes/I");
@@ -847,6 +910,7 @@ void event_classif::set_branches(){
   _likeTree->Branch("TrajPur", &_trajpur, "trajpur/D");
   _likeTree->Branch("EngTraj", &_trajEng, "engTraj/D");
   _likeTree->Branch("EngTrajPlane", &_trajEngPlan, "engTrajPlane[nplanes]/D");
+  _likeTree->Branch("HitsInTrajClust",&_trclusthits,"nhittrajclust[nplanes]/I");
 
 }
 
@@ -862,8 +926,9 @@ void event_classif::output_liklihood_info(const vector<cluster*>& hits){
   _trajhit = 0;
   _trajpur = 0;
   _trajEng = 0;
-  for (int ipl = 0;ipl<_nplanes;ipl++)
+  for (int ipl = 0;ipl<_nplanes;ipl++){
     _trajEngPlan[ipl] = 0;
+    _trclusthits[ipl] = 0; }
   
   vector<int>::iterator itLike;
   vector<double>::iterator itEngL = _energyPerPlane.end()-1;
@@ -895,7 +960,7 @@ void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& mu
   const dict::Key Edep = "E_dep";
   const dict::Key candHit = "inMu";
   vector<cluster*>::const_iterator hitIt3;
-  vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
+  //vector<Node*>::const_iterator trIt1 = muontraj.nodes().begin();
   vector<double>::iterator planIt;
 
   int counter = _nplanes - 1;
@@ -905,26 +970,29 @@ void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& mu
       if ( (*hitIt3)->name( candHit ).compare("True") == 0 ){
 	_trajhit++;
 	//_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * GeV;
-	_trajEng += (*hitIt3)->get_eng();
+	_trajEng += (*hitIt3)->get_eng() * MeV;
+	_trajEngPlan[counter] = (*hitIt3)->get_eng() * MeV;
 	// if ( (*hitIt3)->name("MotherParticle").compare("mu+") == 0
 // 	     || (*hitIt3)->name("MotherParticle").compare("mu-") == 0 )
 	if ( (*hitIt3)->get_mu_prop() > 0.8 )//still to be decided.
 	  _trajpur++;
+	_trclusthits[counter] = (*hitIt3)->get_nVox();
+	counter--;
       }
     }
   }
   _trajpur /= _trajhit;
   
-  for (planIt = _planeZ.end()-1;planIt >= _planeZ.begin();planIt--){
-    if ( trIt1 != muontraj.nodes().end() )
-      if ( fabs( (*planIt) - (*trIt1)->measurement().position()[2]) < _tolerance ){
+  // for (planIt = _planeZ.end()-1;planIt >= _planeZ.begin();planIt--){
+//     if ( trIt1 != muontraj.nodes().end() )
+//       if ( fabs( (*planIt) - (*trIt1)->measurement().position()[2]) < _tolerance ){
 	
-	_trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * GeV;
-	trIt1++;
+// 	_trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * GeV;
+// 	trIt1++;
 	
-      }
-    counter--;
-  }
+//       }
+//     counter--;
+//   }
   
 }
 
@@ -934,4 +1002,28 @@ void event_classif::out_like(){
   
   int fillcatch = _likeTree->Fill();
   
+}
+
+//Temp function for likelihoods with tru interaction in tree.
+void event_classif::set_int_type(const string name){
+
+  if ( name=="CCQE" )
+    _truInt = 1;
+  else if ( name=="NCQE" )
+    _truInt = 2;
+  else if ( name=="CCDIS" )
+    _truInt = 3;
+  else if ( name=="NCDIS" )
+    _truInt = 4;
+  else if ( name=="1piRes" )
+    _truInt = 5;
+  else if ( name=="miscRes" )
+    _truInt = 6;
+  else if ( name=="eEl" )
+    _truInt = 7;
+  else if ( name=="muINVe" )
+    _truInt = 7;
+  else
+    _truInt = 8;
+
 }

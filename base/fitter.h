@@ -60,7 +60,10 @@ public:
   cluster* getMeasurement(bhep::hit& hit);
   
   int getQ();
-
+  //Tempory for likelihoods.
+  void set_int_type(const string name){
+    get_classifier().set_int_type( name ); }
+  //
   //calculate momentum from range.
   //void calculate_len_mom(double len, double *mom);
  
@@ -151,6 +154,12 @@ protected:
   //int max_outliers;
   double chi2fit_max;
   double facRef;
+
+  //Detector name for hit getter. made members 26/11, weird error day.
+  string _detect;
+  int highPass;
+  int lowPass;
+  double lowFit1, lowFit2;
     
   Trajectory _traj;
   Trajectory _traj2;
@@ -175,7 +184,7 @@ protected:
   event_classif _classify;
 
   // hit clustering.
-  hit_clusterer* _clusters;
+  hit_clusterer *_clusters;
 
   bool _doClust;
   //

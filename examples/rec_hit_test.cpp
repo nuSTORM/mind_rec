@@ -45,7 +45,7 @@ int main(){
 
   bhep::reader_root inDst;
 
-  inDst.open("../test_digi.dst.root");
+  inDst.open("../digi_out/muCC_test20k_digi.dst.root");
 
   //measurement_vector meas;
   std::vector<cluster*> meas;

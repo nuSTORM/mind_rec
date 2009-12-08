@@ -394,9 +394,9 @@ bool fitter::readTrajectory(const bhep::particle& part){
       MINDfitman::instance().fit_mode();
     }
   }
-  // ******HARDWIRE FAIL******** only interested in likelihood info at the mo
-  ok = false;
-  _failType = 5;
+  // // ******HARDWIRE FAIL******** only interested in likelihood info at the mo
+//   ok = false;
+//   _failType = 5;
   
   // Check that the 'muon' can be fitted.
   // Is the lowest z hit in fiducial volume?
@@ -474,9 +474,9 @@ bool fitter::check_valid_traj() {
   // int highPass = store.fetch_istore("high_Pass_hits");
 //   int lowPass = store.fetch_istore("low_Pass_hits");
 
-  if ((int)_traj.nmeas() > highPass) { 
-    _failType = 2; 
-    return false; }
+  // if ((int)_traj.nmeas() > highPass) { 
+//     _failType = 2; 
+//     return false; }
 
   if ((int)_traj.nmeas() < lowPass) { 
     _failType = 1;

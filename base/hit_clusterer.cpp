@@ -7,10 +7,13 @@
 hit_clusterer::hit_clusterer(const bhep::gstore& store)
 {
   //get relevant information from the store.
-  long seed = (long)store.fetch_dstore("Gen_seed");
-  _ranGen = RanluxEngine( seed, 4 );
-
+  // long seed = (long)store.fetch_dstore("Gen_seed");
+//   _ranGen = RanluxEngine( seed, 4 );
   _sigMa = store.fetch_dstore("pos_sig") * cm;
+
+  _res[0] = 0.85; _res[1] = 0.80; _res[2] = 0.75;
+
+  _minEng = store.fetch_dstore("min_eng") * MeV;
 
   _vInX = (int)( (store.fetch_dstore("MIND_x")*m) / (store.fetch_dstore("rec_boxX")*cm) );
 
@@ -180,6 +183,9 @@ cluster* hit_clusterer::make_cluster(double zpos, bhep::hit* dep)
 
   cluster* me = new cluster();
   me->set_name(_measType);
+  //set cov if there is low energy in one of the views.
+  if ( dep->fetch_dproperty("XEng") < _minEng ) _cov[0][0] = pow( 1.0*m, 2 );
+  if ( dep->fetch_dproperty("YEng") < _minEng ) _cov[1][1] = pow( 1.0*m, 2 );
   me->set_hv(HyperVector(hit_pos,_cov));
   me->set_name("volume", "Detector");
   me->set_position( meas_pos );
@@ -214,6 +220,9 @@ void hit_clusterer::calculate_clust_pos(const std::vector<bhep::hit*>& hits, EVe
 {
   //Weighted mean for x and y position.
   double X = 0, Y = 0, Q = 0, Q1;
+  //To calculate number voxes in x and y.
+  int nX = 0, nY = 0;
+  std::map<double,bool> xmast, ymast;
 
   std::vector<bhep::hit*>::const_iterator hitIt;
   for (hitIt = hits.begin();hitIt != hits.end();hitIt++){
@@ -224,9 +233,29 @@ void hit_clusterer::calculate_clust_pos(const std::vector<bhep::hit*>& hits, EVe
     Y += Q1 * (*hitIt)->x()[1];
     Q += Q1;
 
-  }
-    
-  vec[0] = X / Q + RandGauss::shoot(&_ranGen, 0, _sigMa);
-  vec[1] = Y / Q + RandGauss::shoot(&_ranGen, 0, _sigMa);
+    if ( hitIt == hits.begin() ){
+      xmast[(*hitIt)->x()[0]] = true;
+      if ( (*hitIt)->fetch_dproperty("XEng") >= _minEng ) nX++;
+      ymast[(*hitIt)->x()[1]] = true;
+      if ( (*hitIt)->fetch_dproperty("XEng") >= _minEng ) nY++;
+    } else {
+      if ( xmast.find( (*hitIt)->x()[0] ) != xmast.end() &&
+	   (*hitIt)->fetch_dproperty("XEng") >= _minEng ){
+	xmast[(*hitIt)->x()[0]] = true; nX++;}
 
+      if ( ymast.find( (*hitIt)->x()[1] ) != ymast.end() &&
+	   (*hitIt)->fetch_dproperty("YEng") >= _minEng ){
+	ymast[(*hitIt)->x()[1]] = true; nY++;}
+    }
+
+  }
+  if ( nX == 0 ) _cov[0][0] = pow( 1.0*m, 2 );
+  else if ( nX > 1 ) _cov[0][0] = pow( _res[nX-1]*_sigMa, 2 );
+  if ( nY == 0 ) _cov[1][1] = pow( 1.0*m, 2 );
+  else if ( nY > 1 ) _cov[1][1] = pow( _res[nY-1]*_sigMa, 2 );
+
+  vec[0] = X / Q;// + RandGauss::shoot(&_ranGen, 0, _sigMa);
+  vec[1] = Y / Q;// + RandGauss::shoot(&_ranGen, 0, _sigMa);
+  
+  xmast.clear(); ymast.clear();
 }

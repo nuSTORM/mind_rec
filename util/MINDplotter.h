@@ -83,7 +83,7 @@ private:
   double _nuEng;
   double _visEng;
   double _engTraj;
-  double _engvar;
+  double _engvar[2];
   double _hadP[3];
   double _hadE[2];
   //double _haddot;

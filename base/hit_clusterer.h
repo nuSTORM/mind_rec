@@ -49,10 +49,12 @@ class hit_clusterer
   int get_max_vox(const std::map<int,double>& voxes);
 
   //Random Generator for the smear.
-  RanluxEngine _ranGen;
+  //RanluxEngine _ranGen;
 
   //sigma for position smear.
   double _sigMa;
+  double _minEng;
+  double _res[3];
 
   //number of voxels per x edge.
   int _vInX;

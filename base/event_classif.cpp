@@ -1023,6 +1023,8 @@ void event_classif::set_int_type(const string name){
     _truInt = 7;
   else if ( name=="muINVe" )
     _truInt = 7;
+  else if ( name=="unknown" )
+    _truInt = -1;
   else
     _truInt = 8;
 

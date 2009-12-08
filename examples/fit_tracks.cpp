@@ -63,16 +63,16 @@ int main(int argc, char* argv[]){
   fitter fit(ana_store,bhep::MUTE);
 
   //  MINDplotter* plot = new MINDplotter();
-  //MINDplotter plot = MINDplotter();
+  MINDplotter plot = MINDplotter();
   
   //catchOk = fit->initialize();
   fit.initialize();
   
-  // bool patR = ana_store.fetch_istore("patRec");
-//   bool clusts = ana_store.fetch_istore("do_clust");
+  bool patR = ana_store.fetch_istore("patRec");
+  bool clusts = ana_store.fetch_istore("do_clust");
 
   //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-  //plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
+  plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
 
   vector<string> input_data = data_store.fetch_svstore("idst_files");
 
@@ -95,7 +95,9 @@ int main(int argc, char* argv[]){
       
       // loop over particles
       vector<bhep::particle*> parts = e.digi_particles(); 
-      
+      if ( e.find_sproperty("IntType") )
+	fit.set_int_type( e.fetch_sproperty("IntType") );
+      else fit.set_int_type("unknown");
       cout <<"There are " << parts.size() << " digis in event " << e.event_number() <<endl;
       if (parts.size() != 0) {
 	for (size_t part=0; part<parts.size();part++){
@@ -107,7 +109,7 @@ int main(int argc, char* argv[]){
 	  
 	  //catchOk = plot->execute(*fit, e, fitOk, patR);
 	  
-	  //plot.execute(fit, e, fitOk);
+	  plot.execute(fit, e, fitOk);
 	  
 	}
       }
@@ -127,7 +129,7 @@ int main(int argc, char* argv[]){
   fit.finalize();
   
   //catchOk = plot->finalize();
-  //plot.finalize();
+  plot.finalize();
   
   return 0;
   

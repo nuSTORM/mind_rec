@@ -185,7 +185,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
   statTree->Branch("visibleEng", &_visEng, "visEng/D");
   statTree->Branch("visEngTraj",&_engTraj, "engTraj/D");
-  statTree->Branch("trajEngVar",&_engvar,"engVar/D");
+  statTree->Branch("trajEngVar",&_engvar,"meanDep/D:engVar/D");
   statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
@@ -518,12 +518,13 @@ void MINDplotter::patternStats1(fitter& Fit) {
     _pChi[1] = Fit.get_classifier().get_PatRec_Chis()[1];
     _pChi[2] = Fit.get_classifier().get_PatRec_Chis()[2];
 
-    _engvar = 0;
+    _engvar[1] = 0;
     for(int ii=0;ii<_hitType[1];ii++)
-      _engvar += pow( bhep::double_from_string( Fit.get_traj().node(ii).measurement().name(engDep) ) * GeV - _engTraj/_hitType[1], 2);
-    _engvar /= (_hitType[1]-1);
-  } else _engvar = -1;
-  
+      _engvar[1] += pow( bhep::double_from_string( Fit.get_traj().node(ii).measurement().name(engDep) ) * GeV - _engTraj/_hitType[1], 2);
+    _engvar[1] /= (_hitType[1]-1);
+    _engvar[0] = _engTraj/_hitType[1];
+  } else {_engvar[1] = -1; _engvar[0] = -1;}
+ 
   // for (int iclear = _nhits;iclear<300;iclear++){
 //     _mus[iclear] = false; _cand[iclear] = false;
 //     _node[iclear] = false;
@@ -574,11 +575,12 @@ void MINDplotter::patternStats2(fitter& Fit) {
     _pChi[1] = Fit.get_classifier().get_PatRec_Chis()[1];
     _pChi[2] = Fit.get_classifier().get_PatRec_Chis()[2];
 
-    _engvar = 0;
+    _engvar[1] = 0;
     for(int ii=0;ii<_hitType[1];ii++)
-      _engvar += pow( inMuC[ii]->get_eng()*MeV - _engTraj/_hitType[1], 2);
-    _engvar /= (_hitType[1]-1);
-  } else _engvar = -1;
+      _engvar[1] += pow( inMuC[ii]->get_eng()*MeV - _engTraj/_hitType[1], 2);
+    _engvar[1] /= (_hitType[1]-1);
+    _engvar[0] = _engTraj/_hitType[1];
+  } else {_engvar[1] = -1; _engvar[0] = -1;}
 
   hits.clear();
   inMuC.clear();

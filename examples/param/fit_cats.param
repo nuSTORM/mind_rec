@@ -59,7 +59,7 @@ RUN do_clust I 1
 RUN rec_boxX D 3.5
 
 # min energy at plane for detection (MeV) ***must be same as in digi!!***
-RUN min_eng D 0.0025
+RUN min_eng D 0.00004
 
 # Seed for smear on cluster position.
 RUN Gen_seed D 373940592

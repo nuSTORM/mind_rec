@@ -21,7 +21,7 @@ int main(){
 
   int nhit1, nhit2, evt, nVox[1500];
   double x1[1500], y1[1500], z1[1500];
-  double x2[1500], y2[1500], z2[1500], xRes[1500], yRes[1500];
+  double x2[1500], y2[1500], z2[1500], xRes[1500], yRes[1500], vE[1500], xVe[2][1500];
   TFile *f1 = new TFile("test2.root","recreate");
   TTree *tree = new TTree("h1","stuff");
   tree->Branch("Event", &evt,"evtno/I");
@@ -30,13 +30,15 @@ int main(){
   tree->Branch("bhepX",&x1,"x1[nhit1]/D");
   tree->Branch("bhepY",&y1,"y1[nhit1]/D");
   tree->Branch("bhepZ",&z1,"z1[nhit1]/D");
+  tree->Branch("voxE", &vE,"vE[nhit1]/D");
+  tree->Branch("endXYE",&xVe,"xVE[nhit1]/D:yVE[nhit1]/D");
   tree->Branch("recX",&x2,"x2[nhit2]/D");
   tree->Branch("recY",&y2,"y2[nhit2]/D");
   tree->Branch("recZ",&z2,"z2[nhit2]/D");
   tree->Branch("xResolution",&xRes,"xRes[nhit2]/D");
   tree->Branch("yResolution",&yRes,"yRes[nhit2]/D");
   tree->Branch("nVox",&nVox,"nvox[nhit2]/I");
-  int nevents=100;
+  int nevents=1000;
 
   string param_file = "examples/param/fit_cats.param";
 
@@ -50,7 +52,7 @@ int main(){
 
   bhep::reader_root inDst;
 
-  inDst.open("../digi_out/muCC_1_digi.dst.root");
+  inDst.open("../digi/test.dst.root");
 
   //measurement_vector meas;
   std::vector<cluster*> meas;
@@ -72,6 +74,9 @@ int main(){
 	x1[k] = hits[k]->x()[0];
 	y1[k] = hits[k]->x()[1];
 	z1[k] = hits[k]->x()[2];
+	vE[k] = hits[k]->ddata("TotalEng");
+	xVe[0][k] = hits[k]->ddata("XEng");
+	xVe[1][k] = hits[k]->ddata("YEng");
       }
       
       hct->execute(hits, meas);

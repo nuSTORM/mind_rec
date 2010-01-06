@@ -383,8 +383,8 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 
   }
   
-  double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
-
+  //double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
+  double pSeed = (9180-6610*FeWeight) + (-2.76+4.01*FeWeight)*Xtent;
   set_de_dx( pSeed/GeV );
 
   V[5] = 1./pSeed;
@@ -569,7 +569,6 @@ bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
   get_cluster_meas( hits, hit_meas );
   //
   //ok = man().matching_svc().find_trajectories( hits, trajs);
-  
   ok = man().matching_svc().find_trajectories( hit_meas, trajs );
   
   if ( !ok || trajs.size() == 0) return false;

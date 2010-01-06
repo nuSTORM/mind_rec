@@ -15,12 +15,12 @@ RUN MIND_z D 40.
 
 # MIND internal dimensions (cm)
 # ****IRON****
-RUN widthI D 4.
+RUN widthI D 3.
 # radiation length (mm)
 RUN x0Fe D 17.58
 
 # ****SCIN**** (cm)
-RUN widthS D 1.
+RUN widthS D 2.
 RUN nplane I 1
 # radiation length (mm)
 RUN x0Sc D 413.1

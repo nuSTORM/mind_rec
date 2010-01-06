@@ -376,7 +376,6 @@ bool fitter::readTrajectory(const bhep::particle& part){
   //---------- read trajectory, i.e, particle hits ---------//
   
   //generate rec trajectory
-  
   bool ok = recTrajectory(part);
   
   if (patternRec && ok){
@@ -444,7 +443,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
     //Sort in increasing z here when classifier up and running.!!!
     if (patternRec) {
 
-      if ((int)hits.size() < min_seed_hits) {
+      if ((int)_meas.size() < min_seed_hits) {
       _failType = 7; return false;
       }
       
@@ -620,9 +619,12 @@ void fitter::setSeed(EVector r, int firsthit){
   mom_from_parabola( (int)_traj.nmeas(), firsthit, v);
   
   double pSeed;
+  double wFe = geom.get_Fe_prop();
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
-  if (v[5] == 0) { pSeed = (double)(0.060*_traj.nmeas())*GeV;
-  v[5] = 1.0/pSeed; }
+  if (v[5] == 0) { //pSeed = (double)(0.060*_traj.nmeas())*GeV;
+    pSeed = (13300-11200*wFe) + (-128+190*wFe)*(double)_traj.nmeas();
+    v[5] = 1.0/pSeed;
+  }
   
   set_de_dx( fabs(1./v[5])/GeV );
 

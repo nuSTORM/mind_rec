@@ -97,12 +97,12 @@ private:
   int _plns[2];
   int _nhits;
   int _hitType[4];
-  double _XPos[1000];
-  double _YPos[1000];
-  double _ZPos[1000];
-  bool _mus[1000];
-  bool _cand[1000];
-  bool _node[1000];
+  double _XPos[1500];
+  double _YPos[1500];
+  double _ZPos[1500];
+  bool _mus[1500];
+  bool _cand[1500];
+  bool _node[1500];
   double _pChi[3];
   //TString _intName;
   int _truInt;

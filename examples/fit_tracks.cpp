@@ -79,6 +79,7 @@ int main(int argc, char* argv[]){
   //Counters for event loops;
   int i;
   int evt_read = 0;
+  string filetest;
   //
 
   for (unsigned int ifile = 0;ifile < input_data.size();ifile++){
@@ -92,43 +93,44 @@ int main(int argc, char* argv[]){
       if (i%100==0) cout<< "Number of events read "<<evt_read<<endl;
       
       bhep::event& e = inDst.read_event( i );
-      
-      // loop over particles
-      vector<bhep::particle*> parts = e.digi_particles(); 
-      if ( e.find_sproperty("IntType") )
-	fit.set_int_type( e.fetch_sproperty("IntType") );
-      else fit.set_int_type("unknown");
-      cout <<"There are " << parts.size() << " digis in event " << e.event_number() <<endl;
-      if (parts.size() != 0) {
-	for (size_t part=0; part<parts.size();part++){
-	  
-	  if (parts[part]->name()=="void") continue;
-	  
-	  //fitOk = fit->execute(*parts[part],e.event_number());
-	  fitOk = fit.execute(*parts[part],e.event_number());
-	  
-	  //catchOk = plot->execute(*fit, e, fitOk, patR);
-	  
-	  plot.execute(fit, e, fitOk);
-	  
-	}
-      }
-      
-      parts.clear();
-      e.clear();
+      if ( e.find_sproperty("IntType") ){//Protects against corrupt events 
+	//caused by G4_out being spread over more than one file.
+	// loop over particles
+	vector<bhep::particle*> parts = e.digi_particles();
 
+	//Relevant only when building likelihood tree.
+	fit.set_int_type( e.fetch_sproperty("IntType") );
+	//
+	cout <<"There are " << parts.size() << " digis in event "
+	     << e.event_number() <<endl;
+
+	if (parts.size() != 0) {
+	  for (size_t part=0; part<parts.size();part++){
+	    
+	    if (parts[part]->name()=="void") continue;
+	    
+	    fitOk = fit.execute(*parts[part],e.event_number());
+	    
+	    plot.execute(fit, e, fitOk);
+	    
+	  }
+	}
+	
+	parts.clear();
+	e.clear();
+	
+	//i++;
+	evt_read++;
+      }
       i++;
-      evt_read++;
     }
 
     inDst.close();
 
   }
   
-  //catchOk = fit->finalize();
   fit.finalize();
   
-  //catchOk = plot->finalize();
   plot.finalize();
   
   return 0;

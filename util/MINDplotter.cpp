@@ -376,13 +376,15 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
   for (int iParts=0;iParts < (int)Pospart.size();iParts++){
 
     if ( Pospart[iParts]->name() == "mu+" &&
-	 Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none"  ){
+	 Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
+	 evt.fetch_iproperty("nuType") == -14 ){
       _Q[0] = 1;
       _truPart = Pospart[iParts];
       count++;
     } else if ( Pospart[iParts]->name() == "mu-" &&
-		Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none"  ){
-      _Q[0] = 1;
+		Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
+		evt.fetch_iproperty("nuType") == 14 ){
+      _Q[0] = -1;
       _truPart = Pospart[iParts];
       count++;
     } else if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" ){

@@ -368,27 +368,34 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
 bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
 //*************************************************************************************
 
+  bool primNu = false;
   _nuEng = evt.fetch_dproperty("nuEnergy") * MeV;
   
   const vector<bhep::particle*> Pospart = evt.true_particles();
 
   int count = 0;
-  for (int iParts=0;iParts < (int)Pospart.size();iParts++){
+  for (int iParts=(int)Pospart.size()-1;iParts >= 0;iParts--){
 
     if ( Pospart[iParts]->name() == "mu+" &&
 	 Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
-	 evt.fetch_iproperty("nuType") == -14 ){
+	 evt.fetch_iproperty("nuType") == -14 && count == 0 && !primNu ){
       _Q[0] = 1;
       _truPart = Pospart[iParts];
       count++;
     } else if ( Pospart[iParts]->name() == "mu-" &&
 		Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
-		evt.fetch_iproperty("nuType") == 14 ){
+		evt.fetch_iproperty("nuType") == 14 && count == 0 && !primNu ){
       _Q[0] = -1;
       _truPart = Pospart[iParts];
       count++;
     } else if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" ){
-      add_to_hads( *Pospart[iParts] );
+
+      if ( Pospart[iParts]->name() == "nu_e" || Pospart[iParts]->name() == "anti_nu_e"
+		|| Pospart[iParts]->name() == "nu_mu" || Pospart[iParts]->name() == "anti_nu_mu" ){
+	if ( !primNu ) primNu = true;
+	else add_to_hads( *Pospart[iParts] );
+      } else add_to_hads( *Pospart[iParts] );
+      
     }
   }
 

@@ -72,10 +72,10 @@ RUN pos_sig D 1.
 #############################################
 
 # monitor ntuple file
-RUN out_file S ../Rec_out/muCC3.root
+RUN out_file S ../Rec_out/mubarCC/muCC_0.root
 
 #liklihood file.
-RUN like_file S ../likelihoods/likeOut_cc_1.root
+RUN like_file S ../likelihoods/likeOut_cc_0.root
 
 # type of fit
 RUN kfitter S kalman
@@ -98,7 +98,7 @@ RUN chi2node_max D 20
 RUN max_outliers I 5
 
 # maximum local chi2 for nodes (pattern rec.)
-RUN pat_rec_max_chi D 50
+RUN pat_rec_max_chi D 20
 RUN pat_rec_max_outliers I 10
 RUN max_consec_missed_planes I 3
 # minimum proportion of planes used to not reject
@@ -116,10 +116,10 @@ RUN low_Pass_hits I 6
 RUN high_Pass_hits I 500
 
 # proportion of nodes which must be fir not to trigger backwards fit.
-RUN low_fit_cut0 D 0.5
+RUN low_fit_cut0 D 0.8
 
 # proportion of nodes which must be fit to accept type 2 (free mu) interaction.
-RUN low_fit_cut2 D 0.5
+RUN low_fit_cut2 D 0.6
 
 # Fiducial cuts. (reduction in z and reduction at both sides in x,y. cm)
 RUN z_cut D 300
@@ -145,12 +145,14 @@ ANA min_check_nodes I 3
 ANA min_iso_prop D 0.8
 
 # Bit to tell if require output of likelihood info.
-RUN likeli I 1
+RUN likeli I 0
 
 ###  data to read ###
-DATA idst_files SV 2
-../digi_out/NC_0_digi.dst.root
-../digi_out/NC_0_digi.dst_1.root
+DATA idst_files SV 4
+../digi_out/mubarCC/muCC_0_digi.dst.root
+../digi_out/mubarCC/muCC_0_digi.dst_1.root
+../digi_out/mubarCC/muCC_0_digi.dst_2.root
+../digi_out/mubarCC/muCC_0_digi.dst_3.root
 # ../digi_out/muCC_test20k_digi.dst.root
 # ~/decNtup/newTest.dst.root
 # ../test_digi.dst.root

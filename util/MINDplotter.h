@@ -100,6 +100,7 @@ private:
   double _XPos[2500];
   double _YPos[2500];
   double _ZPos[2500];
+  double _Edep[2500];
   bool _mus[2500];
   bool _cand[2500];
   bool _node[2500];

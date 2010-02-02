@@ -202,6 +202,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
   statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
   statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
+  statTree->Branch("EngDeposit", &_Edep, "E[nhits]/D");
   statTree->Branch("MuHits", &_mus, "truMu[nhits]/B");
   statTree->Branch("CandHits", &_cand, "inMu[nhits]/B");
   statTree->Branch("FittedNodes",&_node,"fitNode[nhits]/B");
@@ -405,6 +406,7 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
     _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
     _ZPos[iHits] = Fit.get_meas(iHits)->position()[2];
+    _Edep[iHits] = Fit.get_meas(iHits)->get_eng();
     
     if (!_patR)
       if ( Fit.get_traj().node(iHits).status("fitted") )

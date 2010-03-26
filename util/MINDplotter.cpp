@@ -62,7 +62,7 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     _intType = Fit.get_classifier().get_int_type();
   else _intType = 7;
   
-  for (int i = 0;i<4;i++){
+  for (int i = 0;i<5;i++){
     _hitType[i] = 0;
     if ( i < 3 ) _hadP[i] = 0.;
     else _hadE[0] = 0.;
@@ -198,7 +198,7 @@ void MINDplotter::define_tree_branches() {
   //statTree->Branch("hadDir", &_haddot, "dotProd/D");
   statTree->Branch("NoPlanes", &_plns, "nplanes/I:freeplanes/I");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
-  statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I");
+  statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I:nhad/I");
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
   statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
   statTree->Branch("ZPositions", &_ZPos, "Z[nhits]/D");
@@ -206,6 +206,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("MuHits", &_mus, "truMu[nhits]/B");
   statTree->Branch("CandHits", &_cand, "inMu[nhits]/B");
   statTree->Branch("FittedNodes",&_node,"fitNode[nhits]/B");
+  statTree->Branch("HadronNodes",&_had,"hadN[nhits]/B");
   statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/D");
 
 }
@@ -546,6 +547,7 @@ void MINDplotter::patternStats1(fitter& Fit) {
 void MINDplotter::patternStats2(fitter& Fit) {
 
   const dict::Key candHit = "inMu";
+  const dict::Key hadHit = "inhad";
   int nNode = 0;
   if ( Fit.check_reseed() ) nNode = (int)Fit.get_traj().size()-1;
   bool isMu;
@@ -576,9 +578,21 @@ void MINDplotter::patternStats2(fitter& Fit) {
 	else _node[iHits] = false;
 	if ( Fit.check_reseed() ) nNode--;
 	else nNode++;
-      } else { _node[iHits] = false; _cand[iHits] = false; }
+      } else {
+	_node[iHits] = false; _cand[iHits] = false;
+	if ( hits[iHits]->names().has_key(hadHit) ){
+	  _hitType[4]++;
+	  _had[iHits] = true;
+	}
+      }
 
-    } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
+    } else if ( _fail != 7) {
+      _node[iHits] = false; _cand[iHits] = false;
+      if ( hits[iHits]->names().has_key(hadHit) ){
+	_hitType[4]++;
+	_had[iHits] = true;
+      } else _had[iHits] = false;
+    }
   }
 
   if (_fail != 7){

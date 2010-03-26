@@ -216,11 +216,36 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
       const dict::Key candHit = "inMu";
       const dict::Key hit_in = "True";
       (*_hitIt)->set_name(candHit, hit_in);
-    } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 ){
+    } else if ( _planeIt == _hitsPerPlane.begin() ) {
+      break;
+    } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 && (*(_planeIt-1)) == 1 ){
       //Extra logic to avoid unneccessary use of call. auto. on high curve events.
-      if ( (*(_planeIt-1)) == 1 )
-	use_mini_cellAuto( (*_planeIt), muontraj );
-      else break;
+      use_mini_cellAuto( (*_planeIt), muontraj );
+      
+    } else if ( muontraj.nmeas() < min_seed_hits && _nplanes >= 30 ){
+      
+      int badplane = 2, goodplane, iC1 = 2, iC2;
+      bool fixed = false, undone;
+      do {
+	if ( (*(_planeIt-iC1)) != 1 ) badplane++;
+	else {
+	  iC2 = 1; undone = false; goodplane = 1;
+	  while ( iC2 < min_seed_hits-(int)muontraj.nmeas() && !undone ){
+	    if ( (*(_planeIt-iC1-iC2)) == 1 ) goodplane++;
+	    else undone = true;
+	    iC2++;
+	  }
+	  if ( goodplane == min_seed_hits-(int)muontraj.nmeas() ){
+	    fixed = true;
+	    for (int ifix=0;ifix<=iC1-1;ifix++)
+	      if ( ifix == iC1-1 ) _hitIt -= (*(_planeIt-ifix))-1;
+	      else _hitIt -= (*(_planeIt-ifix));
+	    _planeIt -= iC1-1;
+	  }
+	}
+	iC1++;
+      } while ( iC1 < 10 && !fixed );
+      if ( !fixed ) break;
     } else break;
   }
   
@@ -338,8 +363,12 @@ bool event_classif::muon_extraction(vector<cluster*>& hits,
   bool ok;
   
   if (_vertGuess != 0)
-    for (int i = 0;i < _vertGuess;i++)
+    for (int i = 0;i < _vertGuess;i++){
+      const dict::Key candHit = "inhad";
+      const dict::Key hit_in = "True";
+      hits[i]->set_name(candHit, hit_in);
       hads.push_back( hits[i] );
+    }
   
   State patternSeed;
   
@@ -529,7 +558,9 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
 	} else nConsecHole++;
 
       } else {
-
+	const dict::Key hadHit = "inhad";
+	const dict::Key had_in = "True";
+	(*(_hitIt+iFil+1))->set_name(hadHit, had_in);
 	hads.push_back( (*(_hitIt+iFil+1)) );
 
       }
@@ -647,8 +678,12 @@ void event_classif::sort_hits(vector<cluster*>& hits,
 
     }
 
-    if ( !inTraj )
+    if ( !inTraj ){
+      const dict::Key hadHit = "inhad";
+      const dict::Key had_in = "True";
+      (*_hitIt)->set_name(hadHit, had_in);
       hads.push_back( (*_hitIt) );
+    }
 
   }
 

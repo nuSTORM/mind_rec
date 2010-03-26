@@ -384,7 +384,8 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   }
   
   //double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
-  double pSeed = (9180-6610*FeWeight) + (-2.76+4.01*FeWeight)*Xtent;
+  double pSeed = (9180-6610*FeWeight) + (-2.76+4.01*FeWeight)*Xtent; //best for 3/2 seg
+  // double pSeed = 574 + 0.66*Xtent;//test for 1/2 seg
   set_de_dx( pSeed/GeV );
 
   V[5] = 1./pSeed;

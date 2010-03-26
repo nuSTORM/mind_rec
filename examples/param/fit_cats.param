@@ -72,7 +72,7 @@ RUN pos_sig D 1.
 #############################################
 
 # monitor ntuple file
-RUN out_file S ../Rec_out/mubarCC/muCC_0.root
+RUN out_file S ../test_0.root
 
 #liklihood file.
 RUN like_file S ../likelihoods/likeOut_cc_0.root

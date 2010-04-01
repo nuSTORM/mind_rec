@@ -80,6 +80,7 @@ private:
   bool _reFit;
   int _fail;
   int _intType;
+  double _vert[3];
   double _nuEng;
   double _visEng;
   double _engTraj;

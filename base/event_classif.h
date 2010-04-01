@@ -111,6 +111,7 @@ protected:
   vector<int>::iterator _planeIt;
   int _vertGuess;
   int _exclPlanes;
+  int badplanes;
   
   //Monitoring variables.
   int _failType;

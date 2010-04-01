@@ -46,6 +46,8 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   bool ok1, ok2;
   
   _evNo = evt.event_number();
+  bhep::Point3D evVert = evt.vertex();
+  _vert[0] = evVert.x(); _vert[1] = evVert.y(); _vert[2] = evVert.z();
   if (_clu)
     get_tru_int_type( evt );
   
@@ -179,6 +181,7 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Evt", &_evNo, "EventNo/I");
   statTree->Branch("Fitted", &_Fit, "success/B");
   if (_clu) statTree->Branch("TrueInteraction",&_truInt,"truInt/I");
+  statTree->Branch("evVertex", &_vert, "vert[3]/D");
   statTree->Branch("backFit",&_reFit,"backFit/B");
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("interaction",&_intType,"Inter/I");
@@ -346,7 +349,7 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
   }
 
   if (count == 0) {
-    cout << "No particles of muon or antimuon type in file" << endl;
+    //cout << "No particles of muon or antimuon type in file" << endl;
     _Q[0] = 0;
     _qP[0] = 0;
     _Th[0][0] = _Th[0][1]= 0;
@@ -414,7 +417,7 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
 	_hitType[3]++;
   }
   if (count == 0) {
-    cout << "No particles of muon or antimuon type in file" << endl;
+    //cout << "No particles of muon or antimuon type in file" << endl;
     _Q[0] = 0;
     _qP[0] = 0;
     _Th[0][0] = _Th[0][1]= 0;
@@ -545,13 +548,13 @@ void MINDplotter::patternStats1(fitter& Fit) {
 }
 
 void MINDplotter::patternStats2(fitter& Fit) {
-
+  
   const dict::Key candHit = "inMu";
   const dict::Key hadHit = "inhad";
   int nNode = 0;
   if ( Fit.check_reseed() ) nNode = (int)Fit.get_traj().size()-1;
   bool isMu;
-
+  
   std::vector<cluster*> hits = Fit.get_meas_vec();
   std::vector<cluster*> inMuC;
 
@@ -568,11 +571,12 @@ void MINDplotter::patternStats2(fitter& Fit) {
 
       if ( hits[iHits]->name(candHit).compare("True")==0 ){
 	_cand[iHits] = true;
+	_had[iHits] = false;
 	_hitType[1]++;
 	_engTraj += hits[iHits]->get_eng() * MeV;
 	inMuC.push_back( hits[iHits] );
 	if ( isMu ) _hitType[2]++;
-
+	
 	if ( Fit.get_traj().node(nNode).status("fitted") && _fail!=1 && _fail<4 ){	
 	  _node[iHits] = true; _hitType[3]++; }
 	else _node[iHits] = false;
@@ -583,7 +587,7 @@ void MINDplotter::patternStats2(fitter& Fit) {
 	if ( hits[iHits]->names().has_key(hadHit) ){
 	  _hitType[4]++;
 	  _had[iHits] = true;
-	}
+	} else _had[iHits] = false;
       }
 
     } else if ( _fail != 7) {

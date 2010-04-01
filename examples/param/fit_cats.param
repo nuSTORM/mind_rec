@@ -72,7 +72,7 @@ RUN pos_sig D 1.
 #############################################
 
 # monitor ntuple file
-RUN out_file S ../test_0.root
+RUN out_file S ../test_1.root
 
 #liklihood file.
 RUN like_file S ../likelihoods/likeOut_cc_0.root
@@ -148,11 +148,12 @@ ANA min_iso_prop D 0.8
 RUN likeli I 0
 
 ###  data to read ###
-DATA idst_files SV 4
-../digi_out/mubarCC/muCC_0_digi.dst.root
-../digi_out/mubarCC/muCC_0_digi.dst_1.root
-../digi_out/mubarCC/muCC_0_digi.dst_2.root
-../digi_out/mubarCC/muCC_0_digi.dst_3.root
+DATA idst_files SV 1
+../digi_out/muCC/muCC_0_digi.dst.root
+# ../digi_out/mubarCC/muCC_0_digi.dst.root
+# ../digi_out/mubarCC/muCC_0_digi.dst_1.root
+# ../digi_out/mubarCC/muCC_0_digi.dst_2.root
+# ../digi_out/mubarCC/muCC_0_digi.dst_3.root
 # ../digi_out/muCC_test20k_digi.dst.root
 # ~/decNtup/newTest.dst.root
 # ../test_digi.dst.root

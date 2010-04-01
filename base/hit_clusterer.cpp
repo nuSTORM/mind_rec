@@ -219,7 +219,7 @@ cluster* hit_clusterer::make_cluster(const EVector& vec,
 void hit_clusterer::calculate_clust_pos(const std::vector<bhep::hit*>& hits, EVector& vec)
 {
   //Weighted mean for x and y position.
-  double X = 0, Y = 0, Q = 0, Q1;
+  double X = 0, Y = 0, Qm1 = 0, Qm2 = 0, Q1, Q2;
   //To calculate number voxes in x and y.
   int nX = 0, nY = 0;
   std::map<double,bool> xmast, ymast;
@@ -227,17 +227,23 @@ void hit_clusterer::calculate_clust_pos(const std::vector<bhep::hit*>& hits, EVe
   std::vector<bhep::hit*>::const_iterator hitIt;
   for (hitIt = hits.begin();hitIt != hits.end();hitIt++){
     
-    Q1 = (*hitIt)->ddata("TotalEng");
+    Q1 = (*hitIt)->ddata("XEng");
+    Q2 = (*hitIt)->ddata("YEng");
 
-    X += Q1 * (*hitIt)->x()[0];
-    Y += Q1 * (*hitIt)->x()[1];
-    Q += Q1;
+    if ( Q1 >= _minEng ){
+      X += Q1 * (*hitIt)->x()[0];
+      Qm1 += Q1;
+    }
+    if ( Q2 >= _minEng ){
+      Y += Q2 * (*hitIt)->x()[1];
+      Qm2 += Q2;
+    }
 
     if ( hitIt == hits.begin() ){
       xmast[(*hitIt)->x()[0]] = true;
       if ( (*hitIt)->fetch_dproperty("XEng") >= _minEng ) nX++;
       ymast[(*hitIt)->x()[1]] = true;
-      if ( (*hitIt)->fetch_dproperty("XEng") >= _minEng ) nY++;
+      if ( (*hitIt)->fetch_dproperty("YEng") >= _minEng ) nY++;
     } else {
       if ( xmast.find( (*hitIt)->x()[0] ) != xmast.end() &&
 	   (*hitIt)->fetch_dproperty("XEng") >= _minEng ){
@@ -254,8 +260,8 @@ void hit_clusterer::calculate_clust_pos(const std::vector<bhep::hit*>& hits, EVe
   if ( nY == 0 ) _cov[1][1] = pow( 1.0*m, 2 );
   else if ( nY > 1 ) _cov[1][1] = pow( _res[nY-1]*_sigMa, 2 );
 
-  vec[0] = X / Q;// + RandGauss::shoot(&_ranGen, 0, _sigMa);
-  vec[1] = Y / Q;// + RandGauss::shoot(&_ranGen, 0, _sigMa);
+  vec[0] = X / Qm1;// + RandGauss::shoot(&_ranGen, 0, _sigMa);
+  vec[1] = Y / Qm2;// + RandGauss::shoot(&_ranGen, 0, _sigMa);
   
   xmast.clear(); ymast.clear();
 }

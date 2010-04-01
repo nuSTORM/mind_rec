@@ -202,55 +202,77 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
   m.message("++++ Performing CC reconstruction ++++",bhep::VERBOSE);
 
   bool ok = true;
+  bool fixed = false;
   _recChi = EVector(3,0);
   _recChi[1] = 100000; //SetLarge dummy value for minChiHadron bit.
 
   _hitIt = hits.end() - 1;
 
   _vertGuess = exclude_backwards_particle();
+  const dict::Key candHit = "inMu";
+  const dict::Key hit_in = "True";
+  const dict::Key skipped = "skipped";
+  const dict::Key not_in = "False";
   
   //Maybe another which looks for kinks very early (backwards proton quasi?)
   for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin()+_exclPlanes+min_check;_planeIt--, _hitIt--){
     if ( (*_planeIt) == 1 ){
       muontraj.add_measurement( *(*_hitIt) );
-      const dict::Key candHit = "inMu";
-      const dict::Key hit_in = "True";
       (*_hitIt)->set_name(candHit, hit_in);
-    } else if ( _planeIt == _hitsPerPlane.begin() ) {
-      break;
-    } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 && (*(_planeIt-1)) == 1 ){
-      //Extra logic to avoid unneccessary use of call. auto. on high curve events.
-      use_mini_cellAuto( (*_planeIt), muontraj );
+      //  } else if ( _planeIt == _hitsPerPlane.begin() ) {
+      //       break;
+    // } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 && (*(_planeIt-1)) == 1 ){
+//       //Extra logic to avoid unneccessary use of call. auto. on high curve events.
+//       use_mini_cellAuto( (*_planeIt), muontraj );
       
-    } else if ( muontraj.nmeas() < min_seed_hits && _nplanes >= 30 ){
+    } else if ( (int)muontraj.nmeas() < min_seed_hits
+		&& _planeIt >= _hitsPerPlane.end()-(int)(0.2*(double)_nplanes) ){
       
-      int badplane = 2, goodplane, iC1 = 2, iC2;
-      bool fixed = false, undone;
+      int skiphit = (*_planeIt);
+      badplanes = 1;
+      
+      int goodplane, iC1 = badplanes, iC2;
+      bool undone;
+      
       do {
-	if ( (*(_planeIt-iC1)) != 1 ) badplane++;
+	if ( (*(_planeIt-iC1)) != 1 ) { badplanes++; skiphit += (*(_planeIt-iC1)); }
 	else {
 	  iC2 = 1; undone = false; goodplane = 1;
-	  while ( iC2 < min_seed_hits-(int)muontraj.nmeas() && !undone ){
+	  while ( iC2 < min_seed_hits && !undone ){
 	    if ( (*(_planeIt-iC1-iC2)) == 1 ) goodplane++;
 	    else undone = true;
 	    iC2++;
 	  }
-	  if ( goodplane == min_seed_hits-(int)muontraj.nmeas() ){
+	  if ( goodplane == min_seed_hits ){//-(int)muontraj.nmeas() ){
 	    fixed = true;
-	    for (int ifix=0;ifix<=iC1-1;ifix++)
-	      if ( ifix == iC1-1 ) _hitIt -= (*(_planeIt-ifix))-1;
-	      else _hitIt -= (*(_planeIt-ifix));
+	    vector<cluster*>::iterator currentIt = _hitIt;
+      
+	    if ( (int)muontraj.nmeas() < min_seed_hits-2 && muontraj.nmeas() != 0 ){
+	      for (int irem=1;irem<=(int)muontraj.nmeas();irem++){
+		(*(_hitIt+irem))->set_name(candHit,not_in);
+		(*(_hitIt+irem))->set_name(skipped,hit_in);}
+	      muontraj.reset();
+	    }
+	    while ( _hitIt > currentIt-skiphit+1 ){
+	      
+	      (*_hitIt)->set_name(skipped,hit_in);
+	      _hitIt--;
+	    }
+	    // for (int ifix=0;ifix<=iC1-1;ifix++)
+// 	      if ( ifix == iC1-1 ) _hitIt -= (*(_planeIt-ifix))-1;
+// 	      else _hitIt -= (*(_planeIt-ifix));
 	    _planeIt -= iC1-1;
-	  }
+	    
+	  } else if ( undone ){ badplanes++; skiphit += (*(_planeIt-iC1)); }
 	}
 	iC1++;
-      } while ( iC1 < 10 && !fixed );
-      if ( !fixed ) break;
+      } while ( iC1 < (int)(0.2*(double)_nplanes) && !fixed );
+      if ( !fixed ) { badplanes = 0; break; }
     } else break;
   }
   
   _lastIso = (int)muontraj.nmeas();
-
+  
   if ( !_outLike ) _freeplanes = (int)muontraj.nmeas();
   
   //set to reconstruction mode.
@@ -273,9 +295,10 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
       if ( !ok ) _failType = 4;
       //ok = false; _failType = 4;
       
-    } else
+    } else {
+      if ( badplanes !=0 ) _intType = 3;
       ok = muon_extraction( hits, muontraj, hads);
-    
+    }
   }
   
   return ok;
@@ -523,6 +546,7 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
     double Chi2[(const int)(*_planeIt)];
 
     for (int iMat = (*_planeIt)-1;iMat >= 0;iMat--, _hitIt--){
+      
       ok = man().matching_svc().match_trajectory_measurement(muontraj, (*(*_hitIt)), Chi2[iMat]);
       
       if ( !ok )
@@ -569,7 +593,7 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
     _planeIt--;
 
     if ( nConsecHole > max_consec_missed_planes ) {
-      if ( muontraj.nmeas() < min_plane_prop*(double)_nplanes ){
+      if ( muontraj.nmeas() < min_plane_prop*(double)(_nplanes-badplanes) ){
 	_failType = 6;
 	return false;
       } else {
@@ -657,7 +681,8 @@ void event_classif::sort_hits(vector<cluster*>& hits,
   const dict::Key candHit = "inMu";
   const dict::Key not_in = "False";
   const dict::Key hit_in = "True";
-
+  const dict::Key skipped = "skipped";
+  
   //Protection against double entries in hads in max_consec_planes fail case.
   if ( _intType != 5 ) hads.clear();
 
@@ -678,7 +703,7 @@ void event_classif::sort_hits(vector<cluster*>& hits,
 
     }
 
-    if ( !inTraj ){
+    if ( !inTraj && !(*_hitIt)->names().has_key(skipped) ){
       const dict::Key hadHit = "inhad";
       const dict::Key had_in = "True";
       (*_hitIt)->set_name(hadHit, had_in);

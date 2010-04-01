@@ -90,7 +90,7 @@ int main(int argc, char* argv[]){
     //for(int i=0; i < nevents; i++) {
     while ( !inDst.eof(i) && evt_read < nevents ) {
       
-      if (i%100==0) cout<< "Number of events read "<<evt_read<<endl;
+      // if (i%100==0) cout<< "Number of events read "<<evt_read<<endl;
       
       bhep::event& e = inDst.read_event( i );
       if ( e.find_sproperty("IntType") ){//Protects against corrupt events 
@@ -101,8 +101,8 @@ int main(int argc, char* argv[]){
 	//Relevant only when building likelihood tree.
 	fit.set_int_type( e.fetch_sproperty("IntType") );
 	//
-	cout <<"There are " << parts.size() << " digis in event "
-	     << e.event_number() <<endl;
+	// cout <<"There are " << parts.size() << " digis in event "
+// 	     << e.event_number() <<endl;
 
 	if (parts.size() != 0) {
 	  for (size_t part=0; part<parts.size();part++){

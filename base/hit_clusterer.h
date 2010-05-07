@@ -50,6 +50,8 @@ class hit_clusterer
 
   //Random Generator for the smear.
   //RanluxEngine _ranGen;
+  //Voxels in X and Y.
+  int _nVoxV[2];
 
   //sigma for position smear.
   double _sigMa;

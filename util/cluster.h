@@ -29,8 +29,14 @@ class cluster: public Measurement
   double get_eng(){ return _eng; }
   int get_nhits(){ return _nhit; }
   size_t get_nVox(){ return _nVox; }
+  int get_VoxX(){ return _nVoxV[0]; }
+  int get_VoxY(){ return _nVoxV[1]; }
   double get_mu_prop(){ return _muProp / (double)_nhit; }
   std::vector<bhep::hit*> get_hits(){ return _voxes; }
+
+  //Setters.
+  void set_VoxX(int n){ _nVoxV[0] = n; }
+  void set_VoxY(int n){ _nVoxV[1] = n; }
   
  private:
 
@@ -39,6 +45,8 @@ class cluster: public Measurement
   size_t _nVox;
 
   int _nhit;
+
+  int _nVoxV[2];
 
   double _eng;
 

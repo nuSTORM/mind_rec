@@ -106,6 +106,8 @@ void hit_clusterer::form_clusters(double zpos, std::map<int,bhep::hit*>& deps,
     }
     if ( clhit.size() == 1){
       cluster* cl1 = make_cluster( zpos, deps[clhit.begin()->first] );
+      cl1->set_VoxX( 1 );
+      cl1->set_VoxY( 1 );
       clusts.push_back( cl1 );
       deps.erase( clhit.begin()->first );
       clhit.clear();
@@ -126,6 +128,8 @@ void hit_clusterer::form_clusters(double zpos, std::map<int,bhep::hit*>& deps,
 	  hits.push_back( deps[dIt->first] );
 	calculate_clust_pos( hits, pos );
 	cluster* cl2 = make_cluster( pos, hits );
+	cl2->set_VoxX(_nVoxV[0]);
+	cl2->set_VoxY(_nVoxV[1]);
 	clusts.push_back( cl2 );
 	for (dIt = clhit.begin();dIt != clhit.end();dIt++)
 	  deps.erase( dIt->first );
@@ -255,6 +259,7 @@ void hit_clusterer::calculate_clust_pos(const std::vector<bhep::hit*>& hits, EVe
     }
 
   }
+  _nVoxV[0] = nX; _nVoxV[1] = nY;
   if ( nX == 0 ) _cov[0][0] = pow( 1.0*m, 2 );
   else if ( nX > 1 ) _cov[0][0] = pow( _res[nX-1]*_sigMa, 2 );
   if ( nY == 0 ) _cov[1][1] = pow( 1.0*m, 2 );

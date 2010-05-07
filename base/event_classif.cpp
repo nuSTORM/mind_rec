@@ -43,6 +43,8 @@ void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
   _infoStore = pstore;
   readParam();
 
+  _voxEdge = _infoStore.fetch_dstore("rec_boxX") * cm;
+
   FeWeight = wFe;
 
   if ( _outLike ){
@@ -122,6 +124,9 @@ void event_classif::readParam() {
     + _infoStore.fetch_dstore("widthS") * _infoStore.fetch_istore("nplane") * cm
     + _infoStore.fetch_dstore("widthA") * (_infoStore.fetch_istore("nplane")+1) * cm;
   
+  _maxBlobSkip = _infoStore.fetch_dstore("maxBlobSkip");
+  _minBlobOcc = _infoStore.fetch_dstore("minBlobOcc");
+
 }
 
 //***********************************************************************
@@ -131,6 +136,9 @@ void event_classif::reset(){
 
   _nplanes = 0;
   _meanOcc = 0;
+  badplanes = 0;
+  _longestSingle = 0;
+  _endProj = false;
   _hitsPerPlane.clear();
   _energyPerPlane.clear();
   _planeZ.clear();
@@ -148,10 +156,11 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
 
   size_t nHits = hits.size();
   
-  int count = 0;
+  int count = 0, single_count = 0;
   double EngPlane = 0, testZ, curZ;
   size_t hits_used = 0, imeas = 0;
-  //const dict::Key Edep = "E_dep";
+  _longestSingle = 0;
+
   if ( !_outLike ) _visEng = 0;
   
   do {
@@ -178,6 +187,24 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
     _hitsPerPlane.push_back( count );
     _energyPerPlane.push_back( EngPlane );
     _planeZ.push_back( testZ );
+
+    if ( count == 1 )
+      single_count++;
+    else {
+      if ( single_count >= _longestSingle ){
+	_longestSingle = single_count;
+	_endLongSing = imeas - 1;
+	_endLongPlane = (int)_hitsPerPlane.size()-2;
+      }
+      single_count = 0;
+    }
+    if ( imeas == nHits-1 && single_count != 0 && count == 1 ){
+      if ( single_count >= _longestSingle ){
+	_longestSingle = single_count;
+	_endLongSing = imeas;
+	_endLongPlane = (int)_hitsPerPlane.size()-1;
+      }
+    }
     if ( !_outLike ) _visEng += EngPlane;
 
     imeas += count;
@@ -191,8 +218,78 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
 
   if ( _nplanes == 0 ) return false;
   _meanOcc /= (double)_nplanes;
+
+  if ( _longestSingle >= min_seed_hits && _endLongPlane > 0.5*(double)_nplanes )
+    assess_event( hits );
   
   return ok;
+}
+
+//***********************************************************************
+void event_classif::assess_event(vector<cluster*>& hits)
+//***********************************************************************
+{
+  //Assess the event 'free' sections to look for a viable
+  //muon and tidy up the endpoint if neccessary.
+  double dispTrans[2], endMeanOcc = 0, skipSize = 0;
+  unsigned int evEnd = hits.size() - 1;
+  vector<int>::iterator aIt;
+  const dict::Key hit_in = "True";
+  const dict::Key skipped = "skipped";
+  
+  if ( _endLongSing == (int)evEnd ){
+    
+    dispTrans[0] = sqrt( pow( hits[evEnd]->vector()[0]-hits[evEnd-1]->vector()[0], 2)
+		      + pow( hits[evEnd]->vector()[1]-hits[evEnd-1]->vector()[1], 2) );
+    dispTrans[1] = sqrt( pow( hits[evEnd-1]->vector()[0]-hits[evEnd-2]->vector()[0], 2)
+			 + pow( hits[evEnd-1]->vector()[1]-hits[evEnd-2]->vector()[1], 2) );
+    //Just in case there is a bad hit at the endpoint.
+    if ( dispTrans[0] > _voxEdge*10 && dispTrans[1] <= _voxEdge*10 ){
+      hits[evEnd]->set_name(skipped,hit_in);
+      badplanes = 1;
+      _hitIt = hits.end() - 2;
+      _planeIt = _hitsPerPlane.end() - 2;
+      
+    } else if ( dispTrans[1] > _voxEdge*10 ){
+      hits[evEnd]->set_name(skipped,hit_in);
+      hits[evEnd-1]->set_name(skipped,hit_in);
+      badplanes = 2;
+      _hitIt = hits.end() - 3;
+      _planeIt = _hitsPerPlane.end() - 3;
+      
+    } else {
+      _hitIt = hits.end() - 1;
+      _planeIt = _hitsPerPlane.end() - 1;
+    }
+    
+  } else {
+    //A more complicated endpoint.
+    for ( aIt = _hitsPerPlane.end()-1;aIt != _hitsPerPlane.begin()+_endLongPlane;aIt--){
+      endMeanOcc += (double)(*aIt);
+      skipSize++;
+    }
+    endMeanOcc /= (double)skipSize;
+    if ( endMeanOcc > _minBlobOcc ){
+      
+      if ( skipSize/(double)_hitsPerPlane.size() < _maxBlobSkip
+	   || _longestSingle >= 2*min_seed_hits ){
+	
+	_hitIt = hits.end() - 1;
+	while ( _hitIt != hits.begin()+_endLongSing ){
+	  (*_hitIt)->set_name(skipped,hit_in);
+	  _hitIt--;
+	}
+	_planeIt = _hitsPerPlane.begin()+_endLongPlane;
+	badplanes = (int)skipSize;
+      } else _longestSingle = 0; //Brute force way to reject.
+    } else {
+      _endProj = true;
+      _hitIt = hits.begin() + _endLongSing;
+      _planeIt = _hitsPerPlane.begin() + _endLongPlane;
+    }
+      
+  }
+
 }
 
 //***********************************************************************
@@ -202,74 +299,85 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
   m.message("++++ Performing CC reconstruction ++++",bhep::VERBOSE);
 
   bool ok = true;
-  bool fixed = false;
+  // bool fixed = false;
   _recChi = EVector(3,0);
   _recChi[1] = 100000; //SetLarge dummy value for minChiHadron bit.
 
-  _hitIt = hits.end() - 1;
-
+  // _hitIt = hits.end() - 1;
+  
   _vertGuess = exclude_backwards_particle();
+  
   const dict::Key candHit = "inMu";
   const dict::Key hit_in = "True";
-  const dict::Key skipped = "skipped";
+  // const dict::Key skipped = "skipped";
   const dict::Key not_in = "False";
-  
-  //Maybe another which looks for kinks very early (backwards proton quasi?)
-  for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin()+_exclPlanes+min_check;_planeIt--, _hitIt--){
-    if ( (*_planeIt) == 1 ){
+
+  if ( _longestSingle >= min_seed_hits && _endLongPlane > 0.5*(double)_nplanes ){
+    while ( _planeIt >= _hitsPerPlane.begin()+_exclPlanes+min_check && (*_planeIt) == 1 ){
       muontraj.add_measurement( *(*_hitIt) );
       (*_hitIt)->set_name(candHit, hit_in);
-      //  } else if ( _planeIt == _hitsPerPlane.begin() ) {
-      //       break;
-    // } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 && (*(_planeIt-1)) == 1 ){
-//       //Extra logic to avoid unneccessary use of call. auto. on high curve events.
-//       use_mini_cellAuto( (*_planeIt), muontraj );
-      
-    } else if ( (int)muontraj.nmeas() < min_seed_hits
-		&& _planeIt >= _hitsPerPlane.end()-(int)(0.2*(double)_nplanes) ){
-      
-      int skiphit = (*_planeIt);
-      badplanes = 1;
-      
-      int goodplane, iC1 = badplanes, iC2;
-      bool undone;
-      
-      do {
-	if ( (*(_planeIt-iC1)) != 1 ) { badplanes++; skiphit += (*(_planeIt-iC1)); }
-	else {
-	  iC2 = 1; undone = false; goodplane = 1;
-	  while ( iC2 < min_seed_hits && !undone ){
-	    if ( (*(_planeIt-iC1-iC2)) == 1 ) goodplane++;
-	    else undone = true;
-	    iC2++;
-	  }
-	  if ( goodplane == min_seed_hits ){//-(int)muontraj.nmeas() ){
-	    fixed = true;
-	    vector<cluster*>::iterator currentIt = _hitIt;
-      
-	    if ( (int)muontraj.nmeas() < min_seed_hits-2 && muontraj.nmeas() != 0 ){
-	      for (int irem=1;irem<=(int)muontraj.nmeas();irem++){
-		(*(_hitIt+irem))->set_name(candHit,not_in);
-		(*(_hitIt+irem))->set_name(skipped,hit_in);}
-	      muontraj.reset();
-	    }
-	    while ( _hitIt > currentIt-skiphit+1 ){
-	      
-	      (*_hitIt)->set_name(skipped,hit_in);
-	      _hitIt--;
-	    }
-	    // for (int ifix=0;ifix<=iC1-1;ifix++)
-// 	      if ( ifix == iC1-1 ) _hitIt -= (*(_planeIt-ifix))-1;
-// 	      else _hitIt -= (*(_planeIt-ifix));
-	    _planeIt -= iC1-1;
-	    
-	  } else if ( undone ){ badplanes++; skiphit += (*(_planeIt-iC1)); }
-	}
-	iC1++;
-      } while ( iC1 < (int)(0.2*(double)_nplanes) && !fixed );
-      if ( !fixed ) { badplanes = 0; break; }
-    } else break;
+      _hitIt--;
+      _planeIt--;
+
+    }
   }
+  
+  //Maybe another which looks for kinks very early (backwards proton quasi?)
+  // for (_planeIt = _hitsPerPlane.end()-1;_planeIt>=_hitsPerPlane.begin()+_exclPlanes+min_check;_planeIt--, _hitIt--){
+//     if ( (*_planeIt) == 1 ){
+//       muontraj.add_measurement( *(*_hitIt) );
+//       (*_hitIt)->set_name(candHit, hit_in);
+//       //  } else if ( _planeIt == _hitsPerPlane.begin() ) {
+//       //       break;
+//     // } else if ( _planeIt == _hitsPerPlane.end()-1 && (*_planeIt) < 4 && (*(_planeIt-1)) == 1 ){
+// //       //Extra logic to avoid unneccessary use of call. auto. on high curve events.
+// //       use_mini_cellAuto( (*_planeIt), muontraj );
+      
+//     } else if ( (int)muontraj.nmeas() < min_seed_hits
+// 		&& _planeIt >= _hitsPerPlane.end()-(int)(0.2*(double)_nplanes) ){
+      
+//       int skiphit = (*_planeIt);
+//       badplanes = 1;
+      
+//       int goodplane, iC1 = badplanes, iC2;
+//       bool undone;
+      
+//       do {
+// 	if ( (*(_planeIt-iC1)) != 1 ) { badplanes++; skiphit += (*(_planeIt-iC1)); }
+// 	else {
+// 	  iC2 = 1; undone = false; goodplane = 1;
+// 	  while ( iC2 < min_seed_hits && !undone ){
+// 	    if ( (*(_planeIt-iC1-iC2)) == 1 ) goodplane++;
+// 	    else undone = true;
+// 	    iC2++;
+// 	  }
+// 	  if ( goodplane == min_seed_hits ){//-(int)muontraj.nmeas() ){
+// 	    fixed = true;
+// 	    vector<cluster*>::iterator currentIt = _hitIt;
+      
+// 	    if ( (int)muontraj.nmeas() < min_seed_hits-2 && muontraj.nmeas() != 0 ){
+// 	      for (int irem=1;irem<=(int)muontraj.nmeas();irem++){
+// 		(*(_hitIt+irem))->set_name(candHit,not_in);
+// 		(*(_hitIt+irem))->set_name(skipped,hit_in);}
+// 	      muontraj.reset();
+// 	    }
+// 	    while ( _hitIt > currentIt-skiphit+1 ){
+	      
+// 	      (*_hitIt)->set_name(skipped,hit_in);
+// 	      _hitIt--;
+// 	    }
+// 	    // for (int ifix=0;ifix<=iC1-1;ifix++)
+// // 	      if ( ifix == iC1-1 ) _hitIt -= (*(_planeIt-ifix))-1;
+// // 	      else _hitIt -= (*(_planeIt-ifix));
+// 	    _planeIt -= iC1-1;
+	    
+// 	  } else if ( undone ){ badplanes++; skiphit += (*(_planeIt-iC1)); }
+// 	}
+// 	iC1++;
+//       } while ( iC1 < (int)(0.2*(double)_nplanes) && !fixed );
+//       if ( !fixed ) { badplanes = 0; break; }
+//     } else break;
+//   }
   
   _lastIso = (int)muontraj.nmeas();
   
@@ -425,7 +533,9 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   //Momentum. Estimate from empirical extent function.
   if ( hits.size() != 0 ){
 
-    Xtent = hits[hits.size()-1]->position()[2]
+    // Xtent = hits[hits.size()-1]->position()[2]
+//       - hits[_vertGuess]->position()[2];
+    Xtent = hits[_endLongSing]->position()[2]
       - hits[_vertGuess]->position()[2];
 
   } else {
@@ -439,7 +549,9 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   double pSeed = (9180-6610*FeWeight) + (-2.76+4.01*FeWeight)*Xtent; //best for 3/2 seg
   // double pSeed = 574 + 0.66*Xtent;//test for 1/2 seg
   set_de_dx( pSeed/GeV );
-
+  //Use slope in bending plane to try and get correct sign for momentum seed.
+  pSeed *= -fabs(V[3])/V[3];//Pos. gradient in X is ~negative curvature.
+  
   V[5] = 1./pSeed;
 
   //Errors
@@ -475,7 +587,7 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   int fitcatcher;
   size_t nMeas = track.nmeas();
 
-  if (nMeas > 3) nMeas = 3;
+  if (nMeas > 4) nMeas = 4;
 
   double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas];
 
@@ -567,8 +679,6 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
 	  const dict::Key hit_in = "True";
 	  (*(_hitIt+iFil+1))->set_name(candHit, hit_in);
 
-	  // if ( (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu+")==0 ||
-// 	       (*(_hitIt+iFil+1))->name("MotherParticle").compare("mu-")==0 )
 	  if ( (*(_hitIt+iFil+1))->get_mu_prop() > 0.8 )
 	    _recChi[0] = TMath::Max(Chi2[iFil], _recChi[0]);
 	  else
@@ -591,8 +701,9 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
     }
 
     _planeIt--;
-
+    
     if ( nConsecHole > max_consec_missed_planes ) {
+      if ( _endProj ) check_forwards( seed, hits, muontraj );
       if ( muontraj.nmeas() < min_plane_prop*(double)(_nplanes-badplanes) ){
 	_failType = 6;
 	return false;
@@ -603,8 +714,67 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
     }
 
   }
+
+  if ( _endProj ) check_forwards( seed, hits, muontraj );
   
   return true;
+}
+
+//***********************************************************************
+void event_classif::check_forwards(const State& seed, vector<cluster*>& hits,
+				   Trajectory& muontraj)
+//***********************************************************************
+{
+  //Those not in 'blob' class get checked if there are any more hits
+  //that can be added to the trajectory.
+  //Reset the iterator positions.
+  _hitIt = hits.begin() + _endLongSing + 1;
+  _planeIt = _hitsPerPlane.begin() + _endLongPlane + 1;
+  
+  bool ok;
+  int counter = 0;
+  long ChiMin;
+  double chi2[2];
+  const dict::Key candHit = "inMu";
+  const dict::Key hit_in = "True";
+  const dict::Key skipped = "skipped";
+  
+  while ( (*_planeIt) == 2 && _planeIt != _hitsPerPlane.end() ){
+
+    for (int j=0;j<2;j++){
+      
+      ok = man().matching_svc().match_trajectory_measurement(muontraj, (*(*_hitIt)), chi2[j]);
+      _hitIt++;
+
+    }
+    
+    ChiMin = TMath::LocMin( 2, chi2);
+
+    if ( ChiMin == 0 ){
+      ok = man().fitting_svc().filter(*(*(_hitIt-2)), seed, muontraj);
+      if ( !ok ) (*(_hitIt-2))->set_name(skipped,hit_in);
+      else (*(_hitIt-2))->set_name(candHit, hit_in);
+      (*(_hitIt-1))->set_name(skipped,hit_in);
+    } else {
+      ok = man().fitting_svc().filter(*(*(_hitIt-1)), seed, muontraj);
+      if ( !ok ) (*(_hitIt-1))->set_name(skipped,hit_in);
+      else (*(_hitIt-1))->set_name(candHit, hit_in);
+      (*(_hitIt-2))->set_name(skipped,hit_in);
+    }
+    _planeIt++;
+  }
+  
+  while ( _hitIt != hits.end() ){
+    (*_hitIt)->set_name(skipped,hit_in);
+    _hitIt++;
+  }
+  
+  while ( _planeIt != _hitsPerPlane.end() ){
+    counter++;
+    _planeIt++;
+  }
+  badplanes = counter;
+  
 }
 
 //***********************************************************************
@@ -628,18 +798,20 @@ bool event_classif::invoke_cell_auto(vector<cluster*>& hits,
   ok = man().matching_svc().find_trajectories( hit_meas, trajs );
   
   if ( !ok || trajs.size() == 0) return false;
-   
+  
   // output_results_tree( hits, trajs );
   
   if ( trajs.size() == 1 ) {
-  
-    muontraj.reset();
-
-    muontraj = *trajs[0];
-
-    sort_hits( hits, muontraj, hads);
-
-    ok = true;
+    
+    if ( trajs[0]->nmeas() >= min_hits ){
+      muontraj.reset();
+      
+      muontraj = *trajs[0];
+      
+      sort_hits( hits, muontraj, hads);
+      
+      ok = true;
+    } else ok = false;
 
   } else {
 
@@ -766,7 +938,7 @@ bool event_classif::sort_trajs(Trajectory& muontraj, vector<Trajectory*>& trajs)
 
       if ( ok ){
 	if ( trajs3.size() == 1 ){
-  
+	  
 	  muontraj.reset();
       
 	  muontraj = *trajs3[0];

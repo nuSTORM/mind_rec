@@ -49,6 +49,7 @@ public:
   //
   
   bool get_plane_occupancy(vector<cluster*>& hits);
+  void assess_event(vector<cluster*>& hits);
   
   //Tempory for likelihoods.
   void set_int_type(const string name);
@@ -72,6 +73,8 @@ protected:
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, vector<cluster*>& hits,
 			       Trajectory& muontraj, vector<cluster*>& hads);
+  void check_forwards(const State& seed, vector<cluster*>& hits,
+		      Trajectory& muontraj);
   void use_mini_cellAuto(const int occ, Trajectory& muontraj);
   //specific functions using cellular automaton.
   bool invoke_cell_auto(vector<cluster*>& hits,
@@ -101,6 +104,7 @@ protected:
   vector<double> _energyPerPlane;
   vector<double> _planeZ;
   double _tolerance; //required 'closeness' to be considered in plane.
+  double _voxEdge; //Voxel edge size to check for badly reconstructed points at end.
   
   //integer for type candidate (NC etc.)
   int _intType;
@@ -112,6 +116,12 @@ protected:
   int _vertGuess;
   int _exclPlanes;
   int badplanes;
+  int _longestSingle;//length (in hits) of longest 'free' section.
+  int _endLongSing;//End point of the above (position in hit vector).
+  int _endLongPlane;//Plane position of above;
+  double _maxBlobSkip;//max proportion of planes for basic skip.
+  double _minBlobOcc;
+  bool _endProj;//bit to tell if a forwards projection is needed
   
   //Monitoring variables.
   int _failType;

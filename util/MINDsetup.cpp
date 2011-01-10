@@ -1,5 +1,6 @@
 #include <MINDsetup.h>
 #include <recpack/string_tools.h>
+#include <recpack/dictionary.h>
 
 
 //*************************************************************
@@ -43,6 +44,14 @@ void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
     // add properties to volumes and surfaces
 
     addProperties();
+
+    // std::cout << _gsetup.volume("Detector").parameter("BField") << std::endl;
+    // dict::mixdictionary smell = _gsetup.volume_properties("IRON_plane0");
+    
+    // const double XX = _gsetup.volume_properties("IRON_plane0").retrieve(thing_name);
+    // std::cout << _gsetup.volume_properties("IRON_plane0").retrieve(thing_name) << std::endl;
+
+//     std::cout << _gsetup << std::endl;
     
     _msetup.message("++ Setup has been generated !! ++",bhep::VERBOSE);
 
@@ -57,7 +66,6 @@ Setup& MINDsetup::setup() {
     return _gsetup;
 
 }
-
 
 //*************************************************************
 void MINDsetup::createGeom(){
@@ -87,29 +95,27 @@ void MINDsetup::createGeom(){
   _msetup.message("Mother added to setup",bhep::VERBOSE);
 
   // Create detector volume
-  
-  pos[2]=0;
 
   const dict::Key vol_name = "Detector";
   
   Volume* det = new Box(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2);
-    
+  
   _msetup.message("MIND volume generated",bhep::VERBOSE);
 
   // add volume
 
   _gsetup.add_volume("mother",vol_name,det);
-   
+  // _gsetup.set_volume_property(vol_name,"X0",X0AIR);
   //Introduce IRON scintillator sandwiches.
   // int nplanes = (int)( MIND_z / (IRON_z + nScint * SCINT_z) );
 
-//   for (int iplane = 0;iplane < nplanes;iplane++) {
+  // for (int iplane = 0;iplane < _npieces;iplane++) {
 
-//     add_slab(iplane, "mother");
+//     add_slab(iplane, vol_name);
 
 //   }
 
-  //std::cout << _gsetup << std::endl;
+  
 
 }
 
@@ -117,32 +123,62 @@ void MINDsetup::createGeom(){
 void MINDsetup::add_slab(int plane, const dict::Key det_vol){
 //*************************************************************
 
-  EVector plane_pos(3,0);
+  // EVector plane_pos(3,0);
   //Names for particular sections
-  const dict::Key iron_name = "IRON_plane"+bhep::to_string(plane);
   
   //Define positions
-  double slab_width = IRON_z + nScint * SCINT_z;
+  // double slab_width = IRON_z + nScint * SCINT_z;
   double mind_front = -MIND_z/2;
 
-  //Scintillator.
-  plane_pos[2] = mind_front + slab_width * plane + IRON_z + SCINT_z/2;
-  const dict::Key scint_name = "SCINT_plane"+bhep::to_string(plane_pos[2]);
-
-  Volume* Sc_slab = new Box(plane_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,SCINT_z/2);
-
-  _gsetup.add_volume(det_vol,scint_name,Sc_slab);
-
-  _gsetup.set_volume_property(scint_name,"X0",X0Sc);
-  
   //IRON
-  plane_pos[2] = mind_front + slab_width * plane + IRON_z/2;
+  EVector fe_pos(3,0);
+  const dict::Key iron_name = "IRON_plane"+bhep::to_string(plane);
 
-  Volume* Fe_slab = new Box(plane_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,IRON_z/2);
+  fe_pos[2] = mind_front + plane*_pieceWidth + IRON_z/2;
+
+  Volume* Fe_slab = new Box(fe_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,IRON_z/2);
 
   _gsetup.add_volume(det_vol,iron_name,Fe_slab);
 
   _gsetup.set_volume_property(iron_name,"X0",X0Fe);
+
+  //SCINT
+  EVector scint_pos(3,0);
+  Volume *Sc_slab[nScint];
+  for (int iscint = 0;iscint < nScint;iscint++){
+   
+    const dict::Key scint_name =
+      "SCINT_plane"+bhep::to_string(plane)+"_"+bhep::to_string(iscint);
+
+    scint_pos[2] = mind_front + plane*_pieceWidth + IRON_z
+      + (iscint+1)*AIR_z + SCINT_z/2;
+
+    Sc_slab[iscint] = new Box(scint_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,SCINT_z/2);
+
+    _gsetup.add_volume(det_vol,scint_name,Sc_slab[iscint]);
+
+    _gsetup.set_volume_property(scint_name,"X0",X0Sc);
+
+  }
+
+  //Scintillator.
+  // plane_pos[2] = mind_front + _pieceWidth * plane + IRON_z + SCINT_z/2;
+//   const dict::Key scint_name = "SCINT_plane"+bhep::to_string(plane_pos[2]);
+
+//   Volume* Sc_slab = new Box(plane_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,SCINT_z/2);
+
+//   _gsetup.add_volume(det_vol,scint_name,Sc_slab);
+
+//   _gsetup.set_volume_property(scint_name,"X0",X0Sc);
+  
+//   //IRON
+//   plane_pos[2] = mind_front + slab_width * plane + IRON_z/2;
+
+//   Volume* Fe_slab = new Box(plane_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,IRON_z/2);
+
+//   _gsetup.add_volume(det_vol,iron_name,Fe_slab);
+
+//   _gsetup.set_volume_property(iron_name,"X0",X0Fe);
   
 }
 
@@ -186,21 +222,29 @@ void MINDsetup::addProperties(){
   _zaxis[2]=1;
 
   // _gsetup.set_volume_property("mother","BField",BField);
-  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
+  const dict::Key vol_name = "Detector";
+  //  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
 
   _gsetup.set_volume_property_to_sons("mother","BField",BField);
   _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
   _gsetup.set_volume_property_to_sons("mother",RP::SurfNormal,_zaxis);
+  // _gsetup.set_volume_property_to_sons(vol_name,"BField",BField);
+//   _gsetup.set_volume_property_to_sons(vol_name,"de_dx",de_dx);
+  // _gsetup.set_volume_property_to_sons(vol_name,RP::SurfNormal,_zaxis);
+
+  // const dict::Key vol_name = "Detector";
+  // _gsetup.set_volume_property("mother","X0",X0AIR);
+  // _gsetup.set_volume_property(vol_name,"X0",X0AIR);
     
-  const dict::Key vol_name = "Detector";
-//   _gsetup.set_volume_property(vol_name,"BField",BField);
+  // const dict::Key vol_name = "Detector";
+  _gsetup.set_volume_property(vol_name,"BField",BField);
   _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
   
   _gsetup.set_volume_property(vol_name,"X0",X0Eff);
-  _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
+//   _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
 
-  // _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
-  _msetup.message("+++de/dx added to MIND:",de_dx,bhep::VERBOSE);
+//   // _gsetup.set_volume_property(vol_name,"de_dx",de_dx);
+//   _msetup.message("+++de/dx added to MIND:",de_dx,bhep::VERBOSE);
   
  
 }
@@ -236,10 +280,10 @@ void MINDsetup::readParam(){
     AIR_z = _pstore.fetch_dstore("widthA") * cm;
     nScint = _pstore.fetch_istore("nplane");
 
-    //Adjust length for interger number of pieces.
-    double piece = IRON_z + nScint*SCINT_z + (nScint+1)*AIR_z;
-    int npieces = (int)ceil( MIND_z / piece );
-    MIND_z = npieces * piece;
+    //Adjust length for integer number of pieces.
+    _pieceWidth = IRON_z + nScint*SCINT_z + (nScint+1)*AIR_z;
+    _npieces = (int)ceil( MIND_z / _pieceWidth );
+    MIND_z = _npieces * _pieceWidth;
     rel_denSI = _pstore.fetch_dstore("rel_denSI");
     rel_denAS = _pstore.fetch_dstore("rel_denAS");
 
@@ -273,6 +317,7 @@ void MINDsetup::readParam(){
     double wSc = SCINT_z / (SCINT_z + AIR_z*(nScint+1)*rel_denAS);
     double X01 = (X0Sc*X0AIR) / (wSc*(X0AIR-X0Sc) + X0Sc);
     _wFe = IRON_z/(IRON_z + ((SCINT_z+AIR_z)*nScint+AIR_z)*rel_denSI*(wSc*(1-rel_denAS)+rel_denAS));
+    // _wFe = IRON_z/(IRON_z + rel_denSI*(SCINT_z+rel_denAS*AIR_z));
 
     X0Eff = 1./(_wFe/X0Fe + wSc/X01);
 

@@ -46,6 +46,7 @@ protected:
   void readParam();
   void createGeom();
   void add_slab(int plane, const dict::Key det_vol);
+  // void add_slab(int plane, Volume& det_vol);
   void setResolution();
   void addProperties();
   
@@ -72,6 +73,8 @@ protected:
   double IRON_z, SCINT_z, AIR_z;
   double rel_denAS, rel_denSI;//AIR/Scint, Scint/Fe.
   int nScint;
+  int _npieces;
+  double _pieceWidth;
 
   // -------------------------------------------------------------//
   //                         |  PHYSICS |                         //

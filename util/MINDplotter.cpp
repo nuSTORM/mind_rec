@@ -48,8 +48,20 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   _evNo = evt.event_number();
   bhep::Point3D evVert = evt.vertex();
   _vert[0] = evVert.x(); _vert[1] = evVert.y(); _vert[2] = evVert.z();
-  if (_clu)
+  if (_clu){
     get_tru_int_type( evt );
+    if ( evt.find_iproperty("Charm") )
+      _charm[0] = evt.fetch_iproperty("Charm");
+    else _charm[0] = 0;
+    if ( evt.find_iproperty("CharmHad") )
+      _charm[1] = evt.fetch_iproperty("CharmHad");
+    else _charm[1] = 0;
+    if ( evt.find_dproperty("Q2") )
+      _Q2 = evt.fetch_dproperty("Q2");
+    else _Q2 = 0.;
+    if ( evt.find_dproperty("EngTrans") )
+      _engTrans = evt.fetch_dproperty("EngTrans");
+  }
   
   _Fit = success;
   _fail = Fit.get_fail_type();
@@ -66,11 +78,15 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   
   for (int i = 0;i<5;i++){
     _hitType[i] = 0;
+    // if ( i < 4 ) { _chadP[i] = 0.; _nhadP[i] = 0.; }
+//     //else _hadE[0] = 0.;
     if ( i < 3 ) _hadP[i] = 0.;
     else _hadE[0] = 0.;
   }
   _engTraj = 0;
   _hadE[1] = 0;
+  // _nhad[0] = 0;
+//   _nhad[1] = 0;
 
   if ( _clu )
     ok1 = extract_true_particle2(evt, Fit);
@@ -139,21 +155,21 @@ void MINDplotter::get_tru_int_type(const bhep::event& evt){
   
   string intName = evt.fetch_sproperty("IntType");
 
-  if ( intName=="CCQE" )
+  if ( intName=="CCQE" || intName=="<QES - Weak[CC]>" )
     _truInt = 1;
-  else if ( intName=="NCQE" )
+  else if ( intName=="NCQE" || intName=="<QES - Weak[NC]>" )
     _truInt = 2;
-  else if ( intName=="CCDIS" )
+  else if ( intName=="CCDIS" || intName=="<DIS - Weak[CC]>" )
     _truInt = 3;
-  else if ( intName=="NCDIS" )
+  else if ( intName=="NCDIS" || intName=="<DIS - Weak[NC]>" )
     _truInt = 4;
   else if ( intName=="1piRes" )
     _truInt = 5;
-  else if ( intName=="miscRes" )
+  else if ( intName=="miscRes" || intName=="<RES - Weak[CC]>" || intName=="<RES - Weak[NC]>" )
     _truInt = 6;
-  else if ( intName=="eEl" )
+  else if ( intName=="eEl" || intName=="<NuEEL - Weak[NC]>" || intName=="<NuEEL - Weak[CC]>" )
     _truInt = 7;
-  else if ( intName=="muINVe" )
+  else if ( intName=="muINVe" || intName=="<IMD - Weak[CC]>" )
     _truInt = 7;
   else
     _truInt = 8;
@@ -186,6 +202,10 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Fail", &_fail, "FailType/I");
   statTree->Branch("interaction",&_intType,"Inter/I");
   statTree->Branch("NeuEng", &_nuEng, "NuEng/D");
+  if (_clu) {
+    statTree->Branch("Charm", &_charm, "isCharm/I:pdg/I");
+    statTree->Branch("InteractionQ2", &_Q2, "Q2/D");
+  }
   statTree->Branch("visibleEng", &_visEng, "visEng/D");
   statTree->Branch("visEngTraj",&_engTraj, "engTraj/D");
   statTree->Branch("trajEngVar",&_engvar,"meanDep/D:engVar/D");
@@ -196,7 +216,11 @@ void MINDplotter::define_tree_branches() {
   //statTree->Branch("length", &_leng,"lenTraj/D");
   //statTree->Branch("RangeMomentum", &_rangP,"rangP/D:rangErr/D");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
+  statTree->Branch("NChadnNhad", &_nhad, "nChad/I:nNhad/I");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
+  statTree->Branch("EnergyTransfer", &_engTrans, "nu/D");
+  statTree->Branch("ChadMom", &_chadP, "chadP[4]/D");
+  statTree->Branch("NhadMom", &_nhadP, "nhadP[4]/D");
   statTree->Branch("hadEng", &_hadE, "truE/D:recE/D");
   //statTree->Branch("hadDir", &_haddot, "dotProd/D");
   statTree->Branch("NoPlanes", &_plns, "nplanes/I:freeplanes/I");
@@ -311,6 +335,8 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
 
   //_nuEng = atof( evt.fetch_property("Enu").c_str() ) * GeV;
   _nuEng = evt.fetch_dproperty("nuEnergy") * MeV;
+  // for (int jj=0;jj<4;jj++)
+//     _hadP[jj] = 0.;
 
   const vector<bhep::particle*> Pospart = evt.true_particles();
 
@@ -330,8 +356,8 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
       _hadP[0] = Pospart[iParts]->px();
       _hadP[1] = Pospart[iParts]->py();
       _hadP[2] = Pospart[iParts]->pz();
-      //_hadE[0] = atof( Pospart[iParts]->fetch_property("HadE").c_str() ) * GeV;
-      _hadE[0] = Pospart[iParts]->fetch_dproperty("HadE") * GeV;
+      _hadE[0] = atof( Pospart[iParts]->fetch_property("HadE").c_str() ) * GeV;
+      // _hadP[3] = Pospart[iParts]->fetch_dproperty("HadE") * GeV;
     }
   }
   //STUFF ABOVE FOR REDESIGN.!!!!!
@@ -380,29 +406,48 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
 
   int count = 0;
   for (int iParts=(int)Pospart.size()-1;iParts >= 0;iParts--){
-
-    if ( Pospart[iParts]->name() == "mu+" &&
-	 Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
-	 evt.fetch_iproperty("nuType") == -14 && count == 0 && !primNu ){
-      _Q[0] = 1;
-      _truPart = Pospart[iParts];
-      count++;
-    } else if ( Pospart[iParts]->name() == "mu-" &&
-		Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
-		evt.fetch_iproperty("nuType") == 14 && count == 0 && !primNu ){
-      _Q[0] = -1;
-      _truPart = Pospart[iParts];
-      count++;
-    } else if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" ){
-
-      if ( Pospart[iParts]->name() == "nu_e" || Pospart[iParts]->name() == "anti_nu_e"
-		|| Pospart[iParts]->name() == "nu_mu" || Pospart[iParts]->name() == "anti_nu_mu" ){
-	if ( !primNu ) primNu = true;
-	else add_to_hads( *Pospart[iParts] );
-      } else add_to_hads( *Pospart[iParts] );
+    
+    if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
+	 Pospart[iParts]->find_sproperty("PrimaryLepton") ){
       
-    }
+      if ( Pospart[iParts]->name() == "mu+" ){
+	_truPart = Pospart[iParts];
+	_Q[0] = 1;
+	count++;
+      } else if ( Pospart[iParts]->name() == "mu-" ){
+	_truPart = Pospart[iParts];
+	_Q[0] = -1;
+	count++;
+      }
+    } else if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
+		!Pospart[iParts]->find_sproperty("PrimaryLepton") )
+      add_to_hads( *Pospart[iParts] );
+    // if ( Pospart[iParts]->name() == "mu+" &&
+// 	 Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
+// 	 evt.fetch_iproperty("nuType") == -14 && count == 0 && !primNu ){
+//       _Q[0] = 1;
+//       _truPart = Pospart[iParts];
+//       count++;
+//     } else if ( Pospart[iParts]->name() == "mu-" &&
+// 		Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" &&
+// 		evt.fetch_iproperty("nuType") == 14 && count == 0 && !primNu ){
+//       _Q[0] = -1;
+//       _truPart = Pospart[iParts];
+//       count++;
+//     } else if ( Pospart[iParts]->fetch_sproperty("CreatorProcess") == "none" ){
+
+//       if ( Pospart[iParts]->name() == "nu_e" || Pospart[iParts]->name() == "anti_nu_e"
+// 		|| Pospart[iParts]->name() == "nu_mu" || Pospart[iParts]->name() == "anti_nu_mu" ){
+// 	if ( !primNu ) primNu = true;
+// 	else add_to_hads( *Pospart[iParts] );
+//       } else add_to_hads( *Pospart[iParts] );
+      
+//     }
   }
+
+  std::vector<double> hadInf = evt.fetch_dvproperty("had4vec");
+  for (int itn = 0;itn < 4;itn++)
+    _hadP[itn] = hadInf[itn];
 
   _nhits = Fit.get_nMeas();
   for (int iHits = 0;iHits < _nhits;iHits++){
@@ -439,11 +484,26 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
 
 void MINDplotter::add_to_hads(const bhep::particle& part){
 
-  _hadP[0] += part.px();
-  _hadP[1] += part.py();
-  _hadP[2] += part.pz();
+  if ( part.charge() != 0 ){
+    _chadP[0] += part.px();
+    _chadP[1] += part.py();
+    _chadP[2] += part.pz();
+    _chadP[3] += part.e();
+    
+    _nhad[0]++;
+  } else {
+    _nhadP[0] += part.px();
+    _nhadP[1] += part.py();
+    _nhadP[2] += part.pz();
+    _nhadP[3] += part.e();
+    
+    _nhad[1]++;
+  }
+  // _hadP[0] += part.px();
+//   _hadP[1] += part.py();
+//   _hadP[2] += part.pz();
 
-  _hadE[0] += part.e();
+//   _hadE[0] += part.e();
 
 }
 

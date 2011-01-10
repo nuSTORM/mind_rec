@@ -82,10 +82,17 @@ private:
   int _intType;
   double _vert[3];
   double _nuEng;
+  int _charm[2];
+  double _Q2;
   double _visEng;
   double _engTraj;
   double _engvar[2];
+  //Information on hadrons.
   double _hadP[3];
+  double _engTrans;
+  int _nhad[2];
+  double _chadP[4];
+  double _nhadP[4];
   double _hadE[2];
   //double _haddot;
   double _X[3][2];

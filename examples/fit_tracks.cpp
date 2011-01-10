@@ -91,7 +91,7 @@ int main(int argc, char* argv[]){
     while ( !inDst.eof(i) && evt_read < nevents ) {
       
       // if (i%100==0) cout<< "Number of events read "<<evt_read<<endl;
-      
+      cout << "Event: " << i << endl;
       bhep::event& e = inDst.read_event( i );
       if ( e.find_sproperty("IntType") ){//Protects against corrupt events 
 	//caused by G4_out being spread over more than one file.

@@ -550,7 +550,12 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   // double pSeed = 574 + 0.66*Xtent;//test for 1/2 seg
   set_de_dx( pSeed/GeV );
   //Use slope in bending plane to try and get correct sign for momentum seed.
-  pSeed *= -fabs(V[3])/V[3];//Pos. gradient in X is ~negative curvature.
+  // pSeed *= -fabs(V[3])/V[3];//Pos. gradient in X is ~negative curvature.
+  // Assume that the R-Z plane is the bending plane for the toroidal field
+  double VRad = (V[3]*V[0] + V[4]*V[1])/sqrt(V[0] * V[0] + V[1] * V[1]);
+  if( VRad != 0 ) 
+    pSeed *= -fabs(VRad)/VRad;
+
   
   V[5] = 1./pSeed;
 
@@ -590,17 +595,29 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   if (nMeas > 4) nMeas = 4;
 
   double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas];
+  int minindex = nMeas;
+  double minR = 99999.999, pdR = 0.0;
 
   for (int iMeas = nMeas-1;iMeas >= 0;iMeas--){
 
     x[iMeas] = track.nodes()[iMeas]->measurement().vector()[0];
     y[iMeas] = track.nodes()[iMeas]->measurement().vector()[1];
     z[iMeas] = track.nodes()[iMeas]->measurement().position()[2];
-
+    double R = sqrt(x[iMeas]*x[iMeas] + y[iMeas]*y[iMeas]);
+    double dR = sqrt(x[iMeas+1]*x[iMeas+1] + y[iMeas+1]*y[iMeas+1]);
+    if(pdR != 0)
+      if(// minR < R && dR/fabs(dR) == -pdR/fabs(pdR) && 
+	 (x[iMeas]/fabs(x[iMeas]) != x[iMeas+1]/fabs(x[iMeas+1]) ||
+	  y[iMeas]/fabs(y[iMeas]) != y[iMeas+1]/fabs(y[iMeas+1]))){ 
+	// Sign change and minimum momentum
+	minR = R;
+	minindex = iMeas;
+      }
+    pdR = dR;
   }
   
-  TGraph *gr1 = new TGraph((const int)nMeas, z, x);
-  TGraph *gr2 = new TGraph((const int)nMeas, z, y);
+  TGraph *gr1 = new TGraph((const int)minindex, z, x);
+  TGraph *gr2 = new TGraph((const int)minindex, z, y);
 
   TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
   fun->SetParameters(0.,0.001);

@@ -149,7 +149,7 @@ RUN likeli I 0
 
 ###  data to read ###
 DATA idst_files SV 1
-../digi_out/muCC/muCC_0_digi.dst.root
+../digi_out/muCC/muCC_0_digi.dst_1.root
 # ../digi_out/mubarCC/muCC_0_digi.dst.root
 # ../digi_out/mubarCC/muCC_0_digi.dst_1.root
 # ../digi_out/mubarCC/muCC_0_digi.dst_2.root

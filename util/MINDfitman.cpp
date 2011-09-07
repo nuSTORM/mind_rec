@@ -126,7 +126,7 @@ void MINDfitman::config_navigator()
   _man.navigation_svc().navigator(_model)
     .master_inspector().set_verbosity(l1);
 
-  _man.navigation_svc().inspector("BField")
+  _man.navigation_svc().inspector("BFieldMap")
     .set_verbosity(l1);
 
   _man.navigation_svc().inspector("eloss")

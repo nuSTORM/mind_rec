@@ -84,6 +84,7 @@ private:
   double _nuEng;
   int _charm[2];
   double _Q2;
+  int _pdg[3];
   double _visEng;
   double _engTraj;
   double _engvar[2];
@@ -98,8 +99,8 @@ private:
   double _X[3][2];
   double _Th[3][2];
   double _qP[3];
-  //double _leng;
-  //double _rangP[2];
+  double _leng;
+  double _rangqP[3];
   int _Q[3];
   double _Chi[2];
   int _plns[2];

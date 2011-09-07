@@ -2,10 +2,9 @@
 #ifndef _mind_setup___
 #define _mind_setup___
 
-//#include <recpack/RecpackManager.h>
-
+#include <recpack/RecpackManager.h>
 #include <mind/SetupSk.h>
-
+#include <mind/MINDfieldMapReader.h>
 
 //#include <string.h>
 
@@ -40,6 +39,7 @@ public:
   double get_Fe_prop(){return _wFe;}
   double& getDeDx(){return de_dx;}
   void setDeDx(double d){de_dx = d;}
+  EVector getBField(EVector pos){return BFieldMap.vector(pos);}
 
 protected:
     
@@ -70,6 +70,8 @@ protected:
   double MOTHER_x, MIND_x;
   double MOTHER_y, MIND_y;
   double MOTHER_z, MIND_z;
+  double MOTHER_earh, EAR_height;
+  double MOTHER_earw, EAR_width;
   double IRON_z, SCINT_z, AIR_z;
   double rel_denAS, rel_denSI;//AIR/Scint, Scint/Fe.
   int nScint;
@@ -82,8 +84,9 @@ protected:
 
   //------------------------ MAGNETIC FIELD ----------------------//
     
-  //double B_int;
+  // double B_int;
   EVector BField;
+  MINDfieldMapReader BFieldMap;
    
   //-------------------------------------------------------------//
   
@@ -104,7 +107,7 @@ protected:
   EVector resolution;
   EMatrix cov;
   double resx,resy,resz;
-
+  double StepSize;
 
 
 };

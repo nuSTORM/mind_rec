@@ -60,6 +60,7 @@ public:
   cluster* getMeasurement(bhep::hit& hit);
   
   int getQ();
+  double GetInitialqP(){ return _initialqP; }
   //Tempory for likelihoods.
   void set_int_type(const string name){
     get_classifier().set_int_type( name ); }
@@ -89,6 +90,7 @@ protected:
   void computeSeed(int firsthit=0);
   void setSeed(EVector v, int firsthit=0);
   void mom_from_parabola(int nplanes, int firsthit, EVector& V);
+  void mom_from_range(int nplanes, int firsthit, EVector& V);
   void set_de_dx(double mom);
 
   //seed error
@@ -146,6 +148,7 @@ protected:
   
   State seedstate;   
   //EVector qoverp;
+  double _initialqP;
 
   string model;  // fit model
   //string kfitter; // kind of fit

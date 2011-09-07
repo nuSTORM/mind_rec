@@ -61,6 +61,15 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     else _Q2 = 0.;
     if ( evt.find_dproperty("EngTrans") )
       _engTrans = evt.fetch_dproperty("EngTrans");
+    if ( evt.find_iproperty("nuType") )
+      _pdg[0] = evt.fetch_iproperty("nuType");
+    else _pdg[0] = 0;
+    if ( evt.find_iproperty("intpart") )
+      _pdg[1] = evt.fetch_iproperty("intpart");
+    else _pdg[1] = 0;
+    if ( evt.find_iproperty("nucType") )
+      _pdg[2] = evt.fetch_iproperty("nucType");
+    else _pdg[2] = 0;
   }
   
   _Fit = success;
@@ -75,18 +84,19 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   if (_fail != 7)
     _intType = Fit.get_classifier().get_int_type();
   else _intType = 7;
-  
+  // Initializing the _hitType variable
   for (int i = 0;i<5;i++){
     _hitType[i] = 0;
     // if ( i < 4 ) { _chadP[i] = 0.; _nhadP[i] = 0.; }
 //     //else _hadE[0] = 0.;
+    // Also initialize the hadron momentum and energy 
     if ( i < 3 ) _hadP[i] = 0.;
     else _hadE[0] = 0.;
   }
   _engTraj = 0;
   _hadE[1] = 0;
   // _nhad[0] = 0;
-//   _nhad[1] = 0;
+  //   _nhad[1] = 0;
 
   if ( _clu )
     ok1 = extract_true_particle2(evt, Fit);
@@ -98,13 +108,16 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
     State ste;
     ok2 = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
     
-    //if (_reFit) _leng = -Fit.get_traj().length();
-    //else _leng = Fit.get_traj().length();
+    if (_reFit) _leng = -Fit.get_traj().length();
+    else _leng = Fit.get_traj().length();
     
     //if (_leng !=0) {
-    //Fit.calculate_len_mom( _leng, _rangP );
+    // Fit.calculate_len_mom( _leng, _rangP );
     //} else { _rangP[0] = 0; _rangP[1] = -99; }
     //_rangP[0] = 0; _rangP[1] = -99;
+    _rangqP[0] = Fit.GetInitialqP();
+    _rangqP[1] = _rangqP[0] - _qP[0];
+    _rangqP[2] = _qP[1] - _rangqP[0];
 
     if (ok2) {
       max_local_chi2( Fit.get_traj() );
@@ -205,6 +218,7 @@ void MINDplotter::define_tree_branches() {
   if (_clu) {
     statTree->Branch("Charm", &_charm, "isCharm/I:pdg/I");
     statTree->Branch("InteractionQ2", &_Q2, "Q2/D");
+    statTree->Branch("EventPdg",&_pdg, "initnu/I:partPDG/I:nucType/I");
   }
   statTree->Branch("visibleEng", &_visEng, "visEng/D");
   statTree->Branch("visEngTraj",&_engTraj, "engTraj/D");
@@ -213,8 +227,8 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
   statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
-  //statTree->Branch("length", &_leng,"lenTraj/D");
-  //statTree->Branch("RangeMomentum", &_rangP,"rangP/D:rangErr/D");
+  statTree->Branch("length", &_leng,"lenTraj/D");
+  statTree->Branch("RangeMomentum", &_rangqP,"rangqP/D:rangErr/D:recrangediff/D");
   statTree->Branch("FitChiInfo", &_Chi, "trajChi/D:MaxLoc/D");
   statTree->Branch("NChadnNhad", &_nhad, "nChad/I:nNhad/I");
   statTree->Branch("hadronMom", &_hadP, "hadP[3]/D");
@@ -446,6 +460,14 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
   }
 
   std::vector<double> hadInf = evt.fetch_dvproperty("had4vec");
+  /*  if ( evt.find_dvproperty("had4vec") )
+    hadInf = 
+  else {
+    hadInf.push_back(0.);
+    hadInf.push_back(0.);
+    hadInf.push_back(0.);
+    hadInf.push_back(0.);
+    }*/
   for (int itn = 0;itn < 4;itn++)
     _hadP[itn] = hadInf[itn];
 

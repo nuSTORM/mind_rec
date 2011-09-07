@@ -1,6 +1,6 @@
 
 #include <fitter.h>
-
+#include <CLHEP/Units/PhysicalConstants.h>
 #include <TMath.h>
 
 //*************************************************************
@@ -43,7 +43,7 @@ void fitter::initialize() {
   
   geom.init(store, level);
 
-  //Instanciate recpack manager.
+  //Instantiate recpack manager.
   MINDfitman::instance().set_man_parameters( store, geom.setup() );
   
   if (X0 == 0){
@@ -156,10 +156,11 @@ bool fitter::fitTrajectory(State seed) {
       
       //--------- refit using a new seed --------//	
       State newstate = _traj.state(_traj.first_fitted_node());
-      
+
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
       
+    
       set_de_dx( fabs(1./v[5])/GeV );
       
       EMatrix C = setSeedCov(C0,facRef);
@@ -427,7 +428,7 @@ bool fitter::recTrajectory(const bhep::particle& p) {
  
       for(size_t j=0; j< hits.size(); j++){
         	        
-	//---------- create measurament ---------------//
+	//---------- create measurement ---------------//
 	
 	cluster* mnt = getMeasurement(*hits[j]);
 	
@@ -547,6 +548,7 @@ cluster*  fitter::getMeasurement(bhep::hit& hit){
     meas_pos[1] = hit_pos[1];
     meas_pos[2] = bhit_pos[2];
     
+
     cluster* me = new cluster();
     me->set_name(meastype);
     me->set_hv(HyperVector(hit_pos,cov));
@@ -566,6 +568,7 @@ cluster*  fitter::getMeasurement(bhep::hit& hit){
     return me;
 
 }
+
 
 
 //*************************************************************
@@ -615,9 +618,12 @@ void fitter::setSeed(EVector r, int firsthit){
   v[0]=r[0];
   v[1]=r[1];
   v[2]=r[2];
-
-  mom_from_parabola( (int)_traj.nmeas(), firsthit, v);
   
+  mom_from_range( (int)_traj.nmeas(), firsthit, v);
+  // 
+  
+  std::cout<<"Momentum guess from range: p/q = "<<1./v[5]<<std::endl;
+
   double pSeed;
   double wFe = geom.get_Fe_prop();
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
@@ -643,6 +649,7 @@ void fitter::setSeed(EVector r, int firsthit){
   v2[0] = 1;
   seedstate.set_hv(RP::sense,HyperVector(v2,C2));
   seedstate.set_hv(HyperVector(v,C));
+  
 
 }
 
@@ -681,15 +688,35 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
   const int fitpoints = nplanes - firsthit;
   
   double xpos[fitpoints], ypos[fitpoints], zpos[fitpoints];
-  
-  for (int ipoint=firsthit;ipoint < nplanes;ipoint++){
-    
-    xpos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[0];
-    ypos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[1];
-    zpos[ipoint-firsthit] = _traj.measurement(ipoint).position()[2]
-      - _traj.measurement(firsthit).position()[2];
+  double upos[fitpoints], vpos[fitpoints];
 
-  }
+  int pos = 0;
+
+  EVector currentpos = EVector(3,0);
+  EVector currentB   = EVector(3,0);
+  EVector z = EVector(3,0);
+  z[2] = 1;
+  double Bmean=0;
+  for( int ipoint=firsthit; ipoint < nplanes; ipoint ++ )
+    {
+      xpos[pos] = _traj.measurement(ipoint).vector()[0];
+      ypos[pos] = _traj.measurement(ipoint).vector()[1];
+      zpos[pos] = _traj.measurement(ipoint).position()[2]
+	- _traj.measurement(firsthit).position()[2];
+      currentpos[0] = _traj.measurement(ipoint).vector()[0];
+      currentpos[1] = _traj.measurement(ipoint).vector()[1];
+      currentpos[2] = 0.;
+      currentB = geom.getBField(currentpos);
+      upos[pos] = xpos[pos] > 0 ? asin(ypos[pos]/currentpos.norm())
+	: -asin(ypos[pos]/currentpos.norm());
+      vpos[pos] = dot(currentpos,crossprod(z,currentB))/currentB.norm();
+      Bmean += currentB.norm();
+      ++pos;
+    }
+  Bmean /= pos;
+  Bmean /= tesla;
+  
+
   if (fitpoints <= 15) { nfit = 1; fitRange[0] = fitpoints;}
   else if (fitpoints <= 40) { 
     nfit = 2;
@@ -702,6 +729,8 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
   for (int ifit = 0;ifit < nfit;ifit++) {
     TGraph *trajFitXZ = new TGraph(fitRange[ifit],zpos, xpos);
     TGraph *trajFitYZ = new TGraph(fitRange[ifit],zpos, ypos);
+    TGraph *trajFitUZ = new TGraph(fitRange[ifit],zpos, upos);
+    TGraph *trajFitVZ = new TGraph(fitRange[ifit],zpos, vpos);
     
     TF1 *func = new TF1("fit",fitf2,-3,3,3);
     func->SetParameters(0.,0.,0.001,0.0001,0.0001);
@@ -711,35 +740,215 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
     func2->SetParameters(0.,0.,0.001,0.0001,0.0001);
     func2->SetParNames("f", "g", "h", "i", "j");
 
+    TF1 *func3 = new TF1("fit3",fitf2,-3,3,3);
+    func->SetParameters(0.,0.,0.001,0.0001,0.0001);
+    func->SetParNames("a1", "b1", "c1", "d1", "e1");
+    
+    TF1 *func4 = new TF1("fit4",fitf2,-3,3,3);
+    func2->SetParameters(0.,0.,0.001,0.0001,0.0001);
+    func2->SetParNames("f1", "g1", "h1", "i1", "j1");
+
     fitcatch = trajFitXZ->Fit("fit", "QN");
     fitcatch = trajFitYZ->Fit("fit2", "QN");
+    fitcatch = trajFitUZ->Fit("fit3", "QN");
+    fitcatch = trajFitVZ->Fit("fit4", "QN");
+    double a = func->GetParameter(0);
     double b = func->GetParameter(1);
     double c = func->GetParameter(2);  
-
+    double f = func2->GetParameter(0);
+    double g = func2->GetParameter(1);
+    double h = func2->GetParameter(2);  
+    double a1 = func3->GetParameter(0);
+    double b1 = func3->GetParameter(1);
+    double c1 = func3->GetParameter(2);  
+    double f1 = func4->GetParameter(0);
+    double g1 = func4->GetParameter(1);
+    double h1 = func4->GetParameter(2);  
+        
     if (ifit == 0) {
 
-      V[4] = func2->GetParameter(1);
+      V[4] = g;   //func2->GetParameter(1);
       V[3] = b;
-      
-      if (c!=0) {
-	V[5] = 1/(-0.3*1.*pow((1+b*b),3./2.)/(2*c)*0.01 * GeV);
+
+      if (h1!=0) {
+	V[5] = 1./(-0.3*Bmean*pow((1+g1*g1),3./2.)/
+		   (2*h1)*0.01);
+	V[5] /= GeV;
 	sign = (int)( V[5]/fabs( V[5] ));
       } else V[5] = 0;
     } else {
       if ((int)(-c/fabs(c)) == sign) {
-	V[4] = func2->GetParameter(1);
+	V[4] = g;
 	V[3] = b;
-	V[5] = 1/(-0.3*1.*pow((1+b*b),3./2.)/(2*c)*0.01 * GeV);
+	V[5] = 1/(-0.3*Bmean*pow((1+g1*g1),3./2.)/(2*h1)*0.01);
+	V[5] /= GeV;
       } else break;
     }
     
     delete trajFitXZ;
     delete trajFitYZ;
+    delete trajFitUZ;
+    delete trajFitVZ;
   
     delete func;
     delete func2;
+    delete func3;
+    delete func4;
   }
   
+  std::cout<<"Momentum guess from polynomial fit: p/q = "<<1./V[5]<<std::endl;
+}
+
+
+//*****************************************************************************
+void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
+//*****************************************************************************
+
+//Some catchers for pointless returns.
+  int fitcatch;
+  //
+  int nfit;
+  // int fitRange[3];
+  const int fitpoints = nplanes - firsthit;
+  double meanchange = 0;
+  double xpos[fitpoints], ypos[fitpoints], zpos[fitpoints];
+  double upos[fitpoints], wpos[fitpoints];
+  std::vector<EVector> dr;
+  std::vector<EVector> B;
+  bool isContained = true, cuspfound = false;
+  double Xmax = geom.getPlaneX() - 1*cm;
+  double Ymax = geom.getPlaneY() - 1*cm;
+  double Zmax = geom.getPlaneZ() - 1*cm;
+  //double dx[fitpoints-1], dy[fitpoints-1], dz[fitpoints-1];
+  // double ax[fitpoints-2], ay[fitpoints-2], az[fitpoints-2];
+  // double bx[fitpoints-2], by[fitpoints-2], bz[fitpoints-2];
+  double ds0=0, ds1=0;
+  double Bmean=0;
+  double pathlength=0;
+  int Npts=0;
+  double initR = 0;
+  double sumDR = 0;
+  int minindex = nplanes - firsthit;
+  double minR = 999999.9999;
+  double pdR = 0.0;
+  for (int ipoint=firsthit;ipoint < nplanes;ipoint++){
+    
+    xpos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[0];
+    ypos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[1];
+    zpos[ipoint-firsthit] = _traj.measurement(ipoint).position()[2]
+      - _traj.measurement(firsthit).position()[2];
+    if(fabs(xpos[ipoint-firsthit]) > Xmax || fabs(ypos[ipoint-firsthit]) > Ymax)
+      isContained = false;
+    else if(fabs(ypos[ipoint-firsthit]) > 
+	    (1 + tan(atan(1.)/2.)) * Xmax - fabs(xpos[ipoint-firsthit])) 
+      isContained = false;
+    EVector pos0 = EVector(3,0);
+    pos0[0] = xpos[ipoint-firsthit];
+    pos0[1] = ypos[ipoint-firsthit];
+    pos0[2] = zpos[ipoint-firsthit];
+    EVector B0 = geom.getBField(pos0);
+    B.push_back(B0);
+    Bmean += B0.norm();
+    upos[ipoint-firsthit] = sqrt(pos0[0]*pos0[0] + pos0[1]*pos0[1]);
+      // (-pos0[0]*B0[1] + pos0[1]*B0[0])/sqrt(B0[0]*B0[0] + B0[1]*B0[1]);
+    if(!cuspfound)
+      if(ipoint == firsthit) initR = upos[ipoint-firsthit];
+      else {
+	sumDR += initR - upos[ipoint-firsthit];
+	initR = upos[ipoint - firsthit];
+      }
+    Npts++;
+    if ( ipoint > firsthit ){
+      EVector drtemp = EVector(3,0);
+      drtemp[0] = xpos[ipoint-firsthit] - xpos[ipoint-firsthit-1];
+      drtemp[1] = ypos[ipoint-firsthit] - ypos[ipoint-firsthit-1];
+      drtemp[2] = zpos[ipoint-firsthit] - zpos[ipoint-firsthit-1];
+      dr.push_back(drtemp);      
+      pathlength +=  drtemp.norm();
+      double dR = sqrt(drtemp[0]*drtemp[0] + drtemp[1]*drtemp[1]);
+      if(pdR != 0){
+	if(minR < upos[ipoint - firsthit - 1] && dR/fabs(dR) == -pdR/fabs(pdR) &&
+	   (xpos[ipoint-firsthit]/fabs(xpos[ipoint-firsthit]) != 
+	    xpos[ipoint-firsthit-1]/fabs(xpos[ipoint-firsthit-1])) ||
+	   (ypos[ipoint-firsthit]/fabs(ypos[ipoint-firsthit]) != 
+	    ypos[ipoint-firsthit-1]/fabs(ypos[ipoint-firsthit-1]))
+	   && !cuspfound){
+	  minR = upos[ipoint - firsthit - 1];
+	  minindex = ipoint - firsthit - 1;
+	  cuspfound = true;
+	}
+      }
+    }
+  }
+  Bmean /=Npts;
+  
+  double wFe = geom.get_Fe_prop();
+  double p = (wFe*(0.017143*GeV/cm * pathlength - 1.73144*GeV)
+	      + (1- wFe)*(0.00277013*GeV/cm * pathlength + 1.095511*GeV));
+  double meansign = 0;
+  if(sumDR != 0) 
+    meansign = sumDR/fabs(sumDR);
+  else
+    meansign = 1;
+  
+  double planesep  = fabs(zpos[1] - zpos[0]);
+  // Assume that the magnetic field does not change very much over 1 metre
+  // (terrible assumption by the way)
+  const int sample = minindex < 20 ? (const int)minindex: 20;
+  
+  V[3] = dr.at(0)[0]/dr.at(0)[2];
+  V[4] = dr.at(0)[1]/dr.at(0)[2];
+  if(isContained && p > 0)
+    V[5] = meansign/p;
+  else{
+    // meansign = 0;
+    // Consider a fit to a subset of points at the begining of the track
+    //for(int j=0; j<fitpoints-2; j++){
+    TGraph* localcurveUW = new TGraph(sample, zpos, upos);
+    TF1 *func = new TF1("fit",fitf2,-30,30,4);
+    func->SetParameters(0.,0.,0.001,0.0001,0.0001);
+    func->SetParNames("a", "b", "c", "d", "e");
+    fitcatch = localcurveUW->Fit("fit", "QN");
+    double b = func->GetParameter(1);
+    double c = func->GetParameter(2);
+    
+    p = 300.0 * B[1].norm() * pow(1. + b*b,3./2.) /2./c;
+    //double wt = TMath::Gaus(fabs(pt), p, 0.25*p, true);
+    // std::cout<<pt<<std::endl;
+    // meansign += wt * pt/fabs(pt);
+    
+    delete localcurveUW;      
+    delete func;
+    if(p!=0){
+      meansign = p/fabs(p);
+      V[5] = 1./p;
+    }
+  
+  }
+  int sign = 1;
+  if(meansign==meansign){
+    if(meansign!=0)
+      sign = int(meansign/fabs(meansign));
+    else
+      sign = 0.;
+  }
+  else
+    sign = 1;
+  std::cout<<"Pathlength is "<<pathlength // <<" or "<<pathlength0
+	   <<" with charge "<<meansign<<std::endl;
+    //<<" and acceleration in bending plane "
+    //   <<meanacceleration/count<<" from "
+    //   <<count<<" points."<<std::endl;
+
+  //std::cout<<"Weight of iron is "<<wFe<<std::endl;
+  //std::cout<<"Numbers taken from interpolations of Range tables between 1 and 80 GeV. \n";
+    
+  // std::cout<<"Momentum is "<<p<<std::endl;
+  // _initialqP = (sign)/p;
+  // std::cout<<"Momentum pull is "<<sign/p<<std::endl;
+  
+  // V[5] = (sign)/p;
+  // return 1./p;
 }
 
 //*****************************************************************************

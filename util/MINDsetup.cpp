@@ -1,7 +1,9 @@
-#include <MINDsetup.h>
+#include <mind/MINDsetup.h>
 #include <recpack/string_tools.h>
 #include <recpack/dictionary.h>
-
+#include <string>
+#include <algorithm>
+#include <mind/MINDplate.h>
 
 //*************************************************************
 MINDsetup::MINDsetup() {
@@ -31,31 +33,31 @@ void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
 
   //--------------- generate recpack setup -----------//
     
-    _gsetup.set_name("main");
-    
-    // create volumes and surfaces
+  _gsetup.set_name("main");
+  
+  // create volumes and surfaces
+  
+  createGeom();
+  
+  // define detector resolutions
 
-    createGeom();
-    
-    // define detector resolutions
+  setResolution();
+  
+  // add properties to volumes and surfaces
+  
+  addProperties();
 
-    setResolution();
-    
-    // add properties to volumes and surfaces
-
-    addProperties();
-
-    // std::cout << _gsetup.volume("Detector").parameter("BField") << std::endl;
-    // dict::mixdictionary smell = _gsetup.volume_properties("IRON_plane0");
-    
-    // const double XX = _gsetup.volume_properties("IRON_plane0").retrieve(thing_name);
-    // std::cout << _gsetup.volume_properties("IRON_plane0").retrieve(thing_name) << std::endl;
-
-//     std::cout << _gsetup << std::endl;
-    
-    _msetup.message("++ Setup has been generated !! ++",bhep::VERBOSE);
-
-    //_msetup.message("MIND Setup:", _gsetup,bhep::VERBOSE);
+  // std::cout << _gsetup.volume("Detector").parameter("BField") << std::endl;
+  // dict::mixdictionary smell = _gsetup.volume_properties("IRON_plane0");
+  
+  // const double XX = _gsetup.volume_properties("IRON_plane0").retrieve(thing_name);
+  // std::cout << _gsetup.volume_properties("IRON_plane0").retrieve(thing_name) << std::endl;
+  
+  //     std::cout << _gsetup << std::endl;
+  
+  _msetup.message("++ Setup has been generated !! ++",bhep::VERBOSE);
+  
+  //_msetup.message("MIND Setup:", _gsetup,bhep::VERBOSE);
 }
 
 
@@ -63,7 +65,7 @@ void MINDsetup::init(bhep::gstore pstore, bhep::prlevel level) {
 Setup& MINDsetup::setup() {
 //*************************************************************
      
-    return _gsetup;
+  return _gsetup;
 
 }
 
@@ -72,19 +74,23 @@ void MINDsetup::createGeom(){
 //*************************************************************    
     
   _msetup.message("+++ CreatGeom function +++",bhep::VERBOSE);
-
+  
   //----- axes for definition of volumes and surfaces ----//
-
+  
   xaxis=EVector(3,0); xaxis[0] = 1.; 
   yaxis=EVector(3,0); yaxis[1] = 1.; 
   zaxis=EVector(3,0); zaxis[2] = 1.;
-    
-  //----------- Create a mandatory mother volume ---------//
-
-  EVector pos(3,0); pos[2]=0;
   
-  Volume* mother = new Box(pos,xaxis,yaxis,
-			   MOTHER_x/2,MOTHER_y/2,MOTHER_z/2);
+  //----------- Create a mandatory mother volume ---------//
+  
+  EVector pos(3,0); pos[2]=0;
+  /*
+    Volume* mother = new Box(pos,xaxis,yaxis,
+    MOTHER_x/2,MOTHER_y/2,MOTHER_z/2);
+  */
+  Volume* mother = new MINDplate(pos,xaxis,yaxis,
+				 MOTHER_x/2,MOTHER_y/2,MOTHER_z/2,
+				 MOTHER_earw,MOTHER_earh);
     
   _msetup.message("Mother volume generated",bhep::VERBOSE);
 
@@ -98,62 +104,70 @@ void MINDsetup::createGeom(){
 
   const dict::Key vol_name = "Detector";
   
-  Volume* det = new Box(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2);
+  // Volume* det = new Box(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2);
   
+  Volume* det = new MINDplate(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2,
+			      EAR_width, EAR_height);
   _msetup.message("MIND volume generated",bhep::VERBOSE);
 
   // add volume
-
+  
   _gsetup.add_volume("mother",vol_name,det);
   // _gsetup.set_volume_property(vol_name,"X0",X0AIR);
   //Introduce IRON scintillator sandwiches.
   // int nplanes = (int)( MIND_z / (IRON_z + nScint * SCINT_z) );
-
-  // for (int iplane = 0;iplane < _npieces;iplane++) {
-
-//     add_slab(iplane, vol_name);
-
-//   }
-
   
-
+  // for (int iplane = 0;iplane < _npieces;iplane++) {
+  
+  //     add_slab(iplane, vol_name);
+  
+  //   }
+  
+  
+  
 }
 
 //*************************************************************
 void MINDsetup::add_slab(int plane, const dict::Key det_vol){
-//*************************************************************
-
+  //*************************************************************
+  
   // EVector plane_pos(3,0);
   //Names for particular sections
   
   //Define positions
   // double slab_width = IRON_z + nScint * SCINT_z;
   double mind_front = -MIND_z/2;
-
+  
   //IRON
   EVector fe_pos(3,0);
   const dict::Key iron_name = "IRON_plane"+bhep::to_string(plane);
 
   fe_pos[2] = mind_front + plane*_pieceWidth + IRON_z/2;
-
-  Volume* Fe_slab = new Box(fe_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,IRON_z/2);
-
+  
+  // Volume* Fe_slab = new Box(fe_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,IRON_z/2);
+  
+  Volume* Fe_slab = new MINDplate(fe_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,
+				  IRON_z/2, EAR_width, EAR_height);
+  
   _gsetup.add_volume(det_vol,iron_name,Fe_slab);
-
+  
   _gsetup.set_volume_property(iron_name,"X0",X0Fe);
-
+  
   //SCINT
   EVector scint_pos(3,0);
   Volume *Sc_slab[nScint];
   for (int iscint = 0;iscint < nScint;iscint++){
-   
+    
     const dict::Key scint_name =
       "SCINT_plane"+bhep::to_string(plane)+"_"+bhep::to_string(iscint);
 
     scint_pos[2] = mind_front + plane*_pieceWidth + IRON_z
       + (iscint+1)*AIR_z + SCINT_z/2;
-
-    Sc_slab[iscint] = new Box(scint_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,SCINT_z/2);
+    
+    // Sc_slab[iscint] = new Box(scint_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,SCINT_z/2);
+    
+    Sc_slab[iscint] = new MINDplate(scint_pos,xaxis,yaxis,MIND_x/2,MIND_y/2,
+				  SCINT_z/2, EAR_width, EAR_height);
 
     _gsetup.add_volume(det_vol,scint_name,Sc_slab[iscint]);
 
@@ -179,7 +193,7 @@ void MINDsetup::add_slab(int plane, const dict::Key det_vol){
 //   _gsetup.add_volume(det_vol,iron_name,Fe_slab);
 
 //   _gsetup.set_volume_property(iron_name,"X0",X0Fe);
-  
+ 
 }
 
 //*************************************************************
@@ -224,10 +238,12 @@ void MINDsetup::addProperties(){
   // _gsetup.set_volume_property("mother","BField",BField);
   const dict::Key vol_name = "Detector";
   //  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
-
-  _gsetup.set_volume_property_to_sons("mother","BField",BField);
+  // step = 1*cm;
+  // _gsetup.set_volume_property_to_sons("mother","BField",BField);
+  _gsetup.set_volume_property_to_sons("mother",RP::BFieldMap,BFieldMap);
   _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
   _gsetup.set_volume_property_to_sons("mother",RP::SurfNormal,_zaxis);
+  // _gsetup.set_volume_property_to_sons("mother",RP::StepSize,step);
   // _gsetup.set_volume_property_to_sons(vol_name,"BField",BField);
 //   _gsetup.set_volume_property_to_sons(vol_name,"de_dx",de_dx);
   // _gsetup.set_volume_property_to_sons(vol_name,RP::SurfNormal,_zaxis);
@@ -237,8 +253,12 @@ void MINDsetup::addProperties(){
   // _gsetup.set_volume_property(vol_name,"X0",X0AIR);
     
   // const dict::Key vol_name = "Detector";
-  _gsetup.set_volume_property(vol_name,"BField",BField);
-  _msetup.message("+++B Field added to MIND:",BField,bhep::VERBOSE);
+  // _gsetup.set_volume_property(vol_name,"BField",BField);
+  // _gsetup.set_volume_property(vol_name,"BFieldMap",BFieldMap);
+  _msetup.message("+++B Field added to MIND:","BFieldMap",bhep::VERBOSE);
+  
+  if(StepSize)
+    _gsetup.set_volume_property(vol_name,"StepSize",StepSize);
   
   _gsetup.set_volume_property(vol_name,"X0",X0Eff);
 //   _msetup.message("+++X0 added to MIND:",X0,bhep::VERBOSE);
@@ -271,6 +291,14 @@ void MINDsetup::readParam(){
       
     _msetup.message("MIND length:",MIND_z/cm,"cm",c);
     
+    EAR_height = _pstore.fetch_dstore("EAR_height") * m;
+
+    _msetup.message("MIND ear height:",EAR_height/cm,"cm",c);
+
+    EAR_width = _pstore.fetch_dstore("EAR_width") * m;
+
+    _msetup.message("MIND ear width:",EAR_width/cm,"cm",c);
+
     //-------------------------------------------------------------//
     //                      | INNER DIMENSIONS |                   //
     //-------------------------------------------------------------//
@@ -292,18 +320,35 @@ void MINDsetup::readParam(){
     MOTHER_x = MIND_x + 10 * cm;
     MOTHER_y = MIND_y + 10 * cm;  
     MOTHER_z = MIND_z + 10 * cm;  
+    MOTHER_earh = EAR_height - 10 * cm;
+    MOTHER_earw = EAR_width  + 10 * cm;
 
     // -------------------------------------------------------------//
     //                       |  MAGNETIC FIELD |                    //
     // -------------------------------------------------------------//
     
-    bhep::vdouble field = _pstore.fetch_vstore("mag_field");
-    BField = EVector(3,0);
-    BField[0] = field[0] * tesla; BField[1] = field[1] * tesla;
-    BField[2] = field[2] * tesla;
-    
-    //B_int = 1.0 * tesla;
-      
+    // bhep::vdouble field = _pstore.fetch_vstore("mag_field");
+    // BField = EVector(3,0);
+    // BField[0] = field[0] * tesla; BField[1] = field[1] * tesla;
+    // BField[2] = field[2] * tesla;
+
+    // override constant BField if field map is present
+    if(_pstore.find_sstore("mag_field_map")) {
+      std::string Bmap =  _pstore.fetch_sstore("mag_field_map");
+      double fieldScale = 1.0;
+      if (_pstore.find_dstore("fieldScale") ) 
+	fieldScale = _pstore.fetch_dstore("fieldScale");
+      BFieldMap = MINDfieldMapReader(Bmap,fieldScale);
+      //B_int = 1.0 * tesla;
+    }
+    else {
+      // Default is to use a radially symmetric field 
+      double fieldScale = 1.0;
+      if (_pstore.find_dstore("fieldScale"))
+	fieldScale = _pstore.fetch_dstore("fieldScale");
+      // This uses an analytic approximation of a simulated field map 
+      BFieldMap = MINDfieldMapReader(fieldScale);
+    }
     //_msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);
     
     // -------------------------------------------------------------//
@@ -335,4 +380,12 @@ void MINDsetup::readParam(){
     resx = _pstore.fetch_dstore("pos_res") * cm;
     resy = _pstore.fetch_dstore("pos_res") * cm;
     
+    if(_pstore.find_dstore("StepSize")){
+      StepSize = _pstore.fetch_dstore("StepSize") * cm;
+    }
+    else{
+      StepSize = 0.;
+    }
+
 }
+

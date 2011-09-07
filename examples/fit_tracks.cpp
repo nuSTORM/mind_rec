@@ -58,10 +58,10 @@ int main(int argc, char* argv[]){
   //
   
   bhep::reader_root inDst;
-
+  
   //  fitter* fit = new fitter(ana_store,bhep::MUTE);
   fitter fit(ana_store,bhep::MUTE);
-
+  
   //  MINDplotter* plot = new MINDplotter();
   MINDplotter plot = MINDplotter();
   
@@ -70,23 +70,23 @@ int main(int argc, char* argv[]){
   
   bool patR = ana_store.fetch_istore("patRec");
   bool clusts = ana_store.fetch_istore("do_clust");
-
+  
   //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
   plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
-
+  
   vector<string> input_data = data_store.fetch_svstore("idst_files");
-
+  
   //Counters for event loops;
   int i;
   int evt_read = 0;
   string filetest;
   //
-
+  
   for (unsigned int ifile = 0;ifile < input_data.size();ifile++){
-
+    
     inDst.open( input_data[ifile] );
     i = 0;
-  
+    
     //for(int i=0; i < nevents; i++) {
     while ( !inDst.eof(i) && evt_read < nevents ) {
       
@@ -97,13 +97,13 @@ int main(int argc, char* argv[]){
 	//caused by G4_out being spread over more than one file.
 	// loop over particles
 	vector<bhep::particle*> parts = e.digi_particles();
-
+	
 	//Relevant only when building likelihood tree.
 	fit.set_int_type( e.fetch_sproperty("IntType") );
 	//
 	// cout <<"There are " << parts.size() << " digis in event "
-// 	     << e.event_number() <<endl;
-
+	// 	     << e.event_number() <<endl;
+	
 	if (parts.size() != 0) {
 	  for (size_t part=0; part<parts.size();part++){
 	    
@@ -124,14 +124,17 @@ int main(int argc, char* argv[]){
       }
       i++;
     }
-
+    
     inDst.close();
-
+    
   }
   
   fit.finalize();
   
   plot.finalize();
+  
+  
+  std::cout<<"Reconstruction Complete\n";
   
   return 0;
   

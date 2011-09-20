@@ -67,7 +67,7 @@ Recpack::MINDfieldMapReader::MINDfieldMapReader(const std::string& bf, double fi
 
   
 Recpack::MINDfieldMapReader::MINDfieldMapReader(double fieldscale)
-  :EVectorMap(3), _fieldScale(0), _useMap(false)
+  :EVectorMap(3), _fieldScale(fieldscale), _useMap(false)
 {
   
 }
@@ -88,20 +88,20 @@ EVector Recpack::MINDfieldMapReader::compute_vector(const EVector& pos) const {
       int k1 = int(floor((pos[1] - _Ymin)/dy + 0.5));
       if(j1 < 0) j1 = 0;
       if(k1 < 0) k1 = 0;
-      if(j1 >= _vecMap.size()) j1 = _vecMap.size() - 1;
+      if(j1 >= _vecMap.size())     j1 = _vecMap.size() - 1;
       if(k1 >= _vecMap[j1].size()) k1 = _vecMap[j1].size() - 1;
       
-      BField[0] = _fieldScale * _vecMap[j1][k1][0];
-      BField[1] = _fieldScale * _vecMap[j1][k1][1];
-      BField[2] = _fieldScale * _vecMap[j1][k1][2];
+      BField[0] = _fieldScale * 0.6 * _vecMap[j1][k1][0];
+      BField[1] = _fieldScale * 0.6 * _vecMap[j1][k1][1];
+      BField[2] = _fieldScale * 0.6 * _vecMap[j1][k1][2];
       
       return BField;
     }
   }
   else{
     double r = sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
-    BField[0] = -_fieldScale * 3.0/5.0 * (1.57 + 0.02/r + 0.53*exp(-r*0.53)) * pos[1] * tesla;
-    BField[1] =  _fieldScale * 3.0/5.0 * (1.57 + 0.02/r + 0.53*exp(-r*0.53)) * pos[0] * tesla;
+    BField[0] = -_fieldScale * 3.0/5.0 * (1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m)) * pos[1]/r * tesla;
+    BField[1] =  _fieldScale * 3.0/5.0 * (1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m)) * pos[0]/r * tesla;
     BField[2] =  0.0 * tesla;
     
     return BField;

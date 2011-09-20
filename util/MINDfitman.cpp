@@ -88,7 +88,7 @@ void MINDfitman::config_common_props()
 void MINDfitman::config_geometry(Setup& det)
 {
 
-  _man.geometry_svc().set_zero_length( 1e-5 * mm );
+  _man.geometry_svc().set_zero_length( 1e-2 * mm );
   _man.geometry_svc().set_infinite_length( 1e12 * mm );
 
   _man.geometry_svc().add_setup( "main", det );
@@ -131,7 +131,8 @@ void MINDfitman::config_navigator()
 
   _man.navigation_svc().inspector("eloss")
     .set_verbosity(l1);
-
+  
+  _man.navigation_svc().navigator(_model).set_max_number_steps(100);
 }
 
 void MINDfitman::config_model()
@@ -149,6 +150,11 @@ void MINDfitman::config_model()
   _man.model_svc().model(_model)
     .intersector("plane").set_verbosity(l1);
 
+  _man.model_svc().model(_model)
+    .intersector("numerical").set_verbosity(l1);
+
+  _man.model_svc().model(_model)
+    .intersector("helix_num").set_verbosity(l1);
 }
 
 void MINDfitman::config_matching()

@@ -17,6 +17,7 @@
 
 using namespace std;
 using namespace Recpack;
+using namespace bhep;
 
 /* A Class with functions to plot the results of fits to MIND data */
 

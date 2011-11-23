@@ -68,7 +68,7 @@ protected:
   bool muon_extraction(vector<cluster*>& hits,
 		       Trajectory& muontraj, vector<cluster*>& hads);
   bool get_patternRec_seed(State& seed, Trajectory& muontraj, vector<cluster*>& hits);
-  void fit_parabola(EVector& vec, Trajectory& track);
+  double fit_parabola(EVector& vec, Trajectory& track);
   void set_de_dx(double mom);
   bool perform_kalman_fit(State& seed, Trajectory& track);
   bool perform_muon_extraction(const State& seed, vector<cluster*>& hits,
@@ -97,6 +97,8 @@ protected:
   
   bhep::messenger m;
   
+  MINDsetup geom;
+
   //Members to store plane occupancy and mean energy.
   int _nplanes;
   double _meanOcc;

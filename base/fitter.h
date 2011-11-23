@@ -54,7 +54,8 @@ public:
   cluster* get_meas(int num){return _meas[num];}
   std::vector<cluster*> get_meas_vec(){ return _meas; }
   int get_nMeas(){return (int)_meas.size();}
-
+  
+  MINDsetup getgeom() { return geom; }
   double getChi2(){ return _traj.quality(); }
   //
   cluster* getMeasurement(bhep::hit& hit);
@@ -67,7 +68,7 @@ public:
   //
   //calculate momentum from range.
   //void calculate_len_mom(double len, double *mom);
- 
+  
   //recpack manager
   
   RecpackManager& man(){

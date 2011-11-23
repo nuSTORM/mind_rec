@@ -528,7 +528,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   V[2] = muontraj.nodes()[0]->measurement().position()[2];
   
   //direction
-  fit_parabola( V, muontraj);
+  double dqtot = fit_parabola( V, muontraj);
   
   //Momentum. Estimate from empirical extent function.
   if ( hits.size() != 0 ){
@@ -552,13 +552,14 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   //Use slope in bending plane to try and get correct sign for momentum seed.
   // pSeed *= -fabs(V[3])/V[3];//Pos. gradient in X is ~negative curvature.
   // Assume that the R-Z plane is the bending plane for the toroidal field
-  double VRad = (V[3]*V[0] + V[4]*V[1])/sqrt(V[0] * V[0] + V[1] * V[1]);
+  double VRad =  dqtot/fabs(dqtot);
+  // (V[3]*V[0] + V[4]*V[1])/sqrt(V[0] * V[0] + V[1] * V[1]);
   if( VRad != 0 ) 
-    pSeed *= -fabs(VRad)/VRad;
-
+    pSeed *= fabs(VRad)/VRad;
+  
   
   V[5] = 1./pSeed;
-
+  
   //Errors
   M[0][0] = M[1][1] = 15.*cm*cm;
   M[2][2] = EGeo::zero_cov()/2;
@@ -586,38 +587,70 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 }
 
 //***********************************************************************
-void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
+double event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 //***********************************************************************
+// No longer well named
 
   int fitcatcher;
   size_t nMeas = track.nmeas();
 
   if (nMeas > 4) nMeas = 4;
 
-  double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas];
+  EVector pos(3,0);
+  EVector Z(3,0); Z[2] = 1;
+  double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas], u[(const int)nMeas];
   int minindex = nMeas;
-  double minR = 99999.999, pdR = 0.0;
+  double minR = 99999.999, pdR = 0.0, sumdq=0;
+  double pathlength=0;
 
-  for (int iMeas = nMeas-1;iMeas >= 0;iMeas--){
+  pos[0] = x[nMeas-1] = track.nodes()[nMeas-1]->measurement().vector()[0];
+  pos[1] = y[nMeas-1] = track.nodes()[nMeas-1]->measurement().vector()[1];
+  z[nMeas-1] = track.nodes()[nMeas-1]->measurement().position()[2];
+  pos[2] = 0.0;
 
+  for (int iMeas = nMeas-2;iMeas >= 0;iMeas--){
     x[iMeas] = track.nodes()[iMeas]->measurement().vector()[0];
     y[iMeas] = track.nodes()[iMeas]->measurement().vector()[1];
     z[iMeas] = track.nodes()[iMeas]->measurement().position()[2];
-    double R = sqrt(x[iMeas]*x[iMeas] + y[iMeas]*y[iMeas]);
-    double dR = sqrt(x[iMeas+1]*x[iMeas+1] + y[iMeas+1]*y[iMeas+1]);
+    // get the b-field from the previous step
+    EVector B = geom.getBField(pos);
+    u[iMeas] = dot(pos, crossprod(Z,B))/crossprod(Z,B).norm();
+    pos[0] = x[iMeas];  pos[1] = y[iMeas];   pos[2] = z[iMeas];
+    EVector dR = EVector(3,0);
+    dR[0] = x[iMeas+1] - x[iMeas];
+    dR[1] = y[iMeas+1] - y[iMeas];
+    dR[2] = z[iMeas+1] - z[iMeas];
+    double dq = 0.;
+    pathlength += dR.norm();
+    if(iMeas < nMeas-3){
+      EVector dR1 = EVector(3,0);
+      dR1[0] = x[iMeas+2] - x[iMeas+1];
+      dR1[1] = y[iMeas+2] - y[iMeas+1];
+      dR1[2] = z[iMeas+2] - z[iMeas+1];
+      EVector ddR = dR1 + dR;
+      dq = dot(ddR, crossprod(Z,B))/ (crossprod(Z,B).norm());
+    }
     if(pdR != 0)
       if(// minR < R && dR/fabs(dR) == -pdR/fabs(pdR) && 
 	 (x[iMeas]/fabs(x[iMeas]) != x[iMeas+1]/fabs(x[iMeas+1]) ||
 	  y[iMeas]/fabs(y[iMeas]) != y[iMeas+1]/fabs(y[iMeas+1]))){ 
 	// Sign change and minimum momentum
-	minR = R;
+	minR = pos.norm();
 	minindex = iMeas;
+	sumdq = 0.0;
       }
-    pdR = dR;
+    pdR = dR.norm();
+    sumdq += dq;
   }
   
+  
+  double wFe = geom.get_Fe_prop();
+  double p = (wFe*(0.017143*GeV/cm * pathlength - 1.73144*GeV)
+	      + (1- wFe)*(0.00277013*GeV/cm * pathlength + 1.095511*GeV));
+
   TGraph *gr1 = new TGraph((const int)minindex, z, x);
   TGraph *gr2 = new TGraph((const int)minindex, z, y);
+  TGraph *gr3 = new TGraph((const int)minindex, z, u);
 
   TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
   fun->SetParameters(0.,0.001);
@@ -628,10 +661,21 @@ void event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   fun->SetParameters(0.,0.001);
   fitcatcher = gr2->Fit("parfit", "QN");
   vec[4] = fun->GetParameter(1);
+
+  fun->SetParameters(0.,0.001);
+  fitcatcher = gr3->Fit("parfit", "QN");
+  double qtilde = fun->GetParameter(1);
   
+  // int meansign = sumdq/fabs(sumdq);
+  int meansign = qtilde/fabs(qtilde);
+
+  vec[5] = meansign/p;
+
   delete gr1;
   delete gr2;
   delete fun;
+  // return sumdq;
+  return qtilde;
 
 }
 

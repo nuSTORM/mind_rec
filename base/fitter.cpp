@@ -831,6 +831,7 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   int minindex = nplanes - firsthit;
   double minR = 999999.9999;
   double pdR = 0.0;
+  EVector Z = EVector(3,0); Z[2] = 1;
   for (int ipoint=firsthit;ipoint < nplanes;ipoint++){
     
     xpos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[0];
@@ -849,34 +850,65 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
     EVector B0 = geom.getBField(pos0);
     B.push_back(B0);
     Bmean += B0.norm();
-    upos[ipoint-firsthit] = sqrt(pos0[0]*pos0[0] + pos0[1]*pos0[1]);
-      // (-pos0[0]*B0[1] + pos0[1]*B0[0])/sqrt(B0[0]*B0[0] + B0[1]*B0[1]);
-    if(!cuspfound)
-      if(ipoint == firsthit) initR = upos[ipoint-firsthit];
-      else {
-	sumDR += initR - upos[ipoint-firsthit];
-	initR = upos[ipoint - firsthit];
-      }
+    upos[ipoint-firsthit] = // sqrt(pos0[0]*pos0[0] + pos0[1]*pos0[1]);
+      dot(pos0,crossprod(Z, B0))/crossprod(Z, B0).norm();
+    //if(!cuspfound)
+    //  if(ipoint == firsthit) initR = upos[ipoint-firsthit];
+    //  else {
+    //sumDR += initR - upos[ipoint-firsthit];
+    //initR = upos[ipoint - firsthit];
+    //  }
     Npts++;
-    if ( ipoint > firsthit ){
+    if ( ipoint > firsthit){
       EVector drtemp = EVector(3,0);
       drtemp[0] = xpos[ipoint-firsthit] - xpos[ipoint-firsthit-1];
       drtemp[1] = ypos[ipoint-firsthit] - ypos[ipoint-firsthit-1];
       drtemp[2] = zpos[ipoint-firsthit] - zpos[ipoint-firsthit-1];
       dr.push_back(drtemp);      
       pathlength +=  drtemp.norm();
-      double dR = sqrt(drtemp[0]*drtemp[0] + drtemp[1]*drtemp[1]);
-      if(pdR != 0){
-	if(minR < upos[ipoint - firsthit - 1] && dR/fabs(dR) == -pdR/fabs(pdR) &&
-	   (xpos[ipoint-firsthit]/fabs(xpos[ipoint-firsthit]) != 
-	    xpos[ipoint-firsthit-1]/fabs(xpos[ipoint-firsthit-1])) ||
-	   (ypos[ipoint-firsthit]/fabs(ypos[ipoint-firsthit]) != 
-	    ypos[ipoint-firsthit-1]/fabs(ypos[ipoint-firsthit-1]))
-	   && !cuspfound){
+      if ( ipoint > firsthit + 1 ) {
+	int k = ipoint-firsthit-1;
+	EVector dr0 = dr[k-1];
+	EVector dr1 = dr[k];
+	EVector ddr = dr1 + dr0;
+	EVector Ddr = dr1 - dr0;
+	EVector pos = EVector(3,0);
+	pos[0] = xpos[k-1]; pos[1] = ypos[k-1]; pos[2] = zpos[k-1]; 
+	EVector B = geom.getBField(pos);
+	double dR = dot(ddr, crossprod(Z, B0))/ (crossprod(Z,B0).norm());
+	double DR = dot(Ddr, crossprod(Z, B0))/ (crossprod(Z,B0).norm());
+	if(pdR != 0.0){
+	  if(!cuspfound && DR/fabs(DR) == pdR/fabs(pdR)){
+	    // sumDR += fabs(dR) > 0.0 ? dR/fabs(dR):0.0;
+	    sumDR += dR;
+	    // pdR = dR;
+	    pdR = dR;
+	  }
+	  else if(dR/fabs(dR) != pdR/fabs(pdR)){
+	    // cuspfound = true;
+	    minindex = ipoint - firsthit - 1;
+	    pdR = dR;
+	    // std::cout<<"At cusp, sumDR = "<<sumDR<<std::endl;
+	  }
+	}
+	else if(!cuspfound && fabs(dR) > 0){
+	  // sumDR += fabs(DR) > 0.0 ? DR/fabs(DR) : 0.0;
+	  sumDR += dR;
+	  pdR = dR;
+	}
+	/*
+	  if(pdR != 0){
+	  if(minR < upos[ipoint - firsthit - 1] &&
+	  (xpos[ipoint-firsthit]/fabs(xpos[ipoint-firsthit]) != 
+	  xpos[ipoint-firsthit-1]/fabs(xpos[ipoint-firsthit-1])) ||
+	  (ypos[ipoint-firsthit]/fabs(ypos[ipoint-firsthit]) != 
+	  ypos[ipoint-firsthit-1]/fabs(ypos[ipoint-firsthit-1]))
+	  && !cuspfound){
 	  minR = upos[ipoint - firsthit - 1];
 	  minindex = ipoint - firsthit - 1;
 	  cuspfound = true;
-	}
+	  }
+	  }*/
       }
     }
   }
@@ -885,11 +917,11 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   double wFe = geom.get_Fe_prop();
   double p = (wFe*(0.017143*GeV/cm * pathlength - 1.73144*GeV)
 	      + (1- wFe)*(0.00277013*GeV/cm * pathlength + 1.095511*GeV));
-  double meansign = 0;
-  if(sumDR != 0) 
+  double meansign = 1;
+  if(sumDR != 0) {
+    std::cout<<"sumDR = "<<sumDR<<std::endl;
     meansign = sumDR/fabs(sumDR);
-  else
-    meansign = 1;
+  }
   
   double planesep  = fabs(zpos[1] - zpos[0]);
   // Assume that the magnetic field does not change very much over 1 metre
@@ -898,8 +930,8 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   
   V[3] = dr.at(0)[0]/dr.at(0)[2];
   V[4] = dr.at(0)[1]/dr.at(0)[2];
-  if(isContained && p > 0)
-    V[5] = meansign/p;
+  if(isContained && p != 0)
+    V[5] = meansign/fabs(p);
   else{
     // meansign = 0;
     // Consider a fit to a subset of points at the begining of the track
@@ -944,7 +976,7 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   //std::cout<<"Numbers taken from interpolations of Range tables between 1 and 80 GeV. \n";
     
   // std::cout<<"Momentum is "<<p<<std::endl;
-  // _initialqP = (sign)/p;
+  _initialqP = V[5];
   // std::cout<<"Momentum pull is "<<sign/p<<std::endl;
   
   // V[5] = (sign)/p;

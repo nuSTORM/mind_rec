@@ -90,10 +90,62 @@ EVector Recpack::MINDfieldMapReader::compute_vector(const EVector& pos) const {
       if(k1 < 0) k1 = 0;
       if(j1 >= _vecMap.size())     j1 = _vecMap.size() - 1;
       if(k1 >= _vecMap[j1].size()) k1 = _vecMap[j1].size() - 1;
+      double x1 = _Xmin + double(j1)*dx;
+      double x2 = _Xmin + double(j1-1)*dx;
+      double y1 = _Ymin + double(k1)*dy;
+      double y2 = _Ymin + double(k1-1)*dy;
+      int j2 = j1-1;
+      int k2 = k1-1;
+      if ((pos[0] > x1 && j1 <= _vecMap.size() - 2)  || j1 == 0){
+	x2 = _Xmin + double(j1 + 1)*dx;
+	j2 = j1+1;
+      }
+      if ((pos[1] > y1 && k1 <= _vecMap[j1].size() - 2) || k1 == 0){
+	y2 = _Ymin + double(k1 + 1)*dy;
+	k2 = k1 + 1;
+      }
+
+      double Bx0 = _vecMap[j1][k1][0];
+      double By0 = _vecMap[j1][k1][1];
+      double Bx1 = _vecMap[j2][k1][0];
+      double By1 = _vecMap[j2][k1][1];
+      /*if( (Bx1 < 0.5*Bx0 || By1 < 0.5*By0) && j2 < j1 ){ 
+	// A correction to avoid the edges of the plate
+	j2 = j1+1;
+	x2 = _Xmin + double(j2)*dx;
+	Bx1 = _vecMap[j2][k1][0];
+	By1 = _vecMap[j2][k1][1];
+      }
+      else if( (Bx1 < 0.5*Bx0 || By1 < 0.5*By0) && j2 > j1 ){
+	j2 = j1-1;
+	x2 = _Xmin + double(j2)*dx;
+	Bx1 = _vecMap[j2][k1][0];
+	By1 = _vecMap[j2][k1][1];
+	}*/
+      double Bx2 = _vecMap[j1][k2][0];
+      double By2 = _vecMap[j1][k2][1];
+      /*if( (Bx2 < 0.5*Bx0 || By2 < 0.5*By0) && k2 < k1 ){ 
+	// A correction to avoid the edges of the plate
+	k2 = k1+1;
+	y2 = _Ymin + double(k2)*dx;
+	Bx1 = _vecMap[j1][k2][0];
+	By1 = _vecMap[j1][k2][1];
+      }
+      else if( (Bx2 < 0.5*Bx0 || By2 < 0.5*By0) && k2 > k1 ){
+	k2 = k1-1;
+	y2 = _Ymin + double(k2)*dx;
+	Bx1 = _vecMap[j1][k2][0];
+	By1 = _vecMap[j1][k2][1];
+	}*/
+
+      double dBxdx = (Bx1 - Bx0)/(x2 - x1);
+      double dBydx = (By1 - By0)/(x2 - x1);
+      double dBxdy = (Bx2 - Bx0)/(y2 - y1);
+      double dBydy = (By2 - Bx0)/(y2 - y1);
       
-      BField[0] = _fieldScale * 0.6 * _vecMap[j1][k1][0];
-      BField[1] = _fieldScale * 0.6 * _vecMap[j1][k1][1];
-      BField[2] = _fieldScale * 0.6 * _vecMap[j1][k1][2];
+      BField[0] = _fieldScale*0.6*(Bx0+dBxdx*(pos[0]-x1)+dBxdy*(pos[1]-y1));
+      BField[1] = _fieldScale*0.6*(By0+dBydx*(pos[0]-x1)+dBydy*(pos[1]-y1));
+      BField[2] = _fieldScale*0.6*(_vecMap[j1][k1][2]);
       
       return BField;
     }

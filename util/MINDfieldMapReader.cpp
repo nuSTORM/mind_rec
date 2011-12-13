@@ -77,9 +77,9 @@ EVector Recpack::MINDfieldMapReader::compute_vector(const EVector& pos) const {
   if(_useMap){
     if(pos[0] < _Xmin  || pos[0] > _Xmax || 
        pos[1] < _Ymin  || pos[1] > _Ymax){
-      BField[0] = _vecMap[0][0][0];
-      BField[1] = _vecMap[0][0][1];
-      BField[2] = _vecMap[0][0][2];
+      BField[0] = 0.0; // _vecMap[0][0][0];
+      BField[1] = 0.0; // _vecMap[0][0][1];
+      BField[2] = 0.0; // _vecMap[0][0][2];
       return BField;
     }
     else {
@@ -152,8 +152,10 @@ EVector Recpack::MINDfieldMapReader::compute_vector(const EVector& pos) const {
   }
   else{
     double r = sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
-    BField[0] = -_fieldScale * 3.0/5.0 * (1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m)) * pos[1]/r * tesla;
-    BField[1] =  _fieldScale * 3.0/5.0 * (1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m)) * pos[0]/r * tesla;
+    //double th = atan2(pos[1],pos[0]);
+    //double sinsq4th = pow(sin(4*th),2);
+    BField[0] = -_fieldScale * 3.0/5.0 * ( 1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m) ) * pos[1]/r * tesla;
+    BField[1] =  _fieldScale * 3.0/5.0 * ( 1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m) ) * pos[0]/r * tesla;
     BField[2] =  0.0 * tesla;
     
     return BField;

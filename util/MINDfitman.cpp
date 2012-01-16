@@ -88,7 +88,7 @@ void MINDfitman::config_common_props()
 void MINDfitman::config_geometry(Setup& det)
 {
 
-  _man.geometry_svc().set_zero_length( 1e-2 * mm );
+  _man.geometry_svc().set_zero_length( 1 * mm );
   _man.geometry_svc().set_infinite_length( 1e12 * mm );
 
   _man.geometry_svc().add_setup( "main", det );
@@ -137,6 +137,7 @@ void MINDfitman::config_navigator()
 
 void MINDfitman::config_model()
 {
+  // _man.model_svc().select_model(_model);
 
   _man.model_svc().model(_model)
     .equation().set_verbosity(l2);

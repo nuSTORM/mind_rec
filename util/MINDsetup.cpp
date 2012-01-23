@@ -338,6 +338,7 @@ void MINDsetup::readParam(){
       double fieldScale = 1.0;
       if (_pstore.find_dstore("fieldScale") ) 
 	fieldScale = _pstore.fetch_dstore("fieldScale");
+      fieldScale *= IRON_z/_pieceWidth;
       BFieldMap = MINDfieldMapReader(Bmap,fieldScale);
       //B_int = 1.0 * tesla;
     }
@@ -347,6 +348,7 @@ void MINDsetup::readParam(){
       if (_pstore.find_dstore("fieldScale"))
 	fieldScale = _pstore.fetch_dstore("fieldScale");
       // This uses an analytic approximation of a simulated field map 
+      fieldScale *= IRON_z/_pieceWidth;
       BFieldMap = MINDfieldMapReader(fieldScale);
     }
     //_msetup.message("Magnetic field intensity:",B_int/tesla,"tesla",c);

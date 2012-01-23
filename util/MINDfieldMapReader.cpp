@@ -143,9 +143,9 @@ EVector Recpack::MINDfieldMapReader::compute_vector(const EVector& pos) const {
       double dBxdy = (Bx2 - Bx0)/(y2 - y1);
       double dBydy = (By2 - Bx0)/(y2 - y1);
       
-      BField[0] = _fieldScale*0.6*(Bx0+dBxdx*(pos[0]-x1)+dBxdy*(pos[1]-y1));
-      BField[1] = _fieldScale*0.6*(By0+dBydx*(pos[0]-x1)+dBydy*(pos[1]-y1));
-      BField[2] = _fieldScale*0.6*(_vecMap[j1][k1][2]);
+      BField[0] = _fieldScale*(Bx0+dBxdx*(pos[0]-x1)+dBxdy*(pos[1]-y1));
+      BField[1] = _fieldScale*(By0+dBydx*(pos[0]-x1)+dBydy*(pos[1]-y1));
+      BField[2] = _fieldScale*(_vecMap[j1][k1][2]);
       
       return BField;
     }
@@ -154,8 +154,8 @@ EVector Recpack::MINDfieldMapReader::compute_vector(const EVector& pos) const {
     double r = sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
     //double th = atan2(pos[1],pos[0]);
     //double sinsq4th = pow(sin(4*th),2);
-    BField[0] = -_fieldScale * 3.0/5.0 * ( 1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m) ) * pos[1]/r * tesla;
-    BField[1] =  _fieldScale * 3.0/5.0 * ( 1.57 + 0.02*m/r + 0.53*exp(-r*0.53/m) ) * pos[0]/r * tesla;
+    BField[0] = -_fieldScale * ( 1.57 + 0.04*m/r + 0.53*exp(-r*0.53/m) ) * pos[1]/r * tesla;
+    BField[1] =  _fieldScale * ( 1.57 + 0.04*m/r + 0.53*exp(-r*0.53/m) ) * pos[0]/r * tesla;
     BField[2] =  0.0 * tesla;
     
     return BField;

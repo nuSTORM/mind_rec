@@ -42,7 +42,7 @@ void MINDplotter::initialize(string outFileName, bool patRec, bool clust,
 //*************************************************************************************
 void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
 //*************************************************************************************
-  
+ std::cout<<"MINDplotter execute"<<std::endl;  
   bool ok1, ok2;
   
   _evNo = evt.event_number();
@@ -99,13 +99,15 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   //   _nhad[1] = 0;
 
   if ( _clu )
+  
     ok1 = extract_true_particle2(evt, Fit);
   else
     ok1 = extract_true_particle1(evt, Fit);
   
   if (success) {
-    
-    State ste;
+    State ste; 
+    fill_kinematics(Fit.get_traj(), Fit, ste);//tapasi
+   
     ok2 = extrap_to_vertex(Fit.get_traj(), evt.vertex(), Fit, ste);
     
     if (_reFit) _leng = -Fit.get_traj().length();
@@ -132,17 +134,26 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   
   //If fit not successful set rec values to zero.
   if (!success){
-    _X[1][0] = 0; _X[1][1] = 0;
-    _X[2][0] = 0; _X[2][1] = 0;
+    _X[1][0] = 0; _X[1][1] = 0; 
+    _X[2][0] = 0; _X[2][1] = 0; 
+    _X[3][0] = 0; _X[3][1] = 0; 
+    _X[4][0] = 0; _X[4][1] = 0; 
+    _X[5][0] = 0; _X[5][1] = 0;
 
     _Th[1][0] = 0; _Th[1][1] = 0;
     _Th[2][0] = 0; _Th[2][1] = 0;
+    _Th[3][0] = 0; _Th[3][1] = 0;
+    _Th[4][0] = 0; _Th[4][1] = 0;
+    _Th[5][0] = 0; _Th[5][1] = 0;
 
-    _qP[1] = 0; _qP[2] = 0;
+    _qP[1] = 0; _qP[2] = 0;_qP[3] = 0; _qP[4] = 0; _qP[5] = 0;
 
     _Chi[0] = 0; _Chi[1] = 0;
 
-    _Q[1] = 0; _Q[2] = 0;
+    _Q[1] = 0; 
+    _Q[2] = 0;
+
+
     //_leng = 0;
     //_rangP[0] = 0;
     //_rangP[1] = -99;
@@ -152,8 +163,9 @@ void MINDplotter::execute(fitter& Fit, const bhep::event& evt, bool success) {
   }
   
   if (_patR){
+
     if ( _clu )
-      patternStats2( Fit );
+       patternStats2( Fit );
     else
       patternStats1( Fit );
   }
@@ -223,9 +235,9 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("visibleEng", &_visEng, "visEng/D");
   statTree->Branch("visEngTraj",&_engTraj, "engTraj/D");
   statTree->Branch("trajEngVar",&_engvar,"meanDep/D:engVar/D");
-  statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D");
-  statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D");
-  statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D");
+  statTree->Branch("Position", &_X, "truPos[2]/D:recPos[2]/D:ErrPos[2]/D:recPos_WVE[2]/D:ErrPos_WVE[2]/D:pull_X[2]/D");//TG
+  statTree->Branch("Direction", &_Th, "truTh[2]/D:recTh[2]/D:ErrTh[2]/D:recTh_WVE[2]/D:ErrTh_WVE[2]/D:pull_Th[2]/D");
+  statTree->Branch("Momentum", &_qP, "truqP/D:recqP/D:ErrqP/D:recqP_WVE/D:ErrqP_WVE/D:pull_mom/D");
   statTree->Branch("Charge", &_Q, "truQ/I:recQ/I:ID/B");
   statTree->Branch("length", &_leng,"lenTraj/D");
   statTree->Branch("RangeMomentum", &_rangqP,"rangqP/D:rangErr/D:recrangediff/D");
@@ -239,6 +251,7 @@ void MINDplotter::define_tree_branches() {
   //statTree->Branch("hadDir", &_haddot, "dotProd/D");
   statTree->Branch("NoPlanes", &_plns, "nplanes/I:freeplanes/I");
   statTree->Branch("NoHits", &_nhits, "nhits/I");
+  statTree->Branch("truMuHitIndex", &_truMuHitIndex, "truMuHitInd[2]/I");//tapasi
   statTree->Branch("HitBreakDown", &_hitType, "nTruMu/I:nInMu/I:nMuInMu/I:nFitN/I:nhad/I");
   statTree->Branch("XPositions", &_XPos, "X[nhits]/D");
   statTree->Branch("YPositions", &_YPos, "Y[nhits]/D");
@@ -250,6 +263,67 @@ void MINDplotter::define_tree_branches() {
   statTree->Branch("HadronNodes",&_had,"hadN[nhits]/B");
   statTree->Branch("PatRecChi", &_pChi, "maxChiMu/D:MinChiHad/D:MaxConsecHol/D");
 
+}
+
+//*************************************************************************************
+bool MINDplotter::fill_kinematics(const Trajectory& traj,fitter& fitObj, State& ste){ 
+//*************************************************************************************
+
+//State ste;
+
+  m.message("++Fill vertex kinematics++",bhep::VERBOSE);
+  if ( fitObj.check_reseed() ) ste = traj.node(traj.last_fitted_node()).state();
+  else ste = traj.node(traj.first_fitted_node()).state();
+
+  //Grab fitted vertex information.
+  EVector v = ste.hv().vector();
+  EMatrix C = ste.hv().matrix();
+
+ //Reconstructed x,y position.
+  _X[3][0] = v[0]; _X[3][1] = v[1];
+ 
+
+  //Corresponding Error.
+  if (C[0][0]>0)
+    _X[4][0] = sqrt(C[0][0]);
+  if (C[1][1]>0)
+    _X[4][1] = sqrt(C[1][1]);
+  
+ 
+//Reconstructed q/P.
+  if (v[5] !=0) _Q[1] = (int)( v[5]/fabs(v[5]) );
+  _qP[3] = v[5];
+
+  //Corresponding Error.
+  if (C[5][5]>0){
+    _qP[4] = sqrt(C[5][5]);
+
+    //momentum pull
+   _qP[5] = (_qP[3] - _qP[0])/_qP[4];
+  }
+
+//Correctly ID'd charge?.
+  if (_Q[0] == _Q[1]) _Q[2] = true;
+  else _Q[2] = false;
+
+
+//Reconstructed direction.
+  _Th[3][0] = v[3]; _Th[3][1] = v[4];
+
+  //Corresponding error.
+  if (C[3][3]>0){
+    _Th[4][0] = sqrt(C[3][3]);
+//direction pull
+ _Th[5][0] = (_Th[3][0] - _Th[0][0])/_Th[4][0] ;}
+
+
+  if (C[4][4]>0){
+    _Th[4][1] = sqrt(C[4][4]);
+ //direction pull
+    _Th[5][1] = (_Th[3][1] - _Th[0][1])/_Th[4][1] ;
+  }
+
+ 
 }
 
 //*************************************************************************************
@@ -295,12 +369,21 @@ void MINDplotter::position_pulls() {
   
   //Reconstructed x,y position.
   _X[1][0] = vert[0]; _X[1][1] = vert[1];
+ 
 
   //Corresponding Error.
-  if (vertMat[0][0]>0)
+  if (vertMat[0][0]>0){
     _X[2][0] = sqrt(vertMat[0][0]);
-  if (vertMat[1][1]>0)
+    //pull of X
+     _X[5][0] = (_X[1][0] - _X[0][0])/_X[2][0] ;
+  }
+  if (vertMat[1][1]>0){
     _X[2][1] = sqrt(vertMat[1][1]);
+ //pull of Y
+   _X[5][1] = (_X[1][1] - _X[0][1])/_X[2][1] ;
+  }
+  
+  
 
 }
 
@@ -312,16 +395,16 @@ void MINDplotter::momentum_pulls() {
   m.message("++Calculating momentum pulls++",bhep::VERBOSE);
 
   //Reconstructed q/P.
-  if (vert[5] !=0) _Q[1] = (int)( vert[5]/fabs(vert[5]) );
+  //tapasi if (vert[5] !=0) _Q[1] = (int)( vert[5]/fabs(vert[5]) );
   _qP[1] = vert[5];
 
   //Corresponding Error.
   if (vertMat[5][5]>0)
     _qP[2] = sqrt(vertMat[5][5]);
 
-  //Correctly ID'd charge?.
+  /*tapasi //Correctly ID'd charge?.
   if (_Q[0] == _Q[1]) _Q[2] = true;
-  else _Q[2] = false;
+  else _Q[2] = false;*/
 
 }
 
@@ -335,6 +418,7 @@ void MINDplotter::direction_pulls() {
   //Corresponding error.
   if (vertMat[3][3]>0)
     _Th[2][0] = sqrt(vertMat[3][3]);
+ 
   if (vertMat[4][4]>0)
     _Th[2][1] = sqrt(vertMat[4][4]);
 
@@ -378,6 +462,7 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
   _nhits = Fit.get_nMeas();
   
   for (int iHits = 0;iHits < _nhits;iHits++){
+    
 
     _XPos[iHits] = Fit.get_meas(iHits)->vector()[0];
     _YPos[iHits] = Fit.get_meas(iHits)->vector()[1];
@@ -393,7 +478,7 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
     _Q[0] = 0;
     _qP[0] = 0;
     _Th[0][0] = _Th[0][1]= 0;
-    _X[0][0] = _X[0][1] = 0;
+    _X[0][0] = _X[0][1] =0;//TG
     return false;
   }
   
@@ -409,7 +494,7 @@ bool MINDplotter::extract_true_particle1(const bhep::event& evt, fitter& Fit) {
   return true;
 }
 
-//*************************************************************************************
+//**********************************************************************************
 bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
 //*************************************************************************************
 
@@ -456,7 +541,7 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
 // 	else add_to_hads( *Pospart[iParts] );
 //       } else add_to_hads( *Pospart[iParts] );
       
-//     }
+//     }X[
   }
 
   std::vector<double> hadInf = evt.fetch_dvproperty("had4vec");
@@ -488,7 +573,7 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
     _Q[0] = 0;
     _qP[0] = 0;
     _Th[0][0] = _Th[0][1]= 0;
-    _X[0][0] = _X[0][1] = 0;
+    _X[0][0] = _X[0][1] = 0;//TG
     return false;
   }
   
@@ -500,6 +585,7 @@ bool MINDplotter::extract_true_particle2(const bhep::event& evt, fitter& Fit) {
   _Th[0][1]= _truPart->py()/_truPart->pz();
   //True x,y position.
   _X[0][0] = evt.vertex().x(); _X[0][1] = evt.vertex().y();
+ 
 
   return true;
 }
@@ -583,12 +669,20 @@ void MINDplotter::patternStats1(fitter& Fit) {
   bool isMu;
   
   for (int iHits = 0;iHits < _nhits;iHits++){
-    
+  
+        HitIndex = -1;//tapasi 
     if (Fit.get_meas(iHits)->name("MotherParticle").compare("mu+")==0
 	|| Fit.get_meas(iHits)->name("MotherParticle").compare("mu-")==0){
       isMu = true;
       _mus[iHits] = true;
       _hitType[0]++;
+
+      //tapasi
+      HitIndex++;
+     if(HitIndex == 0) _truMuHitIndex[0] = iHits;
+    
+     std::cout<<"HItIndex in tru Mu,1"<<HitIndex<<std::endl;
+       
     }
     else {_mus[iHits] = false; isMu = false;}
     
@@ -598,12 +692,20 @@ void MINDplotter::patternStats1(fitter& Fit) {
 	_hitType[1]++;
 	_engTraj += bhep::double_from_string( Fit.get_meas(iHits)->name(engDep) ) * GeV;
 	if ( isMu ) _hitType[2]++;
+ //tapasi
+	HitIndex++;     
+	if(HitIndex == 0) _truMuHitIndex[1] = iHits;
+// std::cout<<"HitIndex "<<_truMuHitIndex[1]<<std::endl;
+//     std::cout<<"HItIndex in cand Mu,1"<<HitIndex<<std::endl;
+	
 	
 	if ( Fit.get_traj().node(nNode).status("fitted") && _fail!=1 && _fail<4 ){	
 	  _node[iHits] = true; _hitType[3]++; }
 	else _node[iHits] = false;
 	if ( Fit.check_reseed() ) nNode--;
 	else nNode++;
+
+
       }
       else { _node[iHits] = false; _cand[iHits] = false; }
     } else if ( _fail != 7) { _node[iHits] = false; _cand[iHits] = false; }
@@ -634,23 +736,30 @@ void MINDplotter::patternStats2(fitter& Fit) {
   const dict::Key candHit = "inMu";
   const dict::Key hadHit = "inhad";
   int nNode = 0;
+   HitIndex=-1; //TG
   if ( Fit.check_reseed() ) nNode = (int)Fit.get_traj().size()-1;
   bool isMu;
   
   std::vector<cluster*> hits = Fit.get_meas_vec();
   std::vector<cluster*> inMuC;
-
+ cout<<"event no="<<_evNo<<"  total hits="<<_nhits<<endl;  
   for (int iHits = 0;iHits < _nhits;iHits++){
-    
-    if ( hits[iHits]->get_mu_prop() > 0.8 ){//good number??
+    //  cout<<"   hit no="<<iHits<<endl;  
+  if ( hits[iHits]->get_mu_prop() > 0.8 ){//good number??
       isMu = true;
       _mus[iHits] = true;
       _hitType[0]++;
+ //tapasi
+      HitIndex++; 
+    if(HitIndex == 0){ _truMuHitIndex[0] = iHits;
+    std::cout<<"HitIndex for true mu, 2 ="<<_truMuHitIndex[0]<<std::endl; }    
+ 
     }
     else {_mus[iHits] = false; isMu = false;}
 
     if ( _fail != 7 && hits[iHits]->names().has_key(candHit) ){
 
+    
       if ( hits[iHits]->name(candHit).compare("True")==0 ){
 	_cand[iHits] = true;
 	_had[iHits] = false;
@@ -658,7 +767,12 @@ void MINDplotter::patternStats2(fitter& Fit) {
 	_engTraj += hits[iHits]->get_eng() * MeV;
 	inMuC.push_back( hits[iHits] );
 	if ( isMu ) _hitType[2]++;
-	
+
+//tapasi
+   HitIndex++;	
+   if(HitIndex == 0){ _truMuHitIndex[1] = iHits;
+   std::cout<<"HitIndex for cand mu, 2 ="<<_truMuHitIndex[1]<<std::endl;}
+    	
 	if ( Fit.get_traj().node(nNode).status("fitted") && _fail!=1 && _fail<4 ){	
 	  _node[iHits] = true; _hitType[3]++; }
 	else _node[iHits] = false;
@@ -670,6 +784,7 @@ void MINDplotter::patternStats2(fitter& Fit) {
 	  _hitType[4]++;
 	  _had[iHits] = true;
 	} else _had[iHits] = false;
+
       }
 
     } else if ( _fail != 7) {

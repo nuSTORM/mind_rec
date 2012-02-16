@@ -38,6 +38,9 @@ class MINDplotter{
   bool extrap_to_vertex(const Trajectory& traj, 
 			const bhep::Point3D& vertexLoc, fitter& fitObj, State& ste);
 
+  //To calculate pos, charge, direction and momentum without extrapolating to vertex //tapasi
+  bool fill_kinematics(const Trajectory& traj, fitter& fitObj, State& ste);
+
   /*Requires a vector of the node of interest, corresponding covariance Matrix
     and the event under study to calculate either position or momentum pulls */
   void position_pulls();
@@ -97,9 +100,9 @@ private:
   double _nhadP[4];
   double _hadE[2];
   //double _haddot;
-  double _X[3][2];
-  double _Th[3][2];
-  double _qP[3];
+  double _X[6][2];
+  double _Th[6][2];
+  double _qP[6];
   double _leng;
   double _rangqP[3];
   int _Q[3];
@@ -125,6 +128,8 @@ private:
   bool extract_true_particle2(const bhep::event& evt, fitter& Fit);
   void add_to_hads(const bhep::particle& part);
   //
+  int _truMuHitIndex[2]; 
+  int HitIndex; 
 };
 
 #endif

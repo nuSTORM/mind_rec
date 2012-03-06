@@ -4,6 +4,9 @@
 #include <string>
 #include <algorithm>
 #include <mind/MINDplate.h>
+#include <mind/DeDxMap.cxx>
+
+
 
 //*************************************************************
 MINDsetup::MINDsetup() {
@@ -234,14 +237,20 @@ void MINDsetup::addProperties(){
 
   _zaxis = EVector(3,0);
   _zaxis[2]=1;
-
+  
   // _gsetup.set_volume_property("mother","BField",BField);
   const dict::Key vol_name = "Detector";
   //  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
   // step = 1*cm;
   // _gsetup.set_volume_property_to_sons("mother","BField",BField);
   _gsetup.set_volume_property_to_sons("mother",RP::BFieldMap,BFieldMap);
-  _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
+  // _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
+
+  //Instead of fixed de_dx, the energy deposition ditribution map 
+   
+  _de_dx_map = new DeDxMap(de_dx_min*MeV/mm);
+  _gsetup.set_volume_property_to_sons("mother",RP::de_dx_map,*_de_dx_map);
+
   _gsetup.set_volume_property_to_sons("mother",RP::SurfNormal,_zaxis);
   // _gsetup.set_volume_property_to_sons("mother",RP::StepSize,step);
   // _gsetup.set_volume_property_to_sons(vol_name,"BField",BField);
@@ -268,6 +277,10 @@ void MINDsetup::addProperties(){
   
  
 }
+
+
+
+
 
 void MINDsetup::readParam(){
 
@@ -368,7 +381,11 @@ void MINDsetup::readParam(){
 
     X0Eff = 1./(_wFe/X0Fe + wSc/X01);
 
-    de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
+    //de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
+
+    // changed to introduce the de_dx map
+      
+    de_dx_min = _pstore.fetch_dstore("de_dx_min") * MeV/mm;
 
     _msetup.message("Radiation length:",X0Fe/cm,"cm",c);
 

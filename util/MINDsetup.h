@@ -5,7 +5,7 @@
 #include <recpack/RecpackManager.h>
 #include <mind/SetupSk.h>
 #include <mind/MINDfieldMapReader.h>
-#include <mind/DeDxMap.hxx>
+#include <mind/DeDxMap.h>
 
 //#include <string.h>
 

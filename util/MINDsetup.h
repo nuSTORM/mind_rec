@@ -5,6 +5,7 @@
 #include <recpack/RecpackManager.h>
 #include <mind/SetupSk.h>
 #include <mind/MINDfieldMapReader.h>
+#include <mind/DeDxMap.hxx>
 
 //#include <string.h>
 
@@ -21,7 +22,7 @@ public:
   Setup& setup();
    
   // void init(bhep::gstore store,bhep::sstore,
-// 	    bhep::prlevel level=bhep::NORMAL);
+  // 	    bhep::prlevel level=bhep::NORMAL);
   void init(bhep::gstore store, bhep::prlevel level=bhep::NORMAL);
   
   //info to build virtual planes
@@ -40,7 +41,8 @@ public:
   double& getDeDx(){return de_dx;}
   void setDeDx(double d){de_dx = d;}
   EVector getBField(EVector pos){return BFieldMap.vector(pos);}
-
+  
+ 
 protected:
     
   void readParam();
@@ -95,6 +97,11 @@ protected:
   double X0Fe, X0Sc, X0AIR, X0Eff;//members for if/when geom more strict.
   double _wFe;
   double de_dx;
+
+  //for de/dx map
+  double de_dx_min;
+  DeDxMap* _de_dx_map;
+  
   EVector _zaxis;
   
   //-------------------------------------------------------------//

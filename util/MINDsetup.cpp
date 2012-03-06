@@ -4,7 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <mind/MINDplate.h>
-#include <mind/DeDxMap.cxx>
+#include <mind/DeDxMap.h>
 
 
 

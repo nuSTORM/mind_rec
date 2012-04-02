@@ -76,6 +76,9 @@ public:
 
   event_classif& get_classifier(){ return _classify; }
   
+  double Chi2Diff_protonHyp(){ return _chi2diff; }
+  bool   IsMuon() { return noprot; }
+
   //fit twice
 
   //void setRefit(bool ok){refit=ok;}
@@ -94,6 +97,7 @@ protected:
   void mom_from_range(int nplanes, int firsthit, EVector& V);
   void set_de_dx(double mom);
 
+
   //seed error
   EMatrix setSeedCov(EMatrix C0, double factor);
  
@@ -102,6 +106,9 @@ protected:
   bool reseed_traj();
   //bool fitHadrons();
   //double eng_scale(double visEng);
+  
+  // check proton hypothesis
+  bool test_de_dx(State baseseed);
 
   //-------- get traj from event----------//
   bool readTrajectory(const bhep::particle& part);
@@ -167,6 +174,8 @@ protected:
     
   Trajectory _traj;
   Trajectory _traj2;
+  // singular test for consistency with proton
+  Trajectory _traj1;
   // measurement_vector _meas;
 //   measurement_vector _hadmeas;
   std::vector<cluster*> _meas;
@@ -192,6 +201,9 @@ protected:
 
   bool _doClust;
   //
+  // the results for a test of the plausibility of a neutrino track
+  bool noprot;
+  double _chi2diff;
 
   //-------------- verbosity levels ------------//
 

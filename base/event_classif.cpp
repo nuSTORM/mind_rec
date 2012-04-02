@@ -43,7 +43,7 @@ void event_classif::initialize(const bhep::gstore& pstore, bhep::prlevel vlevel,
   _infoStore = pstore;
   readParam();
 
-  _voxEdge = _infoStore.fetch_dstore("rec_boxX") * cm;
+  _voxEdge = _infoStore.fetch_dstore("rec_boxX") * bhep::cm;
 
   FeWeight = wFe;
 
@@ -116,16 +116,25 @@ void event_classif::readParam() {
   min_check =  _infoStore.fetch_istore("min_check_nodes");
   min_hits = _infoStore.fetch_istore("low_Pass_hits");
   
-  _tolerance = _infoStore.fetch_dstore("pos_res") * cm;
+  _tolerance = _infoStore.fetch_dstore("pos_res") * bhep::cm;
   chi2_max = _infoStore.fetch_dstore("accept_chi");
   max_coincedence = _infoStore.fetch_dstore("max_coincidence");
 
-  _pieceLength = _infoStore.fetch_dstore("widthI") * cm
-    + _infoStore.fetch_dstore("widthS") * _infoStore.fetch_istore("nplane") * cm
-    + _infoStore.fetch_dstore("widthA") * (_infoStore.fetch_istore("nplane")+1) * cm;
+  _pieceLength = _infoStore.fetch_dstore("widthI") * bhep::cm
+    + _infoStore.fetch_dstore("widthS") * _infoStore.fetch_istore("nplane") * bhep::cm
+    + _infoStore.fetch_dstore("widthA") * (_infoStore.fetch_istore("nplane")+1) * bhep::cm;
   
   _maxBlobSkip = _infoStore.fetch_dstore("maxBlobSkip");
   _minBlobOcc = _infoStore.fetch_dstore("minBlobOcc");
+
+  _detX = _infoStore.fetch_dstore("MIND_x") * bhep::m;
+  _detY = _infoStore.fetch_dstore("MIND_y") * bhep::m;
+
+  if(_infoStore.find_dstore("WLSatten"))
+    _WLSAtten = _infoStore.fetch_dstore("WLSatten");
+  else						
+    _WLSAtten = 5000.;
+
 
 }
 
@@ -165,8 +174,9 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
   
   do {
     
-    //EngPlane = bhep::double_from_string( hits[imeas]->name( Edep ) ) * GeV;
-    EngPlane = hits[imeas]->get_eng()*MeV;
+    //EngPlane = bhep::double_from_string( hits[imeas]->name( Edep ) ) * bhep::GeV;
+    EngPlane = correctEdep(hits[imeas]->get_eng()*bhep::MeV, 
+			   hits[imeas]->position()[0], hits[imeas]->position()[1]);
     testZ = hits[imeas]->position()[2];
     count++;
     hits_used++;
@@ -175,8 +185,9 @@ bool event_classif::get_plane_occupancy(vector<cluster*>& hits){
       curZ = hits[i]->position()[2];
 
       if (curZ <= testZ + _tolerance) {
-
-	EngPlane += hits[i]->get_eng() * MeV;
+	double x = hits[i]->position()[0];
+	double y = hits[i]->position()[1];
+	EngPlane += correctEdep(hits[i]->get_eng() * bhep::MeV, x, y);
 	testZ = hits[i]->position()[2];
 	count++;
 	hits_used++;
@@ -401,11 +412,19 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
       _intType = 5;
       ok = invoke_cell_auto( hits, muontraj, hads);
       if ( !ok ) _failType = 4;
-      //ok = false; _failType = 4;
+      // ok = false; _failType = 4;
       
     } else {
       if ( badplanes !=0 ) _intType = 3;
       ok = muon_extraction( hits, muontraj, hads);
+      // if ( !ok ) _failType = 4; 
+
+      //Now I am going to create a new trajectory out of the hadron
+      //hits and see if there is another potential trajectory
+      // Trajectory newtraj;
+      // vector<cluster*> hads2;
+      // track_from_hads( hads, muontraj, hads2); 
+      
     }
   }
   
@@ -545,10 +564,10 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
 
   }
   
-  //double pSeed = 668 + 1.06*Xtent; //estimate in MeV, log for fit.
+  //double pSeed = 668 + 1.06*Xtent; //estimate in bhep::MeV, log for fit.
   double pSeed = (9180-6610*FeWeight) + (-2.76+4.01*FeWeight)*Xtent; //best for 3/2 seg
   // double pSeed = 574 + 0.66*Xtent;//test for 1/2 seg
-  set_de_dx( pSeed/GeV );
+  set_de_dx( pSeed/bhep::GeV );
   //Use slope in bending plane to try and get correct sign for momentum seed.
   // pSeed *= -fabs(V[3])/V[3];//Pos. gradient in X is ~negative curvature.
   // Assume that the R-Z plane is the bending plane for the toroidal field
@@ -561,7 +580,7 @@ bool event_classif::get_patternRec_seed(State& seed, Trajectory& muontraj,
   V[5] = 1./pSeed;
   
   //Errors
-  M[0][0] = M[1][1] = 15.*cm*cm;
+  M[0][0] = M[1][1] = 15.*bhep::cm*bhep::cm;
   M[2][2] = EGeo::zero_cov()/2;
   M[3][3] = M[4][4] = 1.5;
   M[5][5] = pow(V[5],2)*4;
@@ -598,10 +617,12 @@ double event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
   EVector pos(3,0);
   EVector Z(3,0); Z[2] = 1;
-  double x[(const int)nMeas], y[(const int)nMeas], z[(const int)nMeas], u[(const int)nMeas];
+  double x[(const int)nMeas], y[(const int)nMeas], 
+    z[(const int)nMeas], u[(const int)nMeas], r[(const int)nMeas];
   int minindex = nMeas;
   double minR = 99999.999, pdR = 0.0, sumdq=0;
-  double pathlength=0;
+  double pathlength=0, tminR=9999.9;
+  
 
   pos[0] = x[nMeas-1] = track.nodes()[nMeas-1]->measurement().vector()[0];
   pos[1] = y[nMeas-1] = track.nodes()[nMeas-1]->measurement().vector()[1];
@@ -645,8 +666,7 @@ double event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   
   
   double wFe = geom.get_Fe_prop();
-  double p = (wFe*(0.017143*GeV/cm * pathlength - 1.73144*GeV)
-	      + (1- wFe)*(0.00277013*GeV/cm * pathlength + 1.095511*GeV));
+  double p = RangeMomentum(pathlength);
 
   TGraph *gr1 = new TGraph((const int)minindex, z, x);
   TGraph *gr2 = new TGraph((const int)minindex, z, y);
@@ -654,6 +674,8 @@ double event_classif::fit_parabola(EVector& vec, Trajectory& track) {
 
   TF1 *fun = new TF1("parfit","[0]+[1]*x",-3,3);
   fun->SetParameters(0.,0.001);
+  TF1 *fun2 = new TF1("parfit2","[0]+[1]*x+[2]*x*x",-3,3);
+  fun2->SetParameters(0.,0.001,0.001);
   
   fitcatcher = gr1->Fit("parfit", "QN");
   vec[3] = fun->GetParameter(1);
@@ -662,9 +684,10 @@ double event_classif::fit_parabola(EVector& vec, Trajectory& track) {
   fitcatcher = gr2->Fit("parfit", "QN");
   vec[4] = fun->GetParameter(1);
 
-  fun->SetParameters(0.,0.001);
-  fitcatcher = gr3->Fit("parfit", "QN");
-  double qtilde = fun->GetParameter(1);
+  // fun->SetParameters(0.,0.001);
+  fitcatcher = gr3->Fit("parfit2", "QN");
+  double qtilde = -0.3*pow(1+fun2->GetParameter(1),3./2.)/
+    (2*fun2->GetParameter(2));
   
   // int meansign = sumdq/fabs(sumdq);
   int meansign = qtilde/fabs(qtilde);
@@ -685,7 +708,7 @@ void event_classif::set_de_dx(double mom){
   
   double de_dx = -( 12.37 * FeWeight * pow( mom, 0.099) 
 		    + (1 - FeWeight) * 2.16 * pow( mom, 0.075) );
-  de_dx *= MeV/cm;
+  de_dx *= bhep::MeV/bhep::cm;
   
   man().geometry_svc().setup().set_volume_property_to_sons("mother","de_dx",de_dx);
 
@@ -1168,7 +1191,7 @@ void event_classif::select_trajectory(vector<Trajectory*>& trajs,
   
   for (int it1 = 0;it1 < (int)trajs.size();it1++){
 
-    length[it1] = (int)trajs[it1]->nmeas();
+    length[it1] = trajs[it1]->length();
     Err[it1] = trajs[it1]->quality( relErr );
     
   }
@@ -1262,9 +1285,9 @@ void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& mu
     if ( (*hitIt3)->names().has_key( candHit ) ){
       if ( (*hitIt3)->name( candHit ).compare("True") == 0 ){
 	_trajhit++;
-	//_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * GeV;
-	_trajEng += (*hitIt3)->get_eng() * MeV;
-	_trajEngPlan[counter] = (*hitIt3)->get_eng() * MeV;
+	//_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * bhep::GeV;
+	_trajEng += (*hitIt3)->get_eng() * bhep::MeV;
+	_trajEngPlan[counter] = (*hitIt3)->get_eng() * bhep::MeV;
 	// if ( (*hitIt3)->name("MotherParticle").compare("mu+") == 0
 // 	     || (*hitIt3)->name("MotherParticle").compare("mu-") == 0 )
 	if ( (*hitIt3)->get_mu_prop() > 0.8 )//still to be decided.
@@ -1280,7 +1303,7 @@ void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& mu
 //     if ( trIt1 != muontraj.nodes().end() )
 //       if ( fabs( (*planIt) - (*trIt1)->measurement().position()[2]) < _tolerance ){
 	
-// 	_trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * GeV;
+// 	_trajEngPlan[counter] = bhep::double_from_string( (*trIt1)->measurement().name( Edep ) ) * bhep::GeV;
 // 	trIt1++;
 	
 //       }
@@ -1321,4 +1344,65 @@ void event_classif::set_int_type(const string name){
   else
     _truInt = 8;
 
+}
+
+
+double event_classif::correctEdep(double edep, double X, double Y)
+{
+
+  double sum1 = 0;
+  
+  double slope = (_detY - _detX*tan(atan(1)/2.))/
+    (_detY*tan(atan(1)/2.) - _detX);
+
+  //need to take into account drift distance to closest and furthest edge.
+  if((fabs(X) < _detY*tan(atan(1)/2.)/2 &&
+      fabs(Y) < _detX*tan(atan(1)/2.)/2 ) ){
+    sum1 =  exp( -(_detX/2 - fabs(X))/_WLSAtten );
+    sum1 += exp( -(_detX/2 + fabs(X))/_WLSAtten );
+    sum1 += exp( -(_detY/2 - fabs(Y))/_WLSAtten );
+    sum1 += exp( -(_detY/2 + fabs(Y))/_WLSAtten );
+  }
+  else if(fabs(X) > _detY*tan(atan(1)/2.)/2 &&
+	  fabs(Y) < _detX*tan(atan(1)/2.)/2  ){
+    double xedge = _detX/2 + (fabs(Y) - 
+				   _detX/2.*tan(atan(1)/2.))*slope;
+    sum1 =  exp( -(xedge  - fabs(X))/_WLSAtten );
+    sum1 += exp( -(xedge + fabs(X))/_WLSAtten );
+    sum1 += exp( -(_detY/2 - fabs(Y))/_WLSAtten );
+    sum1 += exp( -(_detY/2 + fabs(Y))/_WLSAtten );
+  }
+  else if(fabs(X) < _detY*tan(atan(1)/2.)/2 &&
+	  fabs(Y) > _detX*tan(atan(1)/2.)/2  ){
+    double yedge = _detY/2 + (fabs(X) - 
+				   _detY/2.*tan(atan(1)/2.))*slope;
+    sum1 =  exp( -(_detX/2 - fabs(X))/_WLSAtten );
+    sum1 += exp( -(_detX/2 + fabs(X))/_WLSAtten );
+    sum1 += exp( -(yedge - fabs(Y))/_WLSAtten );
+    sum1 += exp( -(yedge + fabs(Y))/_WLSAtten );
+  }
+  else if(fabs(X) > _detY*tan(atan(1)/2.)/2 &&
+	  fabs(Y) > _detX*tan(atan(1)/2.)/2  ){
+    double xedge = _detX/2 + (fabs(Y) - 
+				   _detX/2.*tan(atan(1)/2.))*slope;
+    double yedge = _detY/2 + (fabs(X) - 
+				   _detY/2.*tan(atan(1)/2.))*slope;
+    sum1 =  exp( -(xedge - fabs(X))/_WLSAtten );
+    sum1 += exp( -(xedge + fabs(X))/_WLSAtten );
+    sum1 += exp( -(yedge - fabs(Y))/_WLSAtten );
+    sum1 += exp( -(yedge + fabs(Y))/_WLSAtten );
+  }
+  
+  double corrEng = 4*edep/sum1;
+  return corrEng;
+}
+
+
+double event_classif::RangeMomentum(double length){
+  // Computing the momentum of a track based on the range
+  // Parameters calculated from "Atomic Data and Nuclear Data Tables 78, 183-356 (2001)"
+  double p = (FeWeight*(0.011844*bhep::GeV * pow((length/bhep::cm),1.03235))
+	      + (1- FeWeight)*(0.0023705067*bhep::GeV* pow(length/bhep::cm,1.00711577)));
+  return p;
+  // Should be compared to G4 simulation directly.
 }

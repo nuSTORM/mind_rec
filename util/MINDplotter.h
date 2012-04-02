@@ -25,12 +25,12 @@ class MINDplotter{
 
  public:
 
-  MINDplotter();
+  MINDplotter(const bhep::gstore& pstore, bhep::prlevel vlevel=bhep::NORMAL);
 
   virtual ~MINDplotter();
 
   //Main functions for output initialization.
-  void initialize(string outFileName, bool patRec, bool clust, bhep::prlevel vlevel=bhep::NORMAL);
+  void initialize(string outFileName, bool patRec, bool clust);
   void execute(fitter& Fit, const bhep::event& evt, bool success);
   void finalize();
 //   //
@@ -54,6 +54,7 @@ class MINDplotter{
   /* Function to plot stats about pattern recogntion, 1: no clust, 2: clust */
   void patternStats1(fitter& Fit);
   void patternStats2(fitter& Fit);
+  double correctEdep(double edep, double X, double Y);
 
   /*Function to record quality of hadron fit*/
   void hadron_direction(fitter& fit);
@@ -61,7 +62,11 @@ class MINDplotter{
   /*tru interaction type*/
   void get_tru_int_type(const bhep::event& evt);
 
+  // void extract_State_History(std::vector<EVector> steHistory);
+
 protected:
+
+  bhep::gstore store;
 
   bhep::prlevel level;
     
@@ -72,6 +77,8 @@ protected:
   TTree *statTree;
 
   bool _patR, _clu;
+
+  double _detX, _detY, _WLSAtten;
 
 private:
 
@@ -87,11 +94,13 @@ private:
   double _vert[3];
   double _nuEng;
   int _charm[2];
+  int _npi[3];
+  int _nk[3];
   double _Q2;
   int _pdg[3];
   double _visEng;
   double _engTraj;
-  double _engvar[2];
+  double _engvar[4];
   //Information on hadrons.
   double _hadP[3];
   double _engTrans;
@@ -110,17 +119,33 @@ private:
   int _plns[2];
   int _nhits;
   int _hitType[5];
-  double _XPos[2500];
-  double _YPos[2500];
-  double _ZPos[2500];
-  double _Edep[2500];
-  bool _mus[2500];
-  bool _cand[2500];
-  bool _node[2500];
-  bool _had[2500];
+  double _XPos[5000];
+  double _YPos[5000];
+  double _ZPos[5000];
+  double _Edep[5000];
+  bool _mus[5000];
+  bool _cand[5000];
+  bool _node[5000];
+  bool _had[5000];
+  double _nchi2[5000];
   double _pChi[3];
+  double _dchi2p;
+  bool _isProton;
+  // double hist[4];
+  // bool passrec[4];
   //TString _intName;
   int _truInt;
+  double IRON_z;
+  double SCINT_z;
+  double AIR_z;
+  int nScint;
+  double _pieceWidth;
+  int _npieces;
+  double MIND_z;
+  double rel_denSI;
+  double rel_denAS;
+  double _wFe;
+  
 
   void define_tree_branches();
   //1: Old method. 2: with clustering etc.

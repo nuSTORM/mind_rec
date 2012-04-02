@@ -91,11 +91,17 @@ bool fitter::execute(bhep::particle& part,int evNo){
       ok = man().matching_svc().compute_length(_traj2, length);
     else ok = man().matching_svc().compute_length(_traj, length);
     
-    // if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
-//     else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
+    // bool noprot = true;
+    if (reseed_ok && fitted)
+      noprot = test_de_dx(_traj2.state(_traj2.first_fitted_node()));
+    else if(fitted) noprot = test_de_dx(_traj.state(_traj.first_fitted_node()));
+    
 
+    // if (fitted) m.message("++ Particle fitted",bhep::VERBOSE);
+    //     else m.message("++ Particle not fitted !!!",bhep::VERBOSE);
+    
     // if (!fitted)
-//       m.message("++Failed fit trajectory++",bhep::NORMAL);
+    //       m.message("++Failed fit trajectory++",bhep::NORMAL);
   }
   // else m.message("++ Particle lies outside no. hit cuts!",bhep::VERBOSE);
   
@@ -115,6 +121,7 @@ void fitter::reset() {
   //reset trajectory 
   
   _traj.reset();
+  _traj1.reset();
   _traj2.reset();
   stc_tools::destroy(_meas);
   _hadmeas.clear();
@@ -132,7 +139,7 @@ void fitter::reset() {
 //   //parameters form fit to range data for Scint and Fe.
 
 //   mom[0] = exp( ( log( len ) - 8.35 + 1.72 * weight ) / ( 0.981 - 0.023 * weight ) );
-//   mom[0] *= GeV;
+//   mom[0] *= bhep::GeV;
 //   //All considered?? 5% from range fit and 1cm error on length?
 //   mom[1] = sqrt( pow( 0.05, 2) + pow( 10.0/len, 2) ) / ( 0.981 - 0.023 * weight );
 //   mom[1] *= mom[0]; 
@@ -161,7 +168,7 @@ bool fitter::fitTrajectory(State seed) {
       EMatrix C0 = newstate.matrix();
       
     
-      set_de_dx( fabs(1./v[5])/GeV );
+      set_de_dx( fabs(1./v[5])/bhep::GeV );
       
       EMatrix C = setSeedCov(C0,facRef);
       
@@ -233,7 +240,7 @@ bool fitter::reseed_traj(){
       EVector v = newstate.vector();
       EMatrix C0 = newstate.matrix();
       
-      set_de_dx( fabs(1./v[5])/GeV );
+      set_de_dx( fabs(1./v[5])/bhep::GeV );
       
       EMatrix C = setSeedCov(C0,facRef);
 
@@ -281,7 +288,7 @@ bool fitter::reseed_traj(){
     
 //     int count = 0;
 //     EngPlane = 0;
-//     EngHit = bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*GeV;
+//     EngHit = bhep::double_from_string( _hadmeas[imeas]->name( Edep ) )*bhep::GeV;
 //     x[ientry] = _hadmeas[imeas]->vector()[0] * EngHit;
 //     y[ientry] = _hadmeas[imeas]->vector()[1] * EngHit;
 //     z[ientry] = _hadmeas[imeas]->position()[2];
@@ -293,7 +300,7 @@ bool fitter::reseed_traj(){
 //     for (size_t i=hits_used;i < nhadhits;i++){
 //       curZ = _hadmeas[i]->position()[2];
 //       if (curZ >= testZ-_tolerance){
-// 	EngHit = bhep::double_from_string( _hadmeas[i]->name( Edep ) )*GeV;
+// 	EngHit = bhep::double_from_string( _hadmeas[i]->name( Edep ) )*bhep::GeV;
 // 	x[ientry] += _hadmeas[i]->vector()[0] * EngHit;
 // 	y[ientry] += _hadmeas[i]->vector()[1] * EngHit;
 // 	z[ientry] += curZ;
@@ -352,7 +359,7 @@ bool fitter::reseed_traj(){
 //     scaledEng = factor1;
 //   else scaledEng = TMath::Min(factor1, factor2);
   
-//   return scaledEng * GeV;
+//   return scaledEng * bhep::GeV;
 // }
 
 //*************************************************************
@@ -627,18 +634,18 @@ void fitter::setSeed(EVector r, int firsthit){
   double pSeed;
   double wFe = geom.get_Fe_prop();
   //Approximate p from plot of p vs. no. hits, then approx. de_dx from this.
-  if (v[5] == 0) { //pSeed = (double)(0.060*_traj.nmeas())*GeV;
+  if (v[5] == 0) { //pSeed = (double)(0.060*_traj.nmeas())*bhep::GeV;
     pSeed = (13300-11200*wFe) + (-128+190*wFe)*(double)_traj.nmeas();
     v[5] = 1.0/pSeed;
   }
   
-  set_de_dx( fabs(1./v[5])/GeV );
+  set_de_dx( fabs(1./v[5])/bhep::GeV );
 
   m.message("reset energy loss to approx value",bhep::VERBOSE);
 
   // But use a larger covariance matrix
   // diagonal covariance matrix
-  C[0][0] = C[1][1] = 9.*cm*cm;
+  C[0][0] = C[1][1] = 9.*bhep::cm*bhep::cm;
   C[2][2] = EGeo::zero_cov()/2;
   C[3][3] = C[4][4] = 1.;
   C[5][5] = pow(v[5],2)*3;
@@ -714,7 +721,7 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
       ++pos;
     }
   Bmean /= pos;
-  Bmean /= tesla;
+  Bmean /= bhep::tesla;
   
 
   if (fitpoints <= 15) { nfit = 1; fitRange[0] = fitpoints;}
@@ -773,7 +780,7 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
       if (h1!=0) {
 	V[5] = 1./(-0.3*Bmean*pow((1+g1*g1),3./2.)/
 		   (2*h1)*0.01);
-	V[5] /= GeV;
+	V[5] /= bhep::GeV;
 	sign = (int)( V[5]/fabs( V[5] ));
       } else V[5] = 0;
     } else {
@@ -781,7 +788,7 @@ void fitter::mom_from_parabola(int nplanes, int firsthit, EVector& V){
 	V[4] = g;
 	V[3] = b;
 	V[5] = 1/(-0.3*Bmean*pow((1+g1*g1),3./2.)/(2*h1)*0.01);
-	V[5] /= GeV;
+	V[5] /= bhep::GeV;
       } else break;
     }
     
@@ -812,13 +819,13 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   const int fitpoints = nplanes - firsthit;
   double meanchange = 0;
   double xpos[fitpoints], ypos[fitpoints], zpos[fitpoints];
-  double upos[fitpoints], wpos[fitpoints];
+  double upos[fitpoints], rpos[fitpoints];
   std::vector<EVector> dr;
   std::vector<EVector> B;
   bool isContained = true, cuspfound = false;
-  double Xmax = geom.getPlaneX() - 1*cm;
-  double Ymax = geom.getPlaneY() - 1*cm;
-  double Zmax = geom.getPlaneZ() - 1*cm;
+  double Xmax = geom.getPlaneX() - 1*bhep::cm;
+  double Ymax = geom.getPlaneY() - 1*bhep::cm;
+  double Zmax = geom.getPlaneZ() - 1*bhep::cm;
   //double dx[fitpoints-1], dy[fitpoints-1], dz[fitpoints-1];
   // double ax[fitpoints-2], ay[fitpoints-2], az[fitpoints-2];
   // double bx[fitpoints-2], by[fitpoints-2], bz[fitpoints-2];
@@ -829,15 +836,17 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   double initR = 0;
   double sumDR = 0;
   int minindex = nplanes - firsthit;
-  double minR = 999999.9999;
+  double min_r = 999999.9999;
   double pdR = 0.0;
   EVector Z = EVector(3,0); Z[2] = 1;
+  bool bounce=false;
   for (int ipoint=firsthit;ipoint < nplanes;ipoint++){
     
     xpos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[0];
     ypos[ipoint-firsthit] = _traj.measurement(ipoint).vector()[1];
     zpos[ipoint-firsthit] = _traj.measurement(ipoint).position()[2]
       - _traj.measurement(firsthit).position()[2];
+    rpos[ipoint-firsthit] = sqrt(pow(xpos[ipoint-firsthit],2) + pow(ypos[ipoint-firsthit],2));
     if(fabs(xpos[ipoint-firsthit]) > Xmax || fabs(ypos[ipoint-firsthit]) > Ymax)
       isContained = false;
     else if(fabs(ypos[ipoint-firsthit]) > 
@@ -848,17 +857,19 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
     pos0[1] = ypos[ipoint-firsthit];
     pos0[2] = zpos[ipoint-firsthit];
     EVector B0 = geom.getBField(pos0);
+    // std::cout<<pos0<<B0<<std::endl;
     B.push_back(B0);
     Bmean += B0.norm();
-    upos[ipoint-firsthit] = // sqrt(pos0[0]*pos0[0] + pos0[1]*pos0[1]);
-      dot(pos0,crossprod(Z, B0))/crossprod(Z, B0).norm();
-    //if(!cuspfound)
-    //  if(ipoint == firsthit) initR = upos[ipoint-firsthit];
-    //  else {
-    //sumDR += initR - upos[ipoint-firsthit];
-    //initR = upos[ipoint - firsthit];
-    //  }
-    Npts++;
+    upos[ipoint-firsthit] = dot(pos0,crossprod(Z, B0))/B0.norm();
+    // int usign = upos[ipoint-firsthit]/fabs(upos[ipoint-firsthit]); 
+    // Find the minimum radial position.
+    if ( min_r > rpos[ipoint-firsthit] && !bounce){
+      min_r = rpos[ipoint-firsthit];
+      minindex = ipoint-firsthit;
+    }
+    else if(minindex > 0 && min_r < rpos[ipoint-firsthit] &&
+	    !bounce) bounce = true;
+    
     if ( ipoint > firsthit){
       EVector drtemp = EVector(3,0);
       drtemp[0] = xpos[ipoint-firsthit] - xpos[ipoint-firsthit-1];
@@ -866,6 +877,37 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
       drtemp[2] = zpos[ipoint-firsthit] - zpos[ipoint-firsthit-1];
       dr.push_back(drtemp);      
       pathlength +=  drtemp.norm();
+    }
+    Npts++;
+  }
+  // Now to determine the charge, get the first upos and the last
+  // upos.  
+  // If the last rpos is greater than the first rpos, it is
+  // likely that the magnetic field focusses the charge, and it is
+  // possible that there is a "bounce" in the track.
+  
+  double firstu = upos[1];
+  double lastu  = upos[fitpoints-1];
+  double firstz = zpos[1];
+  double lastz  = zpos[fitpoints-1];
+  int umax = Npts;
+  
+  if(rpos[1] > rpos[Npts-1] && bounce ){
+    lastu = upos[minindex];
+    lastz = zpos[minindex];
+    umax = minindex;
+  }
+  // Now define a line in u-z space 
+  double uslope = (lastu - firstu)/(lastz - firstz);
+  double uintercept = (-firstz)/(lastz-firstz) + firstu;
+  std::cout<<firstz<<"\t"<<lastz<<"\t"<<firstu<<"\t"<<lastu<<"\t"<<uslope<<"\t"<<uintercept<<std::endl;
+  for (int iu = 0; iu < umax; iu++){
+    double dr = upos[iu] - ( uslope * zpos[iu] + uintercept ); 
+    //if(dr != dr) 
+    // else 
+    sumDR -= dr;
+  }
+  /*
       if ( ipoint > firsthit + 1 ) {
 	int k = ipoint-firsthit-1;
 	EVector dr0 = dr[k-1];
@@ -875,51 +917,21 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
 	EVector pos = EVector(3,0);
 	pos[0] = xpos[k-1]; pos[1] = ypos[k-1]; pos[2] = zpos[k-1]; 
 	EVector B = geom.getBField(pos);
-	double dR = dot(ddr, crossprod(Z, B0))/ (crossprod(Z,B0).norm());
-	double DR = dot(Ddr, crossprod(Z, B0))/ (crossprod(Z,B0).norm());
-	if(pdR != 0.0){
-	  if(!cuspfound && DR/fabs(DR) == pdR/fabs(pdR)){
-	    // sumDR += fabs(dR) > 0.0 ? dR/fabs(dR):0.0;
-	    sumDR += dR;
-	    // pdR = dR;
-	    pdR = dR;
-	  }
-	  else if(dR/fabs(dR) != pdR/fabs(pdR)){
-	    // cuspfound = true;
-	    minindex = ipoint - firsthit - 1;
-	    pdR = dR;
-	    // std::cout<<"At cusp, sumDR = "<<sumDR<<std::endl;
-	  }
-	}
-	else if(!cuspfound && fabs(dR) > 0){
-	  // sumDR += fabs(DR) > 0.0 ? DR/fabs(DR) : 0.0;
-	  sumDR += dR;
-	  pdR = dR;
-	}
-	/*
-	  if(pdR != 0){
-	  if(minR < upos[ipoint - firsthit - 1] &&
-	  (xpos[ipoint-firsthit]/fabs(xpos[ipoint-firsthit]) != 
-	  xpos[ipoint-firsthit-1]/fabs(xpos[ipoint-firsthit-1])) ||
-	  (ypos[ipoint-firsthit]/fabs(ypos[ipoint-firsthit]) != 
-	  ypos[ipoint-firsthit-1]/fabs(ypos[ipoint-firsthit-1]))
-	  && !cuspfound){
-	  minR = upos[ipoint - firsthit - 1];
-	  minindex = ipoint - firsthit - 1;
-	  cuspfound = true;
-	  }
-	  }*/
+	double dR = dot(Ddr, crossprod(Z, B0));
+	// double DR = dot(Ddr, crossprod(Z, B0));
+	sumDR += fabs(dR) > 0.0 ? dR/fabs(dR):0.0;
+	// pdR = dR;
       }
+      
     }
   }
+  */
   Bmean /=Npts;
   
-  double wFe = geom.get_Fe_prop();
-  double p = (wFe*(0.017143*GeV/cm * pathlength - 1.73144*GeV)
-	      + (1- wFe)*(0.00277013*GeV/cm * pathlength + 1.095511*GeV));
+  double p = get_classifier().RangeMomentum(pathlength);
   double meansign = 1;
-  if(sumDR != 0) {
-    std::cout<<"sumDR = "<<sumDR<<std::endl;
+  std::cout<<"sumDR = "<<sumDR<<", Mean B field is "<<Bmean<<std::endl;
+  if(sumDR != 0 && sumDR == sumDR) {
     meansign = sumDR/fabs(sumDR);
   }
   
@@ -928,9 +940,11 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
   // (terrible assumption by the way)
   const int sample = minindex < 20 ? (const int)minindex: 20;
   
-  V[3] = dr.at(0)[0]/dr.at(0)[2];
-  V[4] = dr.at(0)[1]/dr.at(0)[2];
-  if(isContained && p != 0)
+  V[3] = dr.at(1)[0]/dr.at(1)[2];
+  V[4] = dr.at(1)[1]/dr.at(1)[2];
+  // V[3] = (xpos[1]  - xpos[0])/(zpos[1] - zpos[0]);
+  // V[4] = (ypos[1] - ypos[0])/(zpos[1] - zpos[0]);
+  if(isContained && p != 0) // && fabs(meansign)==1.0)
     V[5] = meansign/fabs(p);
   else{
     // meansign = 0;
@@ -944,36 +958,27 @@ void fitter::mom_from_range(int nplanes, int firsthit, EVector& V){
     double b = func->GetParameter(1);
     double c = func->GetParameter(2);
     
-    p = 300.0 * B[1].norm() * pow(1. + b*b,3./2.) /2./c;
+    double p1 = 300.0 * B[1].norm() * pow(1. + b*b,3./2.) /2./c;
     //double wt = TMath::Gaus(fabs(pt), p, 0.25*p, true);
     // std::cout<<pt<<std::endl;
     // meansign += wt * pt/fabs(pt);
     
     delete localcurveUW;      
     delete func;
-    if(p!=0){
-      meansign = p/fabs(p);
-      V[5] = 1./p;
+    if(p1!=0){
+      meansign = p1/fabs(p1);
     }
-  
+    
   }
-  int sign = 1;
-  if(meansign==meansign){
-    if(meansign!=0)
-      sign = int(meansign/fabs(meansign));
-    else
-      sign = 0.;
-  }
-  else
-    sign = 1;
-  std::cout<<"Pathlength is "<<pathlength // <<" or "<<pathlength0
-	   <<" with charge "<<meansign<<std::endl;
+  V[5] = meansign/p;
+  std::cout<<"Pathlength is "<<pathlength <<" for p="<<p
+	   <<" GeV/c, with charge "<<meansign<<std::endl;
     //<<" and acceleration in bending plane "
     //   <<meanacceleration/count<<" from "
     //   <<count<<" points."<<std::endl;
 
   //std::cout<<"Weight of iron is "<<wFe<<std::endl;
-  //std::cout<<"Numbers taken from interpolations of Range tables between 1 and 80 GeV. \n";
+  //std::cout<<"Numbers taken from interpolations of Range tables between 1 and 80 bhep::GeV. \n";
     
   // std::cout<<"Momentum is "<<p<<std::endl;
   _initialqP = V[5];
@@ -991,11 +996,88 @@ void fitter::set_de_dx(double mom){
   
   double de_dx = -( 12.37 * weight * pow( mom, 0.099)
 		    + (1 - weight) * 2.16 * pow( mom, 0.075) );
-  de_dx *= MeV/cm;
+  de_dx *= bhep::MeV/bhep::cm;
   
   geom.setDeDx(de_dx);
 
 }
+
+
+//*****************************************************************************
+bool fitter::test_de_dx(State baseseed){
+//*****************************************************************************
+// Test whether the track produces a better fit if other particles are assumed
+
+  m.message("+++ test_de_dx function +++",bhep::VERBOSE);
+  
+  double basechi2 = _traj.quality();
+  State proseed = baseseed;
+  proseed.set_name(RP::PID,"Proton");
+  
+  
+  vector<Node*>::iterator nIt;
+  for (nIt = _traj.nodes().begin();nIt < _traj.nodes().end();nIt++)
+    _traj1.add_measurement( (*nIt)->measurement() );
+
+
+  bool ok = man().fitting_svc().fit(proseed,_traj1);
+  /* 
+  if (ok && refit){
+    
+    ok = checkQuality(); 
+    if (ok) {
+      
+      m.message("Going to refit...",bhep::VERBOSE);
+      
+      //--------- refit using a new seed --------//	
+      State newstate = _traj1.state(_traj1.first_fitted_node());
+
+      EVector v = newstate.vector();
+      EMatrix C0 = newstate.matrix();
+      
+    
+      set_de_dx( fabs(1./v[5])/bhep::GeV );
+      
+      EMatrix C = setSeedCov(C0,facRef);
+      
+      HyperVector HV(v,C);
+      HV.keepDiagonalMatrix();
+      //seedstate.set_hv(HyperVector(v,C)); 
+      seedstate.set_hv( HV );
+      
+      ok = man().fitting_svc().fit(seedstate,_traj1);
+      
+      }
+      
+      }
+      
+  int fitCheck = 0;
+  vector<Node*>::iterator nDIt;
+  for (nDIt = _traj.nodes().begin();nDIt!=_traj.nodes().end();nDIt++)
+    if ( (*nDIt)->status("fitted") )
+      fitCheck++;
+  
+  double low_fit_cut;
+  if (get_classifier().get_int_type() == 2)
+    low_fit_cut = lowFit2;//store.fetch_dstore("low_fit_cut2");
+  else
+    low_fit_cut = lowFit1;//store.fetch_dstore("low_fit_cut0");
+  //disallow backfit on cell auto tracks for now.
+  
+  if (get_classifier().get_int_type() != 5){
+    if (get_classifier().get_int_type() != 2){
+      if (!ok || (double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+	reseed_ok = reseed_traj();
+    } else if ((double)fitCheck/(double)_traj.nmeas() < low_fit_cut)
+      reseed_ok = reseed_traj();
+  }
+  */
+  if (ok) ok = basechi2 < _traj1.quality();
+  _chi2diff = _traj1.quality() - basechi2;
+
+  return ok;
+  
+}  
 
 //*****************************************************************************
 void fitter::readParam(){
@@ -1026,8 +1108,8 @@ void fitter::readParam(){
 
     chi2fit_max = store.fetch_dstore("chi2fit_max");
     
-    X0 = store.fetch_dstore("x0Fe") * mm;
-    //_tolerance = store.fetch_dstore("pos_res") * cm;
+    X0 = store.fetch_dstore("x0Fe") * bhep::mm;
+    //_tolerance = store.fetch_dstore("pos_res") * bhep::cm;
     highPass = store.fetch_istore("high_Pass_hits");
     lowPass = store.fetch_istore("low_Pass_hits");
     lowFit1 = store.fetch_dstore("low_fit_cut0");

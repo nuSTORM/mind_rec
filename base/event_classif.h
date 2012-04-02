@@ -54,6 +54,8 @@ public:
   //Tempory for likelihoods.
   void set_int_type(const string name);
   //
+  double correctEdep(double edep, double X, double Y);
+  double RangeMomentum(double length);
   
 protected:
   
@@ -151,6 +153,8 @@ protected:
   double _visEng;
   double _trajpur, _trajEng;
   double _plEng[1000], _trajEngPlan[1000];
+
+  double _detX, _detY, _WLSAtten;
 
   void set_branches();
   void output_liklihood_info(const vector<cluster*>& hits);

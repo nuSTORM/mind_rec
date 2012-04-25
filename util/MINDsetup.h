@@ -69,6 +69,7 @@ protected:
     
   //--------------------------- VOLUMES -------------------------//
      
+  int    OctGeom;
   double MOTHER_x, MIND_x;
   double MOTHER_y, MIND_y;
   double MOTHER_z, MIND_z;

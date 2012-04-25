@@ -91,6 +91,11 @@ protected:
   double compare_nodes(const vector<Node*>& n1, const vector<Node*>& n2);
   void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
+  // Additional subroutines to deal with multiple tracks
+  bool track_from_hads(vector<cluster*>& hits, vector<cluster*>& hads,
+		       Trajectory& muontraj, vector<cluster*>& hads2);
+  bool test_new_traj(vector<cluster*> hits, Trajectory& traj, 
+		     Trajectory& muontraj, int newtype);
 
   RecpackManager& man(){
     return MINDfitman::instance().manager();}
@@ -154,6 +159,7 @@ protected:
   double _trajpur, _trajEng;
   double _plEng[1000], _trajEngPlan[1000];
 
+  int OctGeom;
   double _detX, _detY, _WLSAtten;
 
   void set_branches();

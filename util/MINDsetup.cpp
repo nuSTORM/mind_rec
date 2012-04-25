@@ -91,10 +91,14 @@ void MINDsetup::createGeom(){
     Volume* mother = new Box(pos,xaxis,yaxis,
     MOTHER_x/2,MOTHER_y/2,MOTHER_z/2);
   */
-  Volume* mother = new MINDplate(pos,xaxis,yaxis,
-				 MOTHER_x/2,MOTHER_y/2,MOTHER_z/2,
-				 MOTHER_earw,MOTHER_earh);
-    
+  Volume* mother;
+  if(OctGeom)
+    mother = new MINDplate(pos,xaxis,yaxis,
+			   MOTHER_x/2,MOTHER_y/2,MOTHER_z/2,
+			   MOTHER_earw,MOTHER_earh);
+  else
+    mother = new Tube(pos, zaxis,MOTHER_z/2, MOTHER_x/2); 
+
   _msetup.message("Mother volume generated",bhep::VERBOSE);
 
   // add mother volume
@@ -108,9 +112,13 @@ void MINDsetup::createGeom(){
   const dict::Key vol_name = "Detector";
   
   // Volume* det = new Box(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2);
-  
-  Volume* det = new MINDplate(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2,
-			      EAR_width, EAR_height);
+
+  Volume* det;
+  if(OctGeom)
+    det = new MINDplate(pos,xaxis,yaxis,MIND_x/2,MIND_y/2,MIND_z/2,
+				EAR_width, EAR_height);
+  else
+    det = new Tube(pos,zaxis,MIND_z/2,MIND_x/2);
   _msetup.message("MIND volume generated",bhep::VERBOSE);
 
   // add volume
@@ -210,8 +218,8 @@ void MINDsetup::setResolution(){
   _msetup.message("+++ setResolution function +++",bhep::VERBOSE);
 
   resolution = EVector(meas_dim,0);
-  resolution[0] = resx*mm;  
-  resolution[1] = resy*mm;  
+  resolution[0] = resx*bhep::mm;  
+  resolution[1] = resy*bhep::mm;  
   
     
   // cov of measurements
@@ -241,14 +249,14 @@ void MINDsetup::addProperties(){
   // _gsetup.set_volume_property("mother","BField",BField);
   const dict::Key vol_name = "Detector";
   //  _msetup.message("+++B Field added to MOTHER:",BField,bhep::VERBOSE);
-  // step = 1*cm;
+  // step = 1*bhep::cm;
   // _gsetup.set_volume_property_to_sons("mother","BField",BField);
   _gsetup.set_volume_property_to_sons("mother",RP::BFieldMap,BFieldMap);
   // _gsetup.set_volume_property_to_sons("mother","de_dx",de_dx);
 
   //Instead of fixed de_dx, the energy deposition ditribution map 
    
-  _de_dx_map = new DeDxMap(de_dx_min*MeV/mm);
+  _de_dx_map = new DeDxMap(de_dx_min*bhep::MeV/bhep::mm);
   _gsetup.set_volume_property_to_sons("mother",RP::de_dx_map,*_de_dx_map);
 
   _gsetup.set_volume_property_to_sons("mother",RP::SurfNormal,_zaxis);
@@ -291,34 +299,36 @@ void MINDsetup::readParam(){
     
     bhep::prlevel c = bhep::VERBOSE;
     
+    OctGeom = _pstore.find_istore("IsOctagonal") ? 
+      _pstore.fetch_istore("IsOctagonal"): 1;
 
-    MIND_x = _pstore.fetch_dstore("MIND_x") * m; 
+    MIND_x = _pstore.fetch_dstore("MIND_x") * bhep::m; 
       
-    _msetup.message("MIND height:",MIND_x/cm,"cm",c);
+    _msetup.message("MIND height:",MIND_x/bhep::cm,"cm",c);
     
-    MIND_y =  _pstore.fetch_dstore("MIND_y") * m;
+    MIND_y =  _pstore.fetch_dstore("MIND_y") * bhep::m;
       
-    _msetup.message("MIND width:",MIND_y/cm,"cm",c);
+    _msetup.message("MIND width:",MIND_y/bhep::cm,"cm",c);
     
-    MIND_z =  _pstore.fetch_dstore("MIND_z") * m;
+    MIND_z =  _pstore.fetch_dstore("MIND_z") * bhep::m;
       
-    _msetup.message("MIND length:",MIND_z/cm,"cm",c);
+    _msetup.message("MIND length:",MIND_z/bhep::cm,"cm",c);
     
-    EAR_height = _pstore.fetch_dstore("EAR_height") * m;
+    EAR_height = _pstore.fetch_dstore("EAR_height") * bhep::m;
 
-    _msetup.message("MIND ear height:",EAR_height/cm,"cm",c);
+    _msetup.message("MIND ear height:",EAR_height/bhep::cm,"cm",c);
 
-    EAR_width = _pstore.fetch_dstore("EAR_width") * m;
+    EAR_width = _pstore.fetch_dstore("EAR_width") * bhep::m;
 
-    _msetup.message("MIND ear width:",EAR_width/cm,"cm",c);
+    _msetup.message("MIND ear width:",EAR_width/bhep::cm,"cm",c);
 
     //-------------------------------------------------------------//
     //                      | INNER DIMENSIONS |                   //
     //-------------------------------------------------------------//
 
-    IRON_z = _pstore.fetch_dstore("widthI") * cm;
-    SCINT_z = _pstore.fetch_dstore("widthS") * cm;
-    AIR_z = _pstore.fetch_dstore("widthA") * cm;
+    IRON_z = _pstore.fetch_dstore("widthI") * bhep::cm;
+    SCINT_z = _pstore.fetch_dstore("widthS") * bhep::cm;
+    AIR_z = _pstore.fetch_dstore("widthA") * bhep::cm;
     nScint = _pstore.fetch_istore("nplane");
 
     //Adjust length for integer number of pieces.
@@ -330,11 +340,11 @@ void MINDsetup::readParam(){
 
     //--------------------------- VOLUMES ------------------------//
     
-    MOTHER_x = MIND_x + 10 * cm;
-    MOTHER_y = MIND_y + 10 * cm;  
-    MOTHER_z = MIND_z + 10 * cm;  
-    MOTHER_earh = EAR_height - 10 * cm;
-    MOTHER_earw = EAR_width  + 10 * cm;
+    MOTHER_x = MIND_x + 10 * bhep::cm;
+    MOTHER_y = MIND_y + 10 * bhep::cm;  
+    MOTHER_z = MIND_z + 10 * bhep::cm;  
+    MOTHER_earh = EAR_height - 10 * bhep::cm;
+    MOTHER_earw = EAR_width  + 10 * bhep::cm;
 
     // -------------------------------------------------------------//
     //                       |  MAGNETIC FIELD |                    //
@@ -349,8 +359,10 @@ void MINDsetup::readParam(){
     if(_pstore.find_sstore("mag_field_map")) {
       std::string Bmap =  _pstore.fetch_sstore("mag_field_map");
       double fieldScale = 1.0;
-      if (_pstore.find_dstore("fieldScale") ) 
+      if (_pstore.find_dstore("fieldScale") ) {
 	fieldScale = _pstore.fetch_dstore("fieldScale");
+	std::cout<<"Field Scaling is "<<fieldScale<<std::endl;
+      }
       fieldScale *= IRON_z/_pieceWidth;
       BFieldMap = MINDfieldMapReader(Bmap,fieldScale);
       //B_int = 1.0 * tesla;
@@ -361,6 +373,7 @@ void MINDsetup::readParam(){
       if (_pstore.find_dstore("fieldScale"))
 	fieldScale = _pstore.fetch_dstore("fieldScale");
       // This uses an analytic approximation of a simulated field map 
+      // std::cout<<IRON_z/_pieceWidth<<std::endl;
       fieldScale *= IRON_z/_pieceWidth;
       BFieldMap = MINDfieldMapReader(fieldScale);
     }
@@ -370,9 +383,9 @@ void MINDsetup::readParam(){
     //            |  RADIATION LENGTH AND ENERGY LOSS |             //
     // -------------------------------------------------------------//
     
-    X0Fe = _pstore.fetch_dstore("x0Fe") * mm;
-    X0Sc = _pstore.fetch_dstore("x0Sc") * mm;
-    X0AIR = _pstore.fetch_dstore("x0AIR") * m;
+    X0Fe = _pstore.fetch_dstore("x0Fe") * bhep::mm;
+    X0Sc = _pstore.fetch_dstore("x0Sc") * bhep::mm;
+    X0AIR = _pstore.fetch_dstore("x0AIR") * bhep::m;
 
     double wSc = SCINT_z / (SCINT_z + AIR_z*(nScint+1)*rel_denAS);
     double X01 = (X0Sc*X0AIR) / (wSc*(X0AIR-X0Sc) + X0Sc);
@@ -381,13 +394,14 @@ void MINDsetup::readParam(){
 
     X0Eff = 1./(_wFe/X0Fe + wSc/X01);
 
-    //de_dx = _pstore.fetch_dstore("de_dx") * MeV/cm;
+    //de_dx = _pstore.fetch_dstore("de_dx") * bhep::MeV/bhep::cm;
+    //de_dx = 1./(_wFe/de_dxFe + wSc/de_dxFe);
 
     // changed to introduce the de_dx map
       
-    de_dx_min = _pstore.fetch_dstore("de_dx_min") * MeV/mm;
+    de_dx_min = _pstore.fetch_dstore("de_dx_min") * bhep::MeV/bhep::mm;
 
-    _msetup.message("Radiation length:",X0Fe/cm,"cm",c);
+    _msetup.message("Radiation length:",X0Fe/bhep::cm,"cm",c);
 
     // -------------------------------------------------------------//
     //                       |  MEASUREMENTS |                    //
@@ -396,11 +410,11 @@ void MINDsetup::readParam(){
     meas_dim = 2;
     meastype = _pstore.fetch_sstore("meas_type");
     
-    resx = _pstore.fetch_dstore("pos_res") * cm;
-    resy = _pstore.fetch_dstore("pos_res") * cm;
+    resx = _pstore.fetch_dstore("pos_res") * bhep::cm;
+    resy = _pstore.fetch_dstore("pos_res") * bhep::cm;
     
     if(_pstore.find_dstore("StepSize")){
-      StepSize = _pstore.fetch_dstore("StepSize") * cm;
+      StepSize = _pstore.fetch_dstore("StepSize") * bhep::cm;
     }
     else{
       StepSize = 0.;

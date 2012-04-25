@@ -127,6 +127,8 @@ void event_classif::readParam() {
   _maxBlobSkip = _infoStore.fetch_dstore("maxBlobSkip");
   _minBlobOcc = _infoStore.fetch_dstore("minBlobOcc");
 
+  OctGeom  = _infoStore.find_istore("IsOctagonal") ?
+    _infoStore.fetch_istore("IsOctagonal"): 1;
   _detX = _infoStore.fetch_dstore("MIND_x") * bhep::m;
   _detY = _infoStore.fetch_dstore("MIND_y") * bhep::m;
 
@@ -422,9 +424,12 @@ bool event_classif::chargeCurrent_analysis(vector<cluster*>& hits,
       //Now I am going to create a new trajectory out of the hadron
       //hits and see if there is another potential trajectory
       // Trajectory newtraj;
-      // vector<cluster*> hads2;
-      // track_from_hads( hads, muontraj, hads2); 
-      
+      /*
+      if( hads.size() > min_seed_hits ){
+	vector<cluster*> hads2;
+	bool swapped = track_from_hads(hits, hads, muontraj, hads2); 
+      }
+      */
     }
   }
   
@@ -796,10 +801,13 @@ bool event_classif::perform_muon_extraction(const State& seed, vector<cluster*>&
 	return true;
       }
     }
-
   }
 
   if ( _endProj ) check_forwards( seed, hits, muontraj );
+  
+  sort_hits( hits, muontraj, hads );
+
+  cout<<"There are "<<hads.size()<<" hadron hits."<<endl;
   
   return true;
 }
@@ -1286,8 +1294,10 @@ void event_classif::traj_like(const vector<cluster*>& hits, const Trajectory& mu
       if ( (*hitIt3)->name( candHit ).compare("True") == 0 ){
 	_trajhit++;
 	//_trajEng += bhep::double_from_string( (*hitIt3)->name( Edep ) ) * bhep::GeV;
-	_trajEng += (*hitIt3)->get_eng() * bhep::MeV;
-	_trajEngPlan[counter] = (*hitIt3)->get_eng() * bhep::MeV;
+	double eng = correctEdep((*hitIt3)->get_eng()*bhep::MeV,
+				 (*hitIt3)->position()[0], (*hitIt3)->position()[1]);
+	_trajEng += eng;
+	_trajEngPlan[counter] = eng;
 	// if ( (*hitIt3)->name("MotherParticle").compare("mu+") == 0
 // 	     || (*hitIt3)->name("MotherParticle").compare("mu-") == 0 )
 	if ( (*hitIt3)->get_mu_prop() > 0.8 )//still to be decided.
@@ -1346,6 +1356,270 @@ void event_classif::set_int_type(const string name){
 
 }
 
+bool event_classif::track_from_hads(vector<cluster*>& hits, vector<cluster*>& hads, 
+				    Trajectory& muontraj, vector<cluster*>& hads2 ){
+
+  // Start by storing all of the parameters set by the occupancy
+  int inplanes = _nplanes;
+  double imeanOcc = _meanOcc;
+  vector<int> ihitsPerPlane = _hitsPerPlane;
+  vector<double> ienergyPerPlane = _energyPerPlane;
+  vector<double> iplaneZ = _planeZ;
+  _hitsPerPlane.clear();
+  _energyPerPlane.clear();
+  _planeZ.clear();
+
+  int iexclPlanes = _exclPlanes;
+  int ibadplanes = badplanes;
+  int ilongestSingle = _longestSingle;//length (in hits) of longest 'free' section.
+  int iendLongSing = _endLongSing;//End point of the above (position in hit vector).
+  int iendLongPlane = _endLongPlane;//Plane position of above;
+
+  State iseedState = _seedState;
+  double ivisEng = _visEng;
+  double ifreeplanes = _freeplanes;
+  int ifailType = _failType;
+
+  std::cout<<"Rerun the occupancy algorithm on the set of hadron hits.\n";
+  bool ok = get_plane_occupancy( hads );
+  
+  // Now reproduce the chargeCurrent_analysis using a new trajectory
+  Trajectory traj;
+  EVector irecChi = _recChi;
+  _recChi[1] = 100000;
+
+  int ivertGuess = _vertGuess;
+  _vertGuess = exclude_backwards_particle();
+
+  // Will be re-evaluating the nature of the hits if necessary
+  const dict::Key candHit = "inMu";
+  const dict::Key hit_in = "True";
+  const dict::Key not_in = "False";
+
+  // Remember all of the hits have passed through this process before
+  // Will have to correct the hit names once the final track has been selected.
+  if ( _longestSingle >= min_seed_hits && _endLongPlane > 0.5*(double)_nplanes ){
+    while ( _planeIt >= _hitsPerPlane.begin()+_exclPlanes+min_check && (*_planeIt) == 1){
+      traj.add_measurement( *(*_hitIt) );
+      // (*_hitIt)->set_name(candHit, hit_in);
+      _hitIt--;
+      _planeIt--;
+
+    }
+  }
+  int ilastIso = _lastIso; _lastIso = (int)traj.nmeas();
+  
+  // set to reconstruction mode (again).
+  if ( !MINDfitman::instance().in_rec_mode() )
+    MINDfitman::instance().rec_mode();
+  bool swap = false;
+
+  // Again start by looking at the simple case
+  if ( _meanOcc == 1 ){
+    if ( traj.size() != 0 ){
+      std::cout<<"Starting secondary muon extraction.\n";
+      ok = muon_extraction( hads, traj, hads2);
+    }
+    else ok = false;
+    if( ok ) swap = test_new_traj(hits, traj, muontraj, 1);
+  } else {
+    // It is almost futile to attempt to get a competing, viable trajectory from
+    // a second application of the cell_auto, but will try it anyway
+    if ( (int)traj.nmeas() > min_seed_hits ) {
+      //ok = invoke_cell_auto( hads, traj, hads2);
+      // if( ok ) swap = test_new_traj( hits, traj, muontraj, 6 );
+      //}
+      // else {
+      std::cout<<"Run the muon extraction again on the hadron hits.\n";
+      ok = muon_extraction( hads, traj, hads2);
+      if( ok ) swap = test_new_traj( hits, traj, muontraj, 7 );
+    }
+  }
+  
+  if(!swap){ // the new trajectory is not better than the first trajectory
+    // Replace all of the variables that were changed here to their original values
+    _nplanes = inplanes;
+    _meanOcc = imeanOcc;
+    _hitsPerPlane.clear();
+    _energyPerPlane.clear();
+    _planeZ.clear();
+    _hitsPerPlane = ihitsPerPlane;
+    _energyPerPlane = ienergyPerPlane;
+    _planeZ = iplaneZ;
+    
+    _exclPlanes = iexclPlanes;
+    badplanes = ibadplanes;
+    _longestSingle = ilongestSingle;//length (in hits) of longest 'free' section.
+    _endLongSing = iendLongSing;//End point of the above (position in hit vector).
+    _endLongPlane = iendLongPlane;//Plane position of above;
+    
+    _recChi = irecChi;
+    
+    _vertGuess = ivertGuess;
+
+    _lastIso = ilastIso;
+
+    _seedState = iseedState;
+    _visEng = ivisEng;
+    _freeplanes = ifreeplanes;
+    _failType = ifailType;
+     
+  }
+  traj.reset();
+  return swap;
+}
+
+bool event_classif::test_new_traj(vector<cluster*> hits, Trajectory& traj, 
+				  Trajectory& muontraj, int newtype) {
+
+  
+  const dict::Key candHit = "inMu";
+  const dict::Key hadHit = "inhad";
+  const dict::Key hit_in = "True";
+  // const dict::Key skipped = "skipped";
+  const dict::Key not_in = "False";
+
+  // the first thing 
+  bool isLonger = traj.length() > muontraj.length();
+  cout<<"Now consider the mean energy loss, and the variation of the energy loss.\n";
+  double eDepR1=0., eDepR2=0.;
+  double Edephigh1=0., Edephigh2=0., Edeplow1=0., Edeplow2=0.;
+  double meanEdep1=0., meanEdep2=0.;
+  
+  vector<double> trajEdep;
+  vector<cluster*>::iterator hitIt=hits.begin();
+  for(int iMeas=0; iMeas<traj.nmeas(); iMeas++){
+    if(traj.nodes()[iMeas]->measurement().position()[2] > (*hitIt)->position()[2]){
+      while(!(traj.nodes()[iMeas]->measurement().position() == (*hitIt)->position())
+	    && hitIt < hits.end())
+	hitIt++;
+      if(traj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()){
+	double corredep = correctEdep((*hitIt)->get_eng()*bhep::MeV, 
+				      traj.nodes()[iMeas]->measurement().position()[0], 
+				      traj.nodes()[iMeas]->measurement().position()[1]);
+	meanEdep1 += corredep;
+	trajEdep.push_back(corredep);
+	hitIt++;
+      }
+    }
+    if( hitIt == hits.end()) break;
+  }
+  vector<double> muontrajEdep;
+  hitIt=hits.begin();
+  for(int iMeas=0; iMeas<muontraj.nmeas(); iMeas++){
+    if(muontraj.nodes()[iMeas]->measurement().position()[2] > (*hitIt)->position()[2]){
+      while(!(muontraj.nodes()[iMeas]->measurement().position() == (*hitIt)->position())
+	    && hitIt < hits.end())
+	hitIt++;
+      if(muontraj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()){
+	double corredep = correctEdep((*hitIt)->get_eng()*bhep::MeV, 
+				      traj.nodes()[iMeas]->measurement().position()[0], 
+				      traj.nodes()[iMeas]->measurement().position()[1]);
+	meanEdep2 += corredep;
+	muontrajEdep.push_back(corredep);
+	hitIt++;
+      }
+    }
+    if(hitIt == hits.end()) break;
+  }
+
+  meanEdep1 /= double(trajEdep.size());
+  meanEdep2 /= double(muontrajEdep.size());
+  // A muon is expected to have a lower mean energy deposition
+  bool lowMeanEngDep = meanEdep1 < meanEdep2;
+  
+  sort(trajEdep.begin(), trajEdep.end());
+  sort(muontrajEdep.begin(), muontrajEdep.end());
+  
+  vector<double>::iterator eIt;
+  int count=0;
+  for(eIt = trajEdep.begin(); eIt < trajEdep.end(); eIt++,count++){
+    if(count < (int)trajEdep.size()/2)
+      Edeplow1 += (*eIt);
+    else if(count < 2*( (int)trajEdep.size()/2 ))
+      Edephigh1 += (*eIt);
+  }
+  count=0;
+  for(eIt = muontrajEdep.begin(); eIt < muontrajEdep.end(); eIt++,count++){
+    if(count < (int)muontrajEdep.size()/2)
+      Edeplow2 += (*eIt);
+    else if(count < 2*( (int)muontrajEdep.size()/2 ))
+      Edephigh2 += (*eIt);
+  }
+  eDepR1 = Edeplow1/Edephigh1;
+  eDepR2 = Edeplow2/Edephigh2;
+
+  // The ratio between the 
+  bool lowEngVar = eDepR1 > eDepR2;
+  
+  bool isnewtraj = isLonger && (lowMeanEngDep && lowEngVar);
+  
+  if( isnewtraj ){ // then all the hits in "muontraj" must be renamed as had hits 
+    cout<<"New trajectory is better.\n";
+    hitIt=hits.begin();
+    for(int iMeas=0; iMeas<muontraj.nmeas(); iMeas++){
+      if(muontraj.nodes()[iMeas]->measurement().position()[2] < (*hitIt)->position()[2])
+	continue;
+      else {
+	while(!(muontraj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()) 
+	      && hitIt < hits.end())
+	  hitIt++;
+	if(muontraj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()){
+	  (*hitIt)->set_name(hadHit,hit_in);
+	  (*hitIt)->set_name(candHit,not_in);
+	  hitIt++;
+	}
+      }
+      if(hitIt == hits.end()) break;
+    }
+    hitIt=hits.begin();
+    for(int iMeas=0; iMeas<traj.nmeas(); iMeas++){
+      if(traj.nodes()[iMeas]->measurement().position()[2] < (*hitIt)->position()[2])
+	continue;
+      else {
+	while(!(traj.nodes()[iMeas]->measurement().position() == (*hitIt)->position())
+	      && hitIt < hits.end())
+	  hitIt++;
+	if(traj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()){
+	  (*hitIt)->set_name(candHit,hit_in);
+	  (*hitIt)->set_name(hadHit,not_in);
+	  hitIt++;
+	}
+      }
+      if(hitIt == hits.end()) break;
+    }
+    //  and the two trajectories must swap names
+    Trajectory swap = muontraj;
+    muontraj.reset();
+    muontraj = traj;
+    traj.reset();
+    traj = swap;
+    swap.reset();
+    // Set interaction type
+    _intType = newtype;
+    cout<<"Trajectory swap is now complete.\n";
+
+  } else { // then all the hits in "traj" must be renamed as had hits.
+    cout<< "Reject the hadron track as the muon track.\n";
+    hitIt=hits.begin();
+    for(int iMeas=0; iMeas<traj.nmeas(); iMeas++){
+      if(traj.nodes()[iMeas]->measurement().position()[2] < (*hitIt)->position()[2])
+	continue;
+      else {
+	while(!(traj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()) &&
+	      hitIt < hits.end())
+	  hitIt++;
+	if(traj.nodes()[iMeas]->measurement().position() == (*hitIt)->position()){
+	  (*hitIt)->set_name(candHit,not_in);
+	  (*hitIt)->set_name(hadHit,hit_in);
+	  hitIt++;
+	}
+      }
+      if(hitIt == hits.end()) break;
+    }
+  }
+  return (isnewtraj);
+}
 
 double event_classif::correctEdep(double edep, double X, double Y)
 {
@@ -1354,48 +1628,57 @@ double event_classif::correctEdep(double edep, double X, double Y)
   
   double slope = (_detY - _detX*tan(atan(1)/2.))/
     (_detY*tan(atan(1)/2.) - _detX);
-
-  //need to take into account drift distance to closest and furthest edge.
-  if((fabs(X) < _detY*tan(atan(1)/2.)/2 &&
-      fabs(Y) < _detX*tan(atan(1)/2.)/2 ) ){
-    sum1 =  exp( -(_detX/2 - fabs(X))/_WLSAtten );
-    sum1 += exp( -(_detX/2 + fabs(X))/_WLSAtten );
-    sum1 += exp( -(_detY/2 - fabs(Y))/_WLSAtten );
-    sum1 += exp( -(_detY/2 + fabs(Y))/_WLSAtten );
-  }
-  else if(fabs(X) > _detY*tan(atan(1)/2.)/2 &&
-	  fabs(Y) < _detX*tan(atan(1)/2.)/2  ){
-    double xedge = _detX/2 + (fabs(Y) - 
-				   _detX/2.*tan(atan(1)/2.))*slope;
-    sum1 =  exp( -(xedge  - fabs(X))/_WLSAtten );
-    sum1 += exp( -(xedge + fabs(X))/_WLSAtten );
-    sum1 += exp( -(_detY/2 - fabs(Y))/_WLSAtten );
-    sum1 += exp( -(_detY/2 + fabs(Y))/_WLSAtten );
-  }
-  else if(fabs(X) < _detY*tan(atan(1)/2.)/2 &&
-	  fabs(Y) > _detX*tan(atan(1)/2.)/2  ){
-    double yedge = _detY/2 + (fabs(X) - 
-				   _detY/2.*tan(atan(1)/2.))*slope;
-    sum1 =  exp( -(_detX/2 - fabs(X))/_WLSAtten );
-    sum1 += exp( -(_detX/2 + fabs(X))/_WLSAtten );
-    sum1 += exp( -(yedge - fabs(Y))/_WLSAtten );
-    sum1 += exp( -(yedge + fabs(Y))/_WLSAtten );
-  }
-  else if(fabs(X) > _detY*tan(atan(1)/2.)/2 &&
-	  fabs(Y) > _detX*tan(atan(1)/2.)/2  ){
-    double xedge = _detX/2 + (fabs(Y) - 
-				   _detX/2.*tan(atan(1)/2.))*slope;
-    double yedge = _detY/2 + (fabs(X) - 
-				   _detY/2.*tan(atan(1)/2.))*slope;
+  if(!OctGeom){ // Assume a cylindrical geometry
+    double xedge = _detX * sqrt(1 - pow(Y/_detY, 2));
+    double yedge = _detY * sqrt(1 - pow(X/_detX, 2));
     sum1 =  exp( -(xedge - fabs(X))/_WLSAtten );
     sum1 += exp( -(xedge + fabs(X))/_WLSAtten );
     sum1 += exp( -(yedge - fabs(Y))/_WLSAtten );
     sum1 += exp( -(yedge + fabs(Y))/_WLSAtten );
   }
-  
+  else {
+    //need to take into account drift distance to closest and furthest edge.
+    if((fabs(X) < _detY*tan(atan(1)/2.)/2. &&
+	fabs(Y) < _detX*tan(atan(1)/2.)/2. ) ){
+      sum1 =  exp( -(_detX/2 - fabs(X))/_WLSAtten );
+      sum1 += exp( -(_detX/2 + fabs(X))/_WLSAtten );
+      sum1 += exp( -(_detY/2 - fabs(Y))/_WLSAtten );
+      sum1 += exp( -(_detY/2 + fabs(Y))/_WLSAtten );
+    }
+    else if(fabs(X) > _detY*tan(atan(1)/2.)/2. &&
+	    fabs(Y) < _detX*tan(atan(1)/2.)/2.  ){
+      double xedge = _detX/2 + (fabs(Y) - 
+				_detX/2.*tan(atan(1)/2.))*slope;
+      sum1 =  exp( -(xedge  - fabs(X))/_WLSAtten );
+      sum1 += exp( -(xedge + fabs(X))/_WLSAtten );
+      sum1 += exp( -(_detY/2 - fabs(Y))/_WLSAtten );
+      sum1 += exp( -(_detY/2 + fabs(Y))/_WLSAtten );
+    }
+    else if(fabs(X) < _detY*tan(atan(1)/2.)/2 &&
+	    fabs(Y) > _detX*tan(atan(1)/2.)/2  ){
+      double yedge = _detY/2 + (fabs(X) - 
+				_detY/2.*tan(atan(1)/2.))*slope;
+      sum1 =  exp( -(_detX/2 - fabs(X))/_WLSAtten );
+      sum1 += exp( -(_detX/2 + fabs(X))/_WLSAtten );
+      sum1 += exp( -(yedge - fabs(Y))/_WLSAtten );
+      sum1 += exp( -(yedge + fabs(Y))/_WLSAtten );
+    }
+    else if(fabs(X) > _detY*tan(atan(1)/2.)/2 &&
+	    fabs(Y) > _detX*tan(atan(1)/2.)/2  ){
+      double xedge = _detX/2 + (fabs(Y) - 
+				_detX/2.*tan(atan(1)/2.))*slope;
+      double yedge = _detY/2 + (fabs(X) - 
+				_detY/2.*tan(atan(1)/2.))*slope;
+      sum1 =  exp( -(xedge - fabs(X))/_WLSAtten );
+      sum1 += exp( -(xedge + fabs(X))/_WLSAtten );
+      sum1 += exp( -(yedge - fabs(Y))/_WLSAtten );
+      sum1 += exp( -(yedge + fabs(Y))/_WLSAtten );
+    }
+  }
   double corrEng = 4*edep/sum1;
   return corrEng;
 }
+
 
 
 double event_classif::RangeMomentum(double length){

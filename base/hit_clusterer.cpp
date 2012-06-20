@@ -15,12 +15,13 @@ hit_clusterer::hit_clusterer(const bhep::gstore& store)
 
   _minEng = store.fetch_dstore("min_eng") * MeV;
 
-  _vInX = (int)( (store.fetch_dstore("MIND_x")*m) / (store.fetch_dstore("rec_boxX")*cm) );
+  ///MIND_x D 14 (m), rec_boxX D 3.5 (cm) 
+  _vInX = (int)( (store.fetch_dstore("MIND_x")*m) / (store.fetch_dstore("rec_boxX")*cm) );//400 cm
 
   _cov = EMatrix(2,2,0);
   for (int i = 0;i < 2;i++)
     _cov[i][i] = pow( _sigMa, 2 );
-
+  
   _measType = store.fetch_sstore("meas_type");
   
 }
@@ -33,13 +34,15 @@ void hit_clusterer::execute(const std::vector<bhep::hit*>& deps,
 			    std::vector<cluster*>& clusts)
 {
   //take a vector of voxel hits and make clusters.
+  cout<<"I am in hit_clusterer::execute "<<endl;
   double zplane;
   std::vector<bhep::hit*>::const_iterator depIt;
   std::map<int,bhep::hit*> plane_hits;
 
   zplane = (*deps.begin())->x()[2];
+ 
   for (depIt = deps.begin();depIt != deps.end();depIt++){
-
+    // cout<<"zplane ="<<zplane<<" (*depIt)->x()[2]="<<(*depIt)->x()[2]<<endl;
     if ( (*depIt)->x()[2] != zplane ){
 
       //have all hits in this plane so add the clusters to vector.
@@ -88,8 +91,10 @@ void hit_clusterer::form_clusters(double zpos, std::map<int,bhep::hit*>& deps,
   std::map<int,bhep::hit*>::iterator mIt;
 
   std::map<int,double> clhit;
-  clhit.insert( pair<int,double>(vox1, deps.begin()->second->fetch_dproperty("TotalEng")) );
   std::map<int,double>::iterator dIt;
+  ///insert vox1 and its corresponding energy in clhit map
+  clhit.insert( pair<int,double>(vox1, deps.begin()->second->fetch_dproperty("TotalEng")) );
+  
 
   int isearch[] = {_vInX+1,_vInX,_vInX-1,1,-1,-(_vInX-1),-_vInX,-(_vInX+1)};
   
@@ -99,10 +104,11 @@ void hit_clusterer::form_clusters(double zpos, std::map<int,bhep::hit*>& deps,
 
       mIt = deps.find( vox1 - isearch[ineigh] );
 
+      //      cout<<"_vInX="<<isearch[ineigh]<<"   "<<(*mIt).first<<"   "<<(*mIt).second->x()[2]<<"   "<<clhit.begin()->second<<endl;
       if ( mIt != deps.end() )
 	clhit.insert( pair<int,double>(vox1 - isearch[ineigh],
 				       (*mIt).second->fetch_dproperty("TotalEng")) );
-
+  
     }
     if ( clhit.size() == 1){
       cluster* cl1 = make_cluster( zpos, deps[clhit.begin()->first] );
@@ -150,6 +156,7 @@ void hit_clusterer::form_clusters(double zpos, std::map<int,bhep::hit*>& deps,
       
   }
 
+ 
 }
 
 int hit_clusterer::get_max_vox(const std::map<int,double>& voxes)
@@ -194,6 +201,10 @@ cluster* hit_clusterer::make_cluster(double zpos, bhep::hit* dep)
   me->set_name("volume", "Detector");
   me->set_position( meas_pos );
 
+  //for multiple track
+  me->set_hv("energy", HyperVector(0,0));
+  me->set_hv("MuonProp", HyperVector(0,0));
+
   me->add_hit( dep );
 
   return me;
@@ -217,6 +228,7 @@ cluster* hit_clusterer::make_cluster(const EVector& vec,
   for (depIt2 = deps.begin();depIt2 != deps.end();depIt2++)
     me->add_hit( (*depIt2) );
 
+  
   return me;
 }
 

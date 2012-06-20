@@ -24,4 +24,8 @@ void cluster::add_hit(bhep::hit* dep)
 
   _nhit += dep->idata( "NoPoints" );
 
+  /// added to extract multiple track informations
+  set_hv("energy", HyperVector(_eng,0)); 
+  set_hv("MuonProp", HyperVector(_muProp,0)); 
+
 }

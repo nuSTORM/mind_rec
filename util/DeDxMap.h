@@ -9,7 +9,7 @@ using namespace Recpack;
 using namespace bhep;
 
 #define NPBINS 28
-const double  _de_dx_min_def = 0.195*MeV/mm;
+const double  _de_dx_min_def = 0.195*bhep::MeV/bhep::mm;
 
 namespace Recpack {
 

@@ -1,4 +1,4 @@
-#include "DeDxMap.hxx"
+#include "DeDxMap.h"
 #include <recpack/Definitions.h>
 
 //*******************************************************

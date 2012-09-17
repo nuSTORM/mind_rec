@@ -23,7 +23,7 @@ bool shower_rec::initialize( double tol, double resolution ){
 //*******************************
 bool shower_rec::execute( shower& had_shower ){
 //*******************************
-
+  cout<<"execute shower_rec "<<endl;
   bool ok;
 
   reset();

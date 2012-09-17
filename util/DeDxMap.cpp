@@ -157,7 +157,7 @@ double Recpack::DeDxMap::property(const State& state) const{
   return de_dx;
 
 }
-//TG
+///
 /*/*************************************************************
 double Recpack:: DeDxMap :: getDeDx_map(double mom){
   //*************************************************************

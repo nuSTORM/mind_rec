@@ -34,33 +34,40 @@ public:
   virtual ~fitter();
     
   //------------------ main functions ---------------// 
-  //init
   //bool initialize(const bhep::sstore&) ;
-  void initialize();
-  //exe
-  bool execute(bhep::particle& part,int evNo);
-  //end
-  void finalize() ;
+  void Initialize();
+  bool Execute(bhep::particle& part,int evNo);
+  void Finalize() ;
   //-------------------------------------------------// 
   //Getters.    
-  const Trajectory& get_traj(){ 
-    if (reseed_ok) return _traj2;
-    else return _traj; }
-  EVector& get_had_unit(){ return _hadunit; }
-  double get_had_eng(){ return _hadEng; }
-  int get_fail_type(){ return _failType; }
-  bool check_reseed(){ return reseed_ok; }
+  
+  std::vector<Trajectory*>&  GetTrajs(){return _trajs; }///
+  //std::vector<Trajectory*>&  get_fitted_trajs(){return _vFittedTrajs; }///
+ 
+  // dict::dictionary <double> getQualityMap(){ if (_reseed_ok) return _traj2->qualitymap(); 
+  //else return _traj->qualitymap(); }
 
-  cluster* get_meas(int num){return _meas[num];}
-  std::vector<cluster*> get_meas_vec(){ return _meas; }
-  int get_nMeas(){return (int)_meas.size();}
+  //CA traj
+  //  const Trajectory& get_CA_traj(){ 
+  //    if (get_classifier().get_int_type()==5) return *_traj; }
+
+  std::vector<cluster*> get_CA_meas_vec(){ if (get_classifier().get_int_type()==5) return _meas; }
+ 
+  EVector& GetHadUnit(){ return _hadunit; }
   
-  MINDsetup getgeom() { return geom; }
-  double getChi2(){ return _traj.quality(); }
+  double GetHadEng(){ return _hadEng; }
+  int GetFailEvent(){ return _failEvent; }///
+  bool CheckReseed(){ return _reseed_ok; }
+
+  cluster* GetMeas(int num){return _meas[num];}
+  std::vector<cluster*> GetMeasVec(){ return _meas; }
+  int GetNMeas(){return (int)_meas.size();}
+  
+  MINDsetup GetGeom() { return geom; }
   //
-  cluster* getMeasurement(bhep::hit& hit);
+  cluster* GetMeasurement(bhep::hit& hit);
   
-  int getQ();
+  int GetQ(const Trajectory& traj);
   double GetInitialqP(){ return _initialqP; }
   //Tempory for likelihoods.
   void set_int_type(const string name){
@@ -76,9 +83,6 @@ public:
 
   event_classif& get_classifier(){ return _classify; }
   
-  double Chi2Diff_protonHyp(){ return _chi2diff; }
-  bool   IsMuon() { return noprot; }
-
   //fit twice
 
   //void setRefit(bool ok){refit=ok;}
@@ -88,40 +92,44 @@ protected:
   //void resetVirtualPlanes(); 
 
   //read parameters from store
-  void readParam();
+  void ReadParam();
     
   //seed for fit
-  void computeSeed(int firsthit=0);
-  void setSeed(EVector v, int firsthit=0);
-  void mom_from_parabola(int nplanes, int firsthit, EVector& V);
-  void mom_from_range(int nplanes, int firsthit, EVector& V);
-  void set_de_dx(double mom);
-
+  void ComputeSeed(const Trajectory& traj,State& seed, int firsthit=0);
+  void ComputeMomFromParabola(const Trajectory& traj, int nplanes, int firsthit, EVector& V);
+  void ComputeMomFromRange(const Trajectory& traj, int nplanes, int firsthit, EVector& V);
 
   //seed error
-  EMatrix setSeedCov(EMatrix C0, double factor);
+  void ApplyCovarianceFactor(double factor, EMatrix& C0);
  
   //fit trajectory
-  bool fitTrajectory(State seed);
-  bool reseed_traj();
+  bool FitTrajectory(Trajectory& traj, const State& seed, const int trajno);
+  bool ReseedTrajectory(Trajectory& traj,const int trajno);
   //bool fitHadrons();
   //double eng_scale(double visEng);
-  
-  // check proton hypothesis
-  bool test_de_dx(State baseseed);
 
   //-------- get traj from event----------//
   bool readTrajectory(const bhep::particle& part);
-  //get unfitted rec traj, i.e, measurements
-  bool recTrajectory(const bhep::particle& part); 
+
+  // Create a single trajectory with all measurements when the PR is off
+  bool CreateSingleTrajectory(Trajectory& traj); 
+
+  // Create measurements from hits
+  bool CreateMeasurements(const bhep::particle& part); 
+
+
   // Check traj passes cuts for fitting.
-  bool check_valid_traj();
+  bool CheckValidTraj(const Trajectory& traj);
+
+
+  ///calcute seed for refit
+  void ComputeSeedRefit(const Trajectory& traj, State& seedState);
   //string getPlaneName(bhep::hit);
   //--------------------------------------//
   
-  bool checkQuality();
+  bool CheckQuality(const Trajectory& traj);
     
-  void reset();
+  void Reset();
 
 protected:
 
@@ -137,54 +145,63 @@ protected:
   //size_t pnumber;
   
   //Parameters to define fitting method.
-  bool refit; //Do second fit.
+  bool _refit; //Do second fit.
   bool patternRec; //Pattern recognition algorithm required?
 
-  int min_seed_hits; //Minimum isolated hits required for Prec seed.
-  double min_iso_prop;
+  int _min_seed_hits; //Minimum isolated hits required for Prec seed.
+  double _min_iso_prop;
 
   //bit to tell if reseed perfromed
-  bool reseed_ok;
+  bool _reseed_ok;
+  bool _reseed_called ;
+  bool _fitted;
 
   //------------------ Physics -----------------//
     
-  double X0;
+  double _X0;
 
   int dim; //dimension of model state
   //int meas_dim; //dimension of measurement
   //double _tolerance; //pos. resolution/plane tolerance
   
-  State seedstate;   
+  State _seedstate;   
   //EVector qoverp;
   double _initialqP;
-
+  
   string model;  // fit model
   //string kfitter; // kind of fit
-    
+  
   //double chi2node_max;
   //int max_outliers;
-  double chi2fit_max;
-  double facRef;
+  double _chi2fit_max;
+  double _facRef;
 
   //Detector name for hit getter. made members 26/11, weird error day.
   string _detect;
-  int highPass;
-  int lowPass;
-  double lowFit1, lowFit2;
-    
-  Trajectory _traj;
-  Trajectory _traj2;
-  // singular test for consistency with proton
-  Trajectory _traj1;
-  // measurement_vector _meas;
-//   measurement_vector _hadmeas;
+  int _highPass;
+  int _lowPass;
+  double _lowFit1, _lowFit2;
+  
+  
+  //Trajectory* _traj2 ;
+  //std::vector<Trajectory*> _vFittedTrajs;///
+  std::vector<Trajectory*> _trajs;  //
+
+
+
   std::vector<cluster*> _meas;
   std::vector<cluster*> _hadmeas;
+
+ 
 
   //value set to identify where a traj failed:
   //0=too few hits. 1=too many hits. 2=outside fiducial. 3=no convergence with kink.
   //4=Couldn't find seed for patrec. 5=Failed in pat rec filtering
   int _failType;
+  int _failEvent;
+  int _intType ;///
+  int _pr_count;///
+  // int reseed_count;
 
   //size_t nnodes;
 
@@ -192,7 +209,7 @@ protected:
   EVector _hadunit;
   double _hadEng;
   
-  
+ 
   // Stuff relevant for event classification, will be uncommented when needed.
   event_classif _classify;
 
@@ -201,10 +218,7 @@ protected:
 
   bool _doClust;
   //
-  // the results for a test of the plausibility of a neutrino track
-  bool noprot;
-  double _chi2diff;
-
+  std::vector<State> _vPR_seed;
   //-------------- verbosity levels ------------//
 
   //int vfit,vnav,vmod,vmat,vsim;

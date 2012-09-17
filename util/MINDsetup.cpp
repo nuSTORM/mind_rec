@@ -6,6 +6,8 @@
 #include <mind/MINDplate.h>
 #include <mind/DeDxMap.h>
 
+#include <bhep/system_of_units.h>
+
 
 
 //*************************************************************

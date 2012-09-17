@@ -32,7 +32,7 @@ public:
   //void initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, Setup& det, double wFe);
   void initialize(const bhep::gstore& pstore, bhep::prlevel vlevel, double wFe);
   bool execute(vector<cluster*>& hits,
-	       Trajectory& muontraj, vector<cluster*>& hads);
+	       vector<Trajectory*>& vmuontraj, vector<cluster*>& hads);
   void finalize();
   //-------------------------------------------//
   
@@ -42,18 +42,32 @@ public:
   int get_fail_type(){ return _failType; }
   EVector& get_PatRec_Chis(){ return _recChi; }
   State& get_patRec_seed(){ return _seedState; }
+  std::vector<State>& get_patRec_seed_vector(){ return _vPR_seed; }////
   int get_last_iso(){ return _lastIso; }
   double get_vis_eng(){ return _visEng; }
   int get_planes(){ return _nplanes; }
   int get_free_planes(){ return _freeplanes; }
+  double get_xtent(){ return _Xtent; }
   //
+
+  //*********************************** 
+  ///
+  // int get_traj_no(){ return _trajs_no; }
+ 
+  // std::vector<Trajectory*>&  get_trajs(){return _vmuontrajs; }
+ 
+ 
+//Getters.    
+  // Trajectory& get_best_traj(){ return best_traj; }
+  //********************************************
   
   bool get_plane_occupancy(vector<cluster*>& hits);
+  bool get_radial_occupancy(vector<cluster*>& hits);///
   void assess_event(vector<cluster*>& hits);
   
   //Tempory for likelihoods.
   void set_int_type(const string name);
-  //
+  //R
   double correctEdep(double edep, double X, double Y);
   double RangeMomentum(double length);
   
@@ -66,6 +80,9 @@ protected:
   //Functions to be performed on CC mu candidates.  
   bool chargeCurrent_analysis(vector<cluster*>& hits,
 			      Trajectory& muontraj, vector<cluster*>& hads);
+  bool muon_extraction_through_PatterRec(vector<cluster*>& hits,
+			      Trajectory& muontraj, vector<cluster*>& hads);
+  void fill_traj_info(Trajectory& muontraj);
   int exclude_backwards_particle();
   bool muon_extraction(vector<cluster*>& hits,
 		       Trajectory& muontraj, vector<cluster*>& hads);
@@ -91,11 +108,15 @@ protected:
   double compare_nodes(const vector<Node*>& n1, const vector<Node*>& n2);
   void select_trajectory(vector<Trajectory*>& trajs, Trajectory& muontraj);
   //
-  // Additional subroutines to deal with multiple tracks
-  bool track_from_hads(vector<cluster*>& hits, vector<cluster*>& hads,
-		       Trajectory& muontraj, vector<cluster*>& hads2);
+
+// Additional subroutines to deal with multiple tracks
+  // bool track_from_hads(vector<cluster*>& hits, vector<cluster*>& hads,
+  //	       Trajectory& muontraj, vector<cluster*>& hads2);
+  bool track_from_hads( vector<cluster*>& hads,
+  	       Trajectory& muontraj, vector<cluster*>& hads2);
   bool test_new_traj(vector<cluster*> hits, Trajectory& traj, 
 		     Trajectory& muontraj, int newtype);
+
 
   RecpackManager& man(){
     return MINDfitman::instance().manager();}
@@ -119,12 +140,14 @@ protected:
   int _intType;
   int _lastIso;
   
+  
   //interator for hits and container for estimated 'vertex' hit.
   vector<cluster*>::iterator _hitIt;
   vector<int>::iterator _planeIt;
   int _vertGuess;
+  double _vertGuessZ;
   int _exclPlanes;
-  int badplanes;
+  int _badplanes;
   int _longestSingle;//length (in hits) of longest 'free' section.
   int _endLongSing;//End point of the above (position in hit vector).
   int _endLongPlane;//Plane position of above;
@@ -137,21 +160,29 @@ protected:
   EVector _recChi;
   State _seedState;
 
-  double FeWeight;
-  int max_consec_missed_planes;
-  double min_plane_prop;
-  int min_seed_hits;
-  int min_check;
-  int min_hits;
-  double chi2_max;
-  double max_coincedence;
+  double _FeWeight;
+  int _max_consec_missed_planes;
+  int _min_seed_hits;
+  int _min_check;
+  int _min_hits;
+  double _min_plane_prop;
+  double _chi2_max;
+  double _max_coincedence;
   double _pieceLength;
+  //
+  int _max_hits;
+  int _max_nmult;
 
   //Output Likilihood info?
   bool _outLike;
   TFile *_outFileEv;
   TTree *_likeTree;
+
   //
+  vector<int> _vRadCount ;
+  vector<int>::iterator _RadIt;
+  int _radialLongest;///
+  int _radialFree;///
 
   int _nhit, _trajhit, _truInt;
   int _freeplanes, _occ[1000], _trclusthits[1000];
@@ -159,14 +190,25 @@ protected:
   double _trajpur, _trajEng;
   double _plEng[1000], _trajEngPlan[1000];
 
-  int OctGeom;
+  //
   double _detX, _detY, _WLSAtten;
+
 
   void set_branches();
   void output_liklihood_info(const vector<cluster*>& hits);
   void traj_like(const vector<cluster*>& hits, const Trajectory& muontraj);
   void out_like();
   //
+
+
+  ///int _trajs_no;
+  double _Xtent; 
+  bool _assess_event;///
+ ///to get no of trajectories
+ // std::vector<Trajectory*> _trajs;///for CA
+  std::vector<State> _vPR_seed;
+
+ 
 
 
 };

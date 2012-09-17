@@ -66,13 +66,16 @@ int main(int argc, char* argv[]){
   MINDplotter plot = MINDplotter();
   
   //catchOk = fit->initialize();
-  fit.initialize();
+  fit.Initialize();
   
   bool patR = ana_store.fetch_istore("patRec");
   bool clusts = ana_store.fetch_istore("do_clust");
   
   //catchOk = plot->initialize(run_store.fetch_sstore("out_file"),bhep::MUTE);
-  plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
+    plot.initialize(ana_store.fetch_sstore("out_file"), patR, clusts, bhep::MUTE);
+
+  /// changed to get CA output
+  //  plot.initialize(ana_store.fetch_sstore("out_file"), ana_store.fetch_sstore("CA_file"), patR, clusts, bhep::MUTE);
   
   vector<string> input_data = data_store.fetch_svstore("idst_files");
   
@@ -109,10 +112,14 @@ int main(int argc, char* argv[]){
 	    
 	    if (parts[part]->name()=="void") continue;
 	    
-	    fitOk = fit.execute(*parts[part],e.event_number());
+	    fitOk = fit.Execute(*parts[part],e.event_number());
 	    
-	    plot.execute(fit, e, fitOk);
-	    
+	    ///for single track plotter
+	    //	    plot.execute(fit, e, fitOk);
+
+	    ///for multiple track plotter
+	    plot.execute(fit, e);
+	     
 	  }
 	}
 	
@@ -129,7 +136,7 @@ int main(int argc, char* argv[]){
     
   }
   
-  fit.finalize();
+  fit.Finalize();
   
   plot.finalize();
   

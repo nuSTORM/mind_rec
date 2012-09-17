@@ -42,7 +42,7 @@ namespace Recpack {
 
     double de_dx_min(){return _de_dx_min;}
     
-    // double getDeDx_map(double mom);//TG
+    // double getDeDx_map(double mom);///
   };
     
 } 

@@ -25,6 +25,7 @@ class cluster: public Measurement
   //add a contibuting hit.
   void add_hit(bhep::hit* dep);
 
+ 
   //Getters.
   double get_eng(){ return _eng; }
   int get_nhits(){ return _nhit; }
@@ -50,6 +51,7 @@ class cluster: public Measurement
 
   double _eng;
 
+ 
   double _muProp;
 
 };
